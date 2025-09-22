@@ -69,6 +69,68 @@ function AppContent() {
             It's like having superpowers, but for organization! ⚡
           </div>
         </div>
+
+        {/* AI Prompt Integration */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">🤖 AI Assistant Prompt</h3>
+            <p className="text-sm text-gray-600">
+              Use this prompt with your AI assistant to organize raw notes into structured tasks:
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Copy this prompt to your AI assistant:
+              </label>
+              <textarea
+                readOnly
+                rows={20}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-sm font-mono resize-none"
+                value={`You are an assistant helping two partners with ADHD organize their weekly tasks.
+Rephrase and prioritize the following notes into clear, concise, past-tense, objective-style tasks.
+Assign each task a priority category:
+- A1–A3 = Urgent & important (A1 highest)
+- B1–B3 = Important but less urgent
+- C1–C3 = Nice to do, low urgency
+- D = Can be postponed or ignored
+
+Format each task exactly like this:
+[PRIORITY] Task description (assigned to: Me / Partner / Both) [Day of Week, optional time]
+
+Separate each task with three dashes on its own line, like this:
+---
+
+Example:
+A1 Finish project report (assigned to: Me) [Monday, 9:00 AM]
+---
+B2 Call plumber about leak (assigned to: Both) [Wednesday]
+---
+D Organize bookshelf (assigned to: Partner)
+
+Do not include any extra commentary or numbering.
+Only output the tasks in the exact format above, with \`---\` as the delimiter between them.`}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Paste AI output here to import tasks:
+              </label>
+              <textarea
+                rows={8}
+                placeholder="Paste the AI-generated tasks here..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm font-mono resize-none"
+              />
+              <button
+                className="mt-3 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                Import AI Tasks
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </Layout>
   );

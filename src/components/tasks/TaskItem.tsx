@@ -27,6 +27,36 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   const isOwner = task.createdBy === user?.id;
   const createdByPartner = task.createdBy === partner?.id;
 
+  // Get assignment styling
+  const getAssignmentStyle = () => {
+    if (task.assignedTo === 'Both') {
+      return 'border-purple-200 bg-gradient-to-r from-pink-50 via-purple-50 to-blue-50';
+    } else if (task.assignedTo === 'Partner') {
+      return 'border-blue-200 bg-blue-50';
+    } else if (task.assignedTo === 'Me') {
+      return 'border-pink-200 bg-pink-50';
+    } else if (isShared) {
+      return 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50';
+    } else {
+      return 'border-gray-200 hover:border-gray-300';
+    }
+  };
+
+  // Get assignment icon and text
+  const getAssignmentInfo = () => {
+    if (task.assignedTo === 'Both') {
+      return { icon: Users, text: 'Both partners', color: 'text-purple-600' };
+    } else if (task.assignedTo === 'Partner') {
+      return { icon: User, text: partner?.name || 'Partner', color: 'text-blue-600' };
+    } else if (task.assignedTo === 'Me') {
+      return { icon: User, text: 'You', color: 'text-pink-600' };
+    } else if (createdByPartner) {
+      return { icon: User, text: partner?.name || 'Partner', color: 'text-blue-600' };
+    } else {
+      return { icon: User, text: 'By you', color: 'text-gray-600' };
+    }
+  };
+
   const priorityConfig = {
     A: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', emoji: '🔥' },
     B: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', emoji: '🟠' },
@@ -133,9 +163,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   return (
     <div 
       className={`group bg-white rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md ${
-        isShared 
-          ? 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50' 
-          : 'border-gray-200 hover:border-gray-300'
+        getAssignmentStyle()
       } ${task.completed ? 'opacity-75' : ''} ${isDragging ? 'opacity-50 rotate-3' : ''}`}
       style={{ borderLeftColor: task.color, borderLeftWidth: '4px' }}
     >
@@ -176,28 +204,33 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
           {/* Metadata */}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center space-x-3 text-xs text-gray-500">
-              {/* Creator/Assignee Info */}
+              {/* Assignment Info */}
               <div className="flex items-center space-x-1">
-                {isShared ? (
-                  <>
-                    <Users className="h-3 w-3" />
-                    <span>Shared</span>
-                  </>
-                ) : createdByPartner ? (
-                  <>
-                    <User className="h-3 w-3" />
-                    <span>By {partner?.name}</span>
-                  </>
-                ) : (
-                  <>
-                    <User className="h-3 w-3" />
-                    <span>By you</span>
-                  </>
-                )}
+                {(() => {
+                  const assignmentInfo = getAssignmentInfo();
+                  const IconComponent = assignmentInfo.icon;
+                  return (
+                    <>
+                      <IconComponent className={`h-3 w-3 ${assignmentInfo.color}`} />
+                      <span className={assignmentInfo.color}>{assignmentInfo.text}</span>
+                    </>
+                  );
+                })()}
               </div>
 
-              {/* Date Info */}
-              {(showDate || task.scheduledDate) && (
+              {/* Day and Time Info */}
+              {(task.dayOfWeek || task.timeOfDay) && (
+                <div className="flex items-center space-x-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>
+                    {task.dayOfWeek}
+                    {task.timeOfDay && ` at ${task.timeOfDay}`}
+                  </span>
+                </div>
+              )}
+
+              {/* Date Info (fallback) */}
+              {!task.dayOfWeek && (showDate || task.scheduledDate) && (
                 <div className="flex items-center space-x-1">
                   <Calendar className="h-3 w-3" />
                   <span>
