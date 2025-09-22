@@ -7,6 +7,7 @@ import { PartnerManager } from './components/auth/PartnerManager';
 import { TaskForm } from './components/tasks/TaskForm';
 import { TodaysTasks } from './components/tasks/TodaysTasks';
 import { AIImport } from './components/tasks/AIImport';
+import { AIPromptSection } from './components/tasks/AIPromptSection';
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar';
 
 // 🚀 Main App Component - Where the magic happens
@@ -56,6 +57,9 @@ function AppContent() {
 
         {/* Weekly Calendar */}
         <WeeklyCalendar />
+
+        {/* AI Prompt Section */}
+        <AIPromptSection />
 
         {/* Footer with Jarvis Wisdom */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-6 text-center">

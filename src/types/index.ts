@@ -5,10 +5,11 @@ export interface User {
   email?: string;
   partnerId?: string;
   inviteCode: string;
+  color: string; // User's chosen color (default pink for user, blue for partner)
   createdAt: string;
 }
 
-export type Priority = 'A' | 'B' | 'C' | 'D';
+export type Priority = 'A1' | 'A2' | 'A3' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | 'D';
 
 export interface Task {
   id: string;
@@ -18,10 +19,11 @@ export interface Task {
   color: string;
   completed: boolean;
   createdBy: string;
-  assignedTo?: string;
+  assignedTo: 'Me' | 'Partner' | 'Both'; // Required field for assignment
   sharedWith?: string;
   dueDate?: string;
   scheduledDate?: string; // For calendar scheduling
+  scheduledTime?: string; // Optional time for tasks
   createdAt: string;
   updatedAt: string;
 }

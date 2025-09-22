@@ -3,6 +3,14 @@ import type { Task, Priority, TaskFilter } from '../types';
 import { storage, STORAGE_KEYS, generateId } from '../utils';
 import { useAuth } from './AuthContext';
 
+// Helper function to get default color for priority
+const getDefaultColorForPriority = (priority: Priority): string => {
+  if (priority.startsWith('A')) return '#ef4444'; // Red for urgent
+  if (priority.startsWith('B')) return '#f97316'; // Orange for important
+  if (priority.startsWith('C')) return '#22c55e'; // Green for nice to do
+  return '#6b7280'; // Gray for someday
+};
+
 // 📝 Task Context - Your digital task manager with a sense of humor
 interface TaskContextType {
   tasks: Task[];
@@ -29,7 +37,7 @@ export const useTask = () => {
 };
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, partner } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -121,9 +129,14 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return new Date(taskDate).toDateString() === today;
       })
       .sort((a, b) => {
-        // Sort by priority (A > B > C > D), then by creation time
-        const priorityOrder = { A: 4, B: 3, C: 2, D: 1 };
-        const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+        // Sort by priority (A1 > A2 > A3 > B1... > D), then by creation time
+        const priorityOrder = { 
+          A1: 10, A2: 9, A3: 8, 
+          B1: 7, B2: 6, B3: 5, 
+          C1: 4, C2: 3, C3: 2, 
+          D: 1 
+        };
+        const priorityDiff = (priorityOrder[b.priority] || 1) - (priorityOrder[a.priority] || 1);
         if (priorityDiff !== 0) return priorityDiff;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
@@ -133,7 +146,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     updateTask(taskId, { scheduledDate: date });
   };
 
-  // Import tasks from AI-generated text using --- delimiter
+  // Import tasks from AI-generated text using --- delimiter (new format)
   const importTasksFromText = (text: string): Task[] => {
     if (!user) return [];
 
@@ -144,62 +157,125 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const lines = section.split('\n').map(line => line.trim()).filter(Boolean);
       
       lines.forEach(line => {
-        // Parse different formats:
-        // - [A] Task title: description
-        // - Priority A: Task title
-        // - Task title (Priority: B)
-        // - Simple task title
+        // Parse format: [PRIORITY] Task description (assigned to: Me/Partner/Both) [Day of Week, optional time]
+        // Also support: PRIORITY Task description (assigned to: Me/Partner/Both) [Day of Week, optional time]
+        const taskMatch = line.match(/^(?:\[?([ABCD][1-3]?)\]?)\s*(.+?)(?:\s*\(assigned to:\s*(Me|Partner|Both)\))?(?:\s*\[([^\]]+)\])?$/i);
         
-        let priority: Priority = 'C'; // Default priority
-        let title = line;
-        let description = '';
+        if (taskMatch) {
+          const [, priorityStr, title, assignedToStr, scheduleStr] = taskMatch;
+          
+          // Parse priority (ensure it matches our new format)
+          let priority: Priority = 'C1'; // Default
+          if (['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D'].includes(priorityStr)) {
+            priority = priorityStr as Priority;
+          } else if (priorityStr === 'A') {
+            priority = 'A1';
+          } else if (priorityStr === 'B') {
+            priority = 'B1';
+          } else if (priorityStr === 'C') {
+            priority = 'C1';
+          }
+          
+          // Parse assignment (default to 'Me' if not specified)
+          const assignedTo: 'Me' | 'Partner' | 'Both' = (assignedToStr as 'Me' | 'Partner' | 'Both') || 'Me';
+          
+          // Parse schedule (day and optional time)
+          let scheduledDate = '';
+          let scheduledTime = '';
+          if (scheduleStr) {
+            const schedParts = scheduleStr.split(',').map(p => p.trim());
+            const dayPart = schedParts[0];
+            const timePart = schedParts[1];
+            
+            // Convert day name to date (this week)
+            const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const dayIndex = daysOfWeek.findIndex(day => day.toLowerCase() === dayPart.toLowerCase());
+            if (dayIndex !== -1) {
+              const today = new Date();
+              const currentDay = today.getDay();
+              const daysToAdd = (dayIndex - currentDay + 7) % 7;
+              const targetDate = new Date(today);
+              targetDate.setDate(today.getDate() + daysToAdd);
+              scheduledDate = targetDate.toISOString().split('T')[0];
+            }
+            
+            // Parse time if provided
+            if (timePart) {
+              const timeMatch = timePart.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+              if (timeMatch) {
+                let [, hours, minutes, ampm] = timeMatch;
+                let hour24 = parseInt(hours);
+                
+                if (ampm) {
+                  if (ampm.toUpperCase() === 'PM' && hour24 < 12) hour24 += 12;
+                  if (ampm.toUpperCase() === 'AM' && hour24 === 12) hour24 = 0;
+                }
+                
+                scheduledTime = `${hour24.toString().padStart(2, '0')}:${minutes}`;
+              }
+            }
+          }
+          
+          // Get color based on assignment and priority
+          let color = getDefaultColorForPriority(priority);
+          if (assignedTo === 'Me' && user.color) {
+            color = user.color;
+          } else if (assignedTo === 'Partner' && partner?.color) {
+            color = partner.color;
+          } else if (assignedTo === 'Both') {
+            // Create a gradient or blend color (for now, use purple as blend)
+            color = '#8b5cf6';
+          }
 
-        // Match [A], [B], [C], [D] format
-        const priorityMatch = line.match(/^\[([ABCD])\]\s*(.+)/);
-        if (priorityMatch) {
-          priority = priorityMatch[1] as Priority;
-          title = priorityMatch[2];
-        }
-
-        // Match "Priority A:" format
-        const priorityMatch2 = line.match(/^Priority\s+([ABCD]):\s*(.+)/i);
-        if (priorityMatch2) {
-          priority = priorityMatch2[1].toUpperCase() as Priority;
-          title = priorityMatch2[2];
-        }
-
-        // Match "(Priority: B)" format
-        const priorityMatch3 = line.match(/^(.+)\s*\(Priority:\s*([ABCD])\)/i);
-        if (priorityMatch3) {
-          title = priorityMatch3[1];
-          priority = priorityMatch3[2].toUpperCase() as Priority;
-        }
-
-        // Split title and description on colon
-        const titleParts = title.split(':');
-        if (titleParts.length > 1) {
-          title = titleParts[0].trim();
-          description = titleParts.slice(1).join(':').trim();
-        }
-
-        // Clean up bullet points and numbering
-        title = title.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim();
-
-        if (title) {
           const now = new Date().toISOString();
           const task: Task = {
             id: generateId(),
-            title,
-            description: description || undefined,
+            title: title.trim(),
             priority,
-            color: getDefaultColorForPriority(priority),
+            assignedTo,
+            color,
             completed: false,
             createdBy: user.id,
+            scheduledDate: scheduledDate || undefined,
+            scheduledTime: scheduledTime || undefined,
             createdAt: now,
             updatedAt: now,
           };
 
           importedTasks.push(task);
+        } else {
+          // Fallback: try to parse simpler formats
+          let priority: Priority = 'C1';
+          let title = line;
+          let assignedTo: 'Me' | 'Partner' | 'Both' = 'Me';
+
+          // Match [A], [B], [C], [D] format (legacy support)
+          const priorityMatch = line.match(/^\[([ABCD])\]\s*(.+)/);
+          if (priorityMatch) {
+            const p = priorityMatch[1];
+            priority = p === 'A' ? 'A1' : p === 'B' ? 'B1' : p === 'C' ? 'C1' : 'D';
+            title = priorityMatch[2];
+          }
+
+          // Clean up bullet points and numbering
+          title = title.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim();
+
+          if (title) {
+            const now = new Date().toISOString();
+            const task: Task = {
+              id: generateId(),
+              title,
+              priority,
+              assignedTo,
+              color: getDefaultColorForPriority(priority),
+              completed: false,
+              createdBy: user.id,
+              createdAt: now,
+              updatedAt: now,
+            };
+
+            importedTasks.push(task);
+          }
         }
       });
     });
@@ -227,13 +303,3 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
 };
 
-// Helper function to get default colors for priorities
-const getDefaultColorForPriority = (priority: Priority): string => {
-  const colors = {
-    A: '#ef4444', // Red
-    B: '#f97316', // Orange
-    C: '#eab308', // Yellow
-    D: '#22c55e', // Green
-  };
-  return colors[priority];
-};

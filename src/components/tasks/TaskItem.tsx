@@ -28,13 +28,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   const createdByPartner = task.createdBy === partner?.id;
 
   const priorityConfig = {
-    A: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', emoji: '🔥' },
-    B: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', emoji: '🟠' },
-    C: { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', emoji: '🟡' },
-    D: { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', emoji: '🟢' },
+    A1: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', emoji: '🚨' },
+    A2: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', emoji: '🔥' },
+    A3: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', emoji: '🟠' },
+    B1: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', emoji: '📋' },
+    B2: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', emoji: '📝' },
+    B3: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', emoji: '🟠' },
+    C1: { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', emoji: '🟢' },
+    C2: { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', emoji: '🟡' },
+    C3: { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', emoji: '🟢' },
+    D: { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-800', emoji: '⚫' },
   };
 
-  const priority = priorityConfig[task.priority];
+  const priority = priorityConfig[task.priority] || priorityConfig['C1']; // Default fallback
 
   const handleSaveEdit = () => {
     if (!editData.title.trim()) return;
@@ -94,12 +100,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
           />
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {['A', 'B', 'C', 'D'].map((p) => (
+            <div className="flex items-center space-x-1 overflow-x-auto">
+              {['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D'].map((p) => (
                 <button
                   key={p}
                   onClick={() => setEditData(prev => ({ ...prev, priority: p as Priority }))}
-                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
                     editData.priority === p
                       ? `${priorityConfig[p as Priority].bg} ${priorityConfig[p as Priority].text}`
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'

@@ -37,6 +37,6 @@ export default {
     },
   },
   plugins: [
-    require('@tailwindcss/forms'),
+    // Note: Tailwind 4.x doesn't need the forms plugin as forms are included by default
   ],
 }
