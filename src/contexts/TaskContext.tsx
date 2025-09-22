@@ -158,7 +158,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       lines.forEach(line => {
         // Parse format: [PRIORITY] Task description (assigned to: Me/Partner/Both) [Day of Week, optional time]
-        const taskMatch = line.match(/^\[([ABCD][1-3]?)\]\s*(.+?)(?:\s*\(assigned to:\s*(Me|Partner|Both)\))?(?:\s*\[([^\]]+)\])?$/i);
+        // Also support: PRIORITY Task description (assigned to: Me/Partner/Both) [Day of Week, optional time]
+        const taskMatch = line.match(/^(?:\[?([ABCD][1-3]?)\]?)\s*(.+?)(?:\s*\(assigned to:\s*(Me|Partner|Both)\))?(?:\s*\[([^\]]+)\])?$/i);
         
         if (taskMatch) {
           const [, priorityStr, title, assignedToStr, scheduleStr] = taskMatch;
