@@ -211,6 +211,74 @@ export const PartnerManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Color Settings */}
+      <div className="border-t pt-6 mt-6">
+        <h3 className="font-medium text-gray-900 mb-4">🎨 Color Settings</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Your Color */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Your color (for "Me" tasks)
+            </label>
+            <div className="flex items-center space-x-3">
+              <div 
+                className="w-8 h-8 rounded-lg border-2 border-gray-300"
+                style={{ backgroundColor: user?.color || '#ec4899' }}
+              />
+              <div className="flex flex-wrap gap-2">
+                {['#ec4899', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4'].map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => updateUser({ color })}
+                    className={`w-6 h-6 rounded border-2 transition-transform hover:scale-110 ${
+                      user?.color === color ? 'border-gray-400 scale-110' : 'border-gray-200'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Partner Color Display */}
+          {partner && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Partner's color
+              </label>
+              <div className="flex items-center space-x-3">
+                <div 
+                  className="w-8 h-8 rounded-lg border-2 border-gray-300"
+                  style={{ backgroundColor: partner.color || '#3b82f6' }}
+                />
+                <span className="text-sm text-gray-600">
+                  {partner.name}'s chosen color
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Gradient Preview for "Both" tasks */}
+          {partner && (
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                "Both" tasks preview
+              </label>
+              <div 
+                className="h-8 rounded-lg border-2 border-gray-200"
+                style={{ 
+                  background: `linear-gradient(to right, ${user?.color || '#ec4899'}, ${partner.color || '#3b82f6'})` 
+                }}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Tasks assigned to "Both" will use this gradient
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

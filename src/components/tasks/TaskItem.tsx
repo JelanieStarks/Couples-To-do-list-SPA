@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Check, Edit, Trash2, Calendar, User, Users, Clock } from 'lucide-react';
-import type { Task, Priority } from '../../types';
+import type { Task, Priority, Assignment } from '../../types';
 import { formatDate } from '../../utils';
 
 interface TaskItemProps {
@@ -23,14 +23,36 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
     color: task.color,
   });
 
-  const isShared = task.sharedWith || (task.createdBy !== user?.id);
+  const isShared = task.assignment === 'both';
   const isOwner = task.createdBy === user?.id;
   const createdByPartner = task.createdBy === partner?.id;
 
+  // Get assignment display info
+  const getAssignmentInfo = () => {
+    switch (task.assignment) {
+      case 'me':
+        return { icon: '👤', label: 'Me', color: user?.color || '#ec4899' };
+      case 'partner':
+        return { icon: '👥', label: 'Partner', color: '#3b82f6' };
+      case 'both':
+        return { icon: '💕', label: 'Both', color: 'gradient' };
+      default:
+        return { icon: '👤', label: 'Me', color: task.color };
+    }
+  };
+
+  const assignmentInfo = getAssignmentInfo();
+
   const priorityConfig = {
-    A: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', emoji: '🔥' },
-    B: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', emoji: '🟠' },
-    C: { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', emoji: '🟡' },
+    A1: { bg: 'bg-red-200', border: 'border-red-400', text: 'text-red-900', emoji: '🚨' },
+    A2: { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800', emoji: '🔥' },
+    A3: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', emoji: '🟥' },
+    B1: { bg: 'bg-orange-200', border: 'border-orange-400', text: 'text-orange-900', emoji: '🟠' },
+    B2: { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800', emoji: '🟧' },
+    B3: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', emoji: '🟨' },
+    C1: { bg: 'bg-yellow-200', border: 'border-yellow-400', text: 'text-yellow-900', emoji: '🟡' },
+    C2: { bg: 'bg-yellow-100', border: 'border-yellow-300', text: 'text-yellow-800', emoji: '🟤' },
+    C3: { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', emoji: '🟫' },
     D: { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', emoji: '🟢' },
   };
 
@@ -94,8 +116,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
           />
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {['A', 'B', 'C', 'D'].map((p) => (
+            <div className="flex items-center space-x-1 flex-wrap">
+              {['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D'].map((p) => (
                 <button
                   key={p}
                   onClick={() => setEditData(prev => ({ ...prev, priority: p as Priority }))}
@@ -133,11 +155,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   return (
     <div 
       className={`group bg-white rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md ${
-        isShared 
-          ? 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50' 
+        task.assignment === 'both'
+          ? 'border-purple-200 bg-gradient-to-r from-purple-50 via-pink-50 to-blue-50' 
           : 'border-gray-200 hover:border-gray-300'
       } ${task.completed ? 'opacity-75' : ''} ${isDragging ? 'opacity-50 rotate-3' : ''}`}
-      style={{ borderLeftColor: task.color, borderLeftWidth: '4px' }}
+      style={{ 
+        borderLeftColor: assignmentInfo.color === 'gradient' ? '#8b5cf6' : assignmentInfo.color, 
+        borderLeftWidth: '4px' 
+      }}
     >
       <div className="flex items-start space-x-3">
         {/* Checkbox */}
@@ -176,25 +201,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
           {/* Metadata */}
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center space-x-3 text-xs text-gray-500">
-              {/* Creator/Assignee Info */}
+              {/* Assignment Info */}
               <div className="flex items-center space-x-1">
-                {isShared ? (
-                  <>
-                    <Users className="h-3 w-3" />
-                    <span>Shared</span>
-                  </>
-                ) : createdByPartner ? (
-                  <>
-                    <User className="h-3 w-3" />
-                    <span>By {partner?.name}</span>
-                  </>
-                ) : (
-                  <>
-                    <User className="h-3 w-3" />
-                    <span>By you</span>
-                  </>
-                )}
+                <span>{assignmentInfo.icon}</span>
+                <span>{assignmentInfo.label}</span>
               </div>
+
+              {/* Time Info */}
+              {task.scheduledTime && (
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-3 w-3" />
+                  <span>{task.scheduledTime}</span>
+                </div>
+              )}
 
               {/* Date Info */}
               {(showDate || task.scheduledDate) && (
@@ -251,10 +270,10 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
       </div>
 
       {/* Jarvis Commentary */}
-      {task.priority === 'A' && !task.completed && (
+      {task.priority.startsWith('A') && !task.completed && (
         <div className="mt-3 p-2 bg-red-50 border-l-4 border-red-400 rounded">
           <p className="text-xs text-red-700">
-            🤖 <strong>Jarvis says:</strong> This is Priority A! Drop everything and handle this before it becomes a fire! 🚨
+            🤖 <strong>Jarvis says:</strong> This is Priority {task.priority}! {task.priority === 'A1' ? 'URGENT ALERT! Handle this NOW!' : 'High priority - handle this before it becomes critical!'} 🚨
           </p>
         </div>
       )}
