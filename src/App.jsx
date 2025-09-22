@@ -4,6 +4,10 @@ import { TaskProvider } from './contexts/TaskContext';
 import { LoginPage } from './components/auth/LoginPage';
 import { Layout } from './components/ui/Layout';
 import { PartnerManager } from './components/auth/PartnerManager';
+import { TaskForm } from './components/tasks/TaskForm';
+import { TodaysTasks } from './components/tasks/TodaysTasks';
+import { AIImport } from './components/tasks/AIImport';
+import { WeeklyCalendar } from './components/calendar/WeeklyCalendar';
 
 // 🚀 Main App Component - Where the magic happens
 function AppContent() {
@@ -38,19 +42,32 @@ function AppContent() {
           </p>
         </div>
 
+        {/* Task Creation & Import Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <TaskForm />
+          <AIImport />
+        </div>
+
         {/* Partner Manager */}
         <PartnerManager />
 
-        {/* Placeholder for future components */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-          <div className="text-6xl mb-4">🚧</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            More Features Coming Soon!
-          </h3>
-          <p className="text-gray-600">
-            🤖 Jarvis is still building the task management, calendar, and AI import features. 
-            Stay tuned for the full productivity experience!
+        {/* Today's Tasks */}
+        <TodaysTasks />
+
+        {/* Weekly Calendar */}
+        <WeeklyCalendar />
+
+        {/* Footer with Jarvis Wisdom */}
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-6 text-center">
+          <h3 className="text-xl font-semibold mb-2">🤖 Jarvis's Productivity Wisdom</h3>
+          <p className="opacity-90">
+            "Sir, I've analyzed your productivity patterns. Remember: Priority A tasks are like arc reactor maintenance - 
+            critical for survival. Everything else is just Iron Man suit upgrades - important, but you won't explode without them."
           </p>
+          <div className="mt-4 text-sm opacity-75">
+            Pro tip: Color-code your tasks, share with your partner, and drag them around the calendar. 
+            It's like having superpowers, but for organization! ⚡
+          </div>
         </div>
       </div>
     </Layout>
