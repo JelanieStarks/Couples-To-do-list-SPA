@@ -41,6 +41,34 @@ export const TodaysTasks: React.FC = () => {
     return "🤖 Ready to tackle today's challenges? Let's make things happen! ⚡";
   };
 
+  // Function to scroll to task in calendar
+  const scrollToTaskInCalendar = (task: any) => {
+    if (task.dayOfWeek) {
+      // Find the day column in the weekly calendar
+      const dayElement = document.querySelector(`[data-day="${task.dayOfWeek}"]`);
+      if (dayElement) {
+        dayElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        // Add a brief highlight animation
+        dayElement.classList.add('ring-2', 'ring-purple-500', 'ring-opacity-50');
+        setTimeout(() => {
+          dayElement.classList.remove('ring-2', 'ring-purple-500', 'ring-opacity-50');
+        }, 2000);
+      }
+    } else {
+      // If no specific day, scroll to weekly calendar
+      const calendarElement = document.querySelector('[data-testid="weekly-calendar"]');
+      if (calendarElement) {
+        calendarElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       {/* Header */}
@@ -113,7 +141,14 @@ export const TodaysTasks: React.FC = () => {
           </div>
           <div className="space-y-3">
             {priorityATasks.map(task => (
-              <TaskItem key={task.id} task={task} />
+              <div
+                key={task.id}
+                onClick={() => scrollToTaskInCalendar(task)}
+                className="cursor-pointer hover:bg-blue-50 rounded-lg p-2 -m-2 transition-colors"
+                title="Click to find this task in the weekly calendar"
+              >
+                <TaskItem task={task} />
+              </div>
             ))}
           </div>
         </div>
@@ -131,7 +166,14 @@ export const TodaysTasks: React.FC = () => {
           </div>
           <div className="space-y-3">
             {otherTasks.map(task => (
-              <TaskItem key={task.id} task={task} />
+              <div
+                key={task.id}
+                onClick={() => scrollToTaskInCalendar(task)}
+                className="cursor-pointer hover:bg-blue-50 rounded-lg p-2 -m-2 transition-colors"
+                title="Click to find this task in the weekly calendar"
+              >
+                <TaskItem task={task} />
+              </div>
             ))}
           </div>
         </div>
@@ -149,7 +191,14 @@ export const TodaysTasks: React.FC = () => {
           </div>
           <div className="space-y-3">
             {completedTasks.map(task => (
-              <TaskItem key={task.id} task={task} />
+              <div
+                key={task.id}
+                onClick={() => scrollToTaskInCalendar(task)}
+                className="cursor-pointer hover:bg-blue-50 rounded-lg p-2 -m-2 transition-colors"
+                title="Click to find this task in the weekly calendar"
+              >
+                <TaskItem task={task} />
+              </div>
             ))}
           </div>
         </div>

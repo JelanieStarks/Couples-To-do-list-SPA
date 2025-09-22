@@ -67,7 +67,7 @@ export const WeeklyCalendar: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6" data-testid="weekly-calendar">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
@@ -178,6 +178,7 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
   return (
     <div
       ref={setNodeRef}
+      data-day={dayName}
       className={`min-h-[400px] border-2 border-dashed rounded-lg p-3 transition-all ${
         isOver 
           ? 'border-purple-400 bg-purple-50' 
