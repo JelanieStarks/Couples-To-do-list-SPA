@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for ADHD-friendly design */
+@layer base {
+  body {
+    @apply font-sans bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen;
+  }
+  
+  /* Focus styles for accessibility */
+  button:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+}
+
+@layer components {
+  /* Reusable button styles */
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+  }
+  
+  /* Task priority colors */
+  .priority-a {
+    @apply bg-red-100 border-red-300 text-red-800;
+  }
+  
+  .priority-b {
+    @apply bg-orange-100 border-orange-300 text-orange-800;
+  }
+  
+  .priority-c {
+    @apply bg-yellow-100 border-yellow-300 text-yellow-800;
+  }
+  
+  .priority-d {
+    @apply bg-green-100 border-green-300 text-green-800;
+  }
+  
+  /* Shared task gradient */
+  .task-shared {
+    @apply bg-gradient-to-r from-purple-100 to-pink-100 border-purple-300;
+  }
+  
+  /* ADHD-friendly animations */
+  .gentle-bounce {
+    animation: gentle-bounce 2s infinite;
+  }
+  
+  @keyframes gentle-bounce {
+    0%, 20%, 50%, 80%, 100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-10px);
+    }
+    60% {
+      transform: translateY(-5px);
+    }
+  }
+}
