@@ -9,10 +9,11 @@ interface TaskItemProps {
   task: Task;
   showDate?: boolean;
   isDragging?: boolean;
+  onTaskClick?: (taskId: string) => void;
 }
 
 // 📋 Task Item Component - Individual task with all the bells and whistles
-export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDragging = false }) => {
+export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDragging = false, onTaskClick }) => {
   const { updateTask, deleteTask, toggleTaskComplete } = useTask();
   const { user, partner } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
@@ -154,7 +155,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   return (
     <div 
-      className={`group bg-white rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md ${
+      className={`group bg-white rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md cursor-pointer ${
         task.assignment === 'both'
           ? 'border-purple-200 bg-gradient-to-r from-purple-50 via-pink-50 to-blue-50' 
           : 'border-gray-200 hover:border-gray-300'
@@ -163,6 +164,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
         borderLeftColor: assignmentInfo.color === 'gradient' ? '#8b5cf6' : assignmentInfo.color, 
         borderLeftWidth: '4px' 
       }}
+      onClick={() => onTaskClick?.(task.id)}
     >
       <div className="flex items-start space-x-3">
         {/* Checkbox */}

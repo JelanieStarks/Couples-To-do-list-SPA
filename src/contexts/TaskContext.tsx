@@ -151,6 +151,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lines.forEach(line => {
         // Parse different formats:
         // - [A1] Task title: description
+        // - A1 Task title (assigned to: Me) [Day, time]
         // - Priority A2: Task title
         // - Task title (Priority: B3)
         // - Simple task title
@@ -162,44 +163,65 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let dayOfWeek = '';
         let scheduledTime = '';
 
-        // Match [A1], [B2], [C3], [D] format
-        const priorityMatch = line.match(/^\[([ABCD][123]?)\]\s*(.+)/);
-        if (priorityMatch) {
-          const priorityStr = priorityMatch[1];
-          // Normalize single letter priorities to level 1
+        // First, try to match the exact format: "A1 Task title (assigned to: Me) [Day, time]"
+        const exactFormatMatch = line.match(/^([ABCD][123]?)\s+(.+?)(?:\s+\(assigned to:\s*(Me|Partner|Both)\))?(?:\s+\[([^\]]+)\])?$/i);
+        if (exactFormatMatch) {
+          const priorityStr = exactFormatMatch[1].toUpperCase();
           priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
-          title = priorityMatch[2];
-        }
+          title = exactFormatMatch[2].trim();
+          if (exactFormatMatch[3]) {
+            assignment = exactFormatMatch[3].toLowerCase() as Assignment;
+          }
+          if (exactFormatMatch[4]) {
+            const dayTimeStr = exactFormatMatch[4];
+            const dayTimeMatch = dayTimeStr.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*(.+))?$/i);
+            if (dayTimeMatch) {
+              dayOfWeek = dayTimeMatch[1];
+              scheduledTime = dayTimeMatch[2]?.trim() || '';
+            }
+          }
+        } else {
+          // Fallback to individual parsing methods
 
-        // Match "Priority A2:" format
-        const priorityMatch2 = line.match(/^Priority\s+([ABCD][123]?):\s*(.+)/i);
-        if (priorityMatch2) {
-          const priorityStr = priorityMatch2[1].toUpperCase();
-          priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
-          title = priorityMatch2[2];
-        }
+          // Match [A1], [B2], [C3], [D] format
+          const priorityMatch = line.match(/^\[([ABCD][123]?)\]\s*(.+)/);
+          if (priorityMatch) {
+            const priorityStr = priorityMatch[1];
+            // Normalize single letter priorities to level 1
+            priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
+            title = priorityMatch[2];
+          }
 
-        // Match "(Priority: B3)" format
-        const priorityMatch3 = line.match(/^(.+)\s*\(Priority:\s*([ABCD][123]?)\)/i);
-        if (priorityMatch3) {
-          title = priorityMatch3[1];
-          const priorityStr = priorityMatch3[2].toUpperCase();
-          priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
-        }
+          // Match "Priority A2:" format
+          const priorityMatch2 = line.match(/^Priority\s+([ABCD][123]?):\s*(.+)/i);
+          if (priorityMatch2) {
+            const priorityStr = priorityMatch2[1].toUpperCase();
+            priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
+            title = priorityMatch2[2];
+          }
 
-        // Parse assignment from title
-        const assignmentMatch = title.match(/\(assigned to:\s*(Me|Partner|Both)\)/i);
-        if (assignmentMatch) {
-          assignment = assignmentMatch[1].toLowerCase() as Assignment;
-          title = title.replace(/\(assigned to:\s*(Me|Partner|Both)\)/i, '').trim();
-        }
+          // Match "(Priority: B3)" format
+          const priorityMatch3 = line.match(/^(.+)\s*\(Priority:\s*([ABCD][123]?)\)/i);
+          if (priorityMatch3) {
+            title = priorityMatch3[1];
+            const priorityStr = priorityMatch3[2].toUpperCase();
+            priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
+          }
 
-        // Parse day and time from title
-        const dayTimeMatch = title.match(/\[(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*(.+?))?\]/i);
-        if (dayTimeMatch) {
-          dayOfWeek = dayTimeMatch[1];
-          scheduledTime = dayTimeMatch[2] || '';
-          title = title.replace(/\[(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*.+?)?\]/i, '').trim();
+          // Parse assignment from title
+          const assignmentMatch = title.match(/\(assigned to:\s*(Me|Partner|Both)\)/i);
+          if (assignmentMatch) {
+            assignment = assignmentMatch[1].toLowerCase() as Assignment;
+            title = title.replace(/\(assigned to:\s*(Me|Partner|Both)\)/i, '').trim();
+          }
+
+          // Parse day and time from title
+          const dayTimeMatch = title.match(/\[(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*(.+?))?\]/i);
+          if (dayTimeMatch) {
+            dayOfWeek = dayTimeMatch[1];
+            scheduledTime = dayTimeMatch[2] || '';
+            title = title.replace(/\[(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*.+?)?\]/i, '').trim();
+          }
         }
 
         // Split title and description on colon

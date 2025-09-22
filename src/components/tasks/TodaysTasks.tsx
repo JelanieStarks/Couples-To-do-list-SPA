@@ -10,12 +10,29 @@ export const TodaysTasks: React.FC = () => {
 
   const completedTasks = todaysTasks.filter(task => task.completed);
   const incompleteTasks = todaysTasks.filter(task => !task.completed);
-  const priorityATasks = incompleteTasks.filter(task => task.priority === 'A');
-  const otherTasks = incompleteTasks.filter(task => task.priority !== 'A');
+  const priorityATasks = incompleteTasks.filter(task => task.priority.startsWith('A'));
+  const otherTasks = incompleteTasks.filter(task => !task.priority.startsWith('A'));
 
   const completionRate = todaysTasks.length > 0 
     ? Math.round((completedTasks.length / todaysTasks.length) * 100) 
     : 0;
+
+  // Handle task click to scroll to calendar position
+  const handleTaskClick = (taskId: string) => {
+    // Find the task element in the calendar and scroll to it
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    if (taskElement) {
+      taskElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      // Add a brief highlight effect
+      taskElement.classList.add('ring-2', 'ring-purple-400', 'ring-opacity-75');
+      setTimeout(() => {
+        taskElement.classList.remove('ring-2', 'ring-purple-400', 'ring-opacity-75');
+      }, 2000);
+    }
+  };
 
   const getJarvisEncouragement = () => {
     if (todaysTasks.length === 0) {
@@ -113,7 +130,7 @@ export const TodaysTasks: React.FC = () => {
           </div>
           <div className="space-y-3">
             {priorityATasks.map(task => (
-              <TaskItem key={task.id} task={task} />
+              <TaskItem key={task.id} task={task} onTaskClick={handleTaskClick} />
             ))}
           </div>
         </div>
@@ -131,7 +148,7 @@ export const TodaysTasks: React.FC = () => {
           </div>
           <div className="space-y-3">
             {otherTasks.map(task => (
-              <TaskItem key={task.id} task={task} />
+              <TaskItem key={task.id} task={task} onTaskClick={handleTaskClick} />
             ))}
           </div>
         </div>
@@ -149,7 +166,7 @@ export const TodaysTasks: React.FC = () => {
           </div>
           <div className="space-y-3">
             {completedTasks.map(task => (
-              <TaskItem key={task.id} task={task} />
+              <TaskItem key={task.id} task={task} onTaskClick={handleTaskClick} />
             ))}
           </div>
         </div>

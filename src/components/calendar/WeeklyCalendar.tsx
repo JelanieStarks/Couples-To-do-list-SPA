@@ -246,6 +246,7 @@ const DraggableTask: React.FC<DraggableTaskProps> = ({ task }) => {
       {...attributes}
       {...listeners}
       className="cursor-grab active:cursor-grabbing"
+      data-task-id={task.id}
     >
       <TaskItem task={task} showDate={false} isDragging={isDragging} />
     </div>
