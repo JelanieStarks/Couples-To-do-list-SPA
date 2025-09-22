@@ -106,10 +106,28 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getTasksByDate = (date: string): Task[] => {
-    const targetDate = new Date(date).toDateString();
+    const targetDate = new Date(date);
+    const targetDayName = targetDate.toLocaleDateString('en-US', { weekday: 'long' });
+    const targetDateString = targetDate.toDateString();
+    
     return tasks.filter(task => {
-      const taskDate = task.scheduledDate || task.createdAt;
-      return new Date(taskDate).toDateString() === targetDate;
+      // First check if task has a specific dayOfWeek
+      if (task.dayOfWeek) {
+        return task.dayOfWeek === targetDayName;
+      }
+      
+      // Fallback to scheduledDate
+      if (task.scheduledDate) {
+        return new Date(task.scheduledDate).toDateString() === targetDateString;
+      }
+      
+      // For tasks without specific day or date, show on today by default
+      const today = new Date().toDateString();
+      if (targetDateString === today) {
+        return !task.scheduledDate && !task.dayOfWeek;
+      }
+      
+      return false;
     });
   };
 

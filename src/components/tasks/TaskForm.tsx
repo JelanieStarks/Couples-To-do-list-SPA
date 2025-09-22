@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Calendar, Clock, Star, Palette } from 'lucide-react';
-import type { Priority } from '../../types';
+import { Plus, Calendar, Clock, Star, Palette, Users, User } from 'lucide-react';
+import type { Priority, AssignedTo } from '../../types';
 
 // 📝 Task Creation Form - Where great ideas become actionable tasks
 export const TaskForm: React.FC = () => {
   const { createTask } = useTask();
-  const { user } = useAuth();
+  const { user, partner } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'C' as Priority,
     color: '#3b82f6', // Default blue
+    assignedTo: 'Me' as AssignedTo,
     dueDate: '',
     scheduledDate: '',
+    dayOfWeek: '',
+    timeOfDay: '',
   });
 
   const priorityOptions = [
@@ -30,6 +33,24 @@ export const TaskForm: React.FC = () => {
     '#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b'
   ];
 
+  const assignmentOptions = [
+    { value: 'Me' as AssignedTo, label: 'Me', description: 'Only I will handle this', icon: User, color: 'pink' },
+    { value: 'Partner' as AssignedTo, label: 'Partner', description: 'My partner will handle this', icon: User, color: 'blue' },
+    { value: 'Both' as AssignedTo, label: 'Both', description: 'We\'ll work together on this', icon: Users, color: 'purple' },
+  ];
+
+  const dayOptions = [
+    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ];
+
+  // Get appropriate color based on assignment
+  const getTaskColor = () => {
+    if (formData.assignedTo === 'Me') return '#ec4899'; // Pink
+    if (formData.assignedTo === 'Partner') return '#3b82f6'; // Blue
+    if (formData.assignedTo === 'Both') return formData.color; // User's selected color for gradient
+    return formData.color;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
@@ -38,9 +59,12 @@ export const TaskForm: React.FC = () => {
       title: formData.title.trim(),
       description: formData.description.trim() || undefined,
       priority: formData.priority,
-      color: formData.color,
+      color: getTaskColor(),
+      assignedTo: formData.assignedTo,
       completed: false,
       scheduledDate: formData.scheduledDate || undefined,
+      dayOfWeek: formData.dayOfWeek || undefined,
+      timeOfDay: formData.timeOfDay || undefined,
     });
 
     // Reset form
@@ -49,8 +73,11 @@ export const TaskForm: React.FC = () => {
       description: '',
       priority: 'C',
       color: '#3b82f6',
+      assignedTo: 'Me',
       dueDate: '',
       scheduledDate: '',
+      dayOfWeek: '',
+      timeOfDay: '',
     });
     setIsOpen(false);
   };
@@ -175,6 +202,87 @@ export const TaskForm: React.FC = () => {
               />
             ))}
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            🤖 Note: Color will be automatically set based on assignment (Pink for Me, Blue for Partner, Gradient for Both)
+          </p>
+        </div>
+
+        {/* Assignment Options */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Who's handling this? 👥
+          </label>
+          <div className="grid grid-cols-1 gap-3">
+            {assignmentOptions.map((option) => {
+              const IconComponent = option.icon;
+              return (
+                <label
+                  key={option.value}
+                  className={`relative flex items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                    formData.assignedTo === option.value
+                      ? `border-${option.color}-300 bg-${option.color}-50`
+                      : 'border-gray-200 hover:border-gray-300'
+                  } ${!partner && option.value === 'Partner' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="assignedTo"
+                    value={option.value}
+                    checked={formData.assignedTo === option.value}
+                    disabled={!partner && option.value === 'Partner'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, assignedTo: e.target.value as AssignedTo }))}
+                    className="sr-only"
+                  />
+                  <div className={`flex items-center space-x-3 flex-1 ${
+                    formData.assignedTo === option.value ? `text-${option.color}-800` : 'text-gray-700'
+                  }`}>
+                    <IconComponent className="h-5 w-5" />
+                    <div>
+                      <p className="font-medium">{option.label}</p>
+                      <p className="text-xs">{option.description}</p>
+                    </div>
+                  </div>
+                  {!partner && option.value === 'Partner' && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      Connect partner first
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Day of Week Selection */}
+        <div>
+          <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-700 mb-2">
+            Which day? 📅 (Optional)
+          </label>
+          <select
+            id="dayOfWeek"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            value={formData.dayOfWeek}
+            onChange={(e) => setFormData(prev => ({ ...prev, dayOfWeek: e.target.value }))}
+          >
+            <option value="">Select a day...</option>
+            {dayOptions.map((day) => (
+              <option key={day} value={day}>{day}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Time Selection */}
+        <div>
+          <label htmlFor="timeOfDay" className="block text-sm font-medium text-gray-700 mb-2">
+            What time? ⏰ (Optional)
+          </label>
+          <input
+            type="time"
+            id="timeOfDay"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            value={formData.timeOfDay}
+            onChange={(e) => setFormData(prev => ({ ...prev, timeOfDay: e.target.value }))}
+          />
         </div>
 
         {/* Scheduled Date */}
