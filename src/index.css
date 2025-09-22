@@ -5,7 +5,9 @@
 /* Custom styles for ADHD-friendly design */
 @layer base {
   body {
-    @apply font-sans bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen;
+    /* Tailwind v4: use theme() for font family to avoid @apply unknown utility warnings */
+    font-family: theme(fontFamily.sans);
+    @apply bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen;
   }
   
   /* Focus styles for accessibility */
