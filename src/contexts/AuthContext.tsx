@@ -52,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       name: name.trim(),
       email: email?.trim(),
       inviteCode: generateInviteCode(),
+      color: '#ec4899', // Default pink for user
       createdAt: new Date().toISOString(),
     };
 
@@ -90,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: generateId(),
       name: 'Your Amazing Partner', // In real life, this would come from the API
       inviteCode: trimmedCode,
+      color: '#3b82f6', // Default blue for partner
       createdAt: new Date().toISOString(),
     };
 
