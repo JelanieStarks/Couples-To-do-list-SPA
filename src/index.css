@@ -7,7 +7,8 @@
   body {
     /* Tailwind v4: use theme() for font family to avoid @apply unknown utility warnings */
     font-family: theme(fontFamily.sans);
-    @apply bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen;
+    background: linear-gradient(to bottom right, #eff6ff, #faf5ff);
+    min-height: 100vh;
   }
   
   /* Focus styles for accessibility */
@@ -15,40 +16,72 @@
   input:focus,
   select:focus,
   textarea:focus {
-    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+    outline: none;
+    box-shadow: 0 0 0 2px #a855f7, 0 0 0 4px rgba(168, 85, 247, 0.1);
   }
 }
 
 @layer components {
   /* Reusable button styles */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    background-color: #9333ea;
+    color: white;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+  }
+  .btn-primary:hover {
+    background-color: #7c3aed;
+  }
+  .btn-primary:focus {
+    box-shadow: 0 0 0 2px #a855f7, 0 0 0 4px rgba(168, 85, 247, 0.1);
   }
   
   .btn-secondary {
-    @apply bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+    background-color: #f3f4f6;
+    color: #1f2937;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+  }
+  .btn-secondary:hover {
+    background-color: #e5e7eb;
+  }
+  .btn-secondary:focus {
+    box-shadow: 0 0 0 2px #6b7280, 0 0 0 4px rgba(107, 114, 128, 0.1);
   }
   
   /* Task priority colors */
   .priority-a {
-    @apply bg-red-100 border-red-300 text-red-800;
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
   }
   
   .priority-b {
-    @apply bg-orange-100 border-orange-300 text-orange-800;
+    background-color: #fed7aa;
+    border-color: #fdba74;
+    color: #9a3412;
   }
   
   .priority-c {
-    @apply bg-yellow-100 border-yellow-300 text-yellow-800;
+    background-color: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
   }
   
   .priority-d {
-    @apply bg-green-100 border-green-300 text-green-800;
+    background-color: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
   }
   
   /* Shared task gradient */
   .task-shared {
-    @apply bg-gradient-to-r from-purple-100 to-pink-100 border-purple-300;
+    background: linear-gradient(to right, #f3e8ff, #fce7f3);
+    border-color: #d8b4fe;
   }
   
   /* ADHD-friendly animations */
