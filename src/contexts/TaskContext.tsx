@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { Task, Priority, TaskFilter } from '../types';
+import type { Task, Priority, TaskFilter, Assignment } from '../types';
 import { storage, STORAGE_KEYS, generateId } from '../utils';
 import { useAuth } from './AuthContext';
 
@@ -121,8 +121,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return new Date(taskDate).toDateString() === today;
       })
       .sort((a, b) => {
-        // Sort by priority (A > B > C > D), then by creation time
-        const priorityOrder = { A: 4, B: 3, C: 2, D: 1 };
+        // Sort by priority (A1 > A2 > A3 > B1 > B2 > B3 > C1 > C2 > C3 > D), then by creation time
+        const priorityOrder = { 
+          A1: 10, A2: 9, A3: 8, 
+          B1: 7, B2: 6, B3: 5, 
+          C1: 4, C2: 3, C3: 2, 
+          D: 1 
+        };
         const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
         if (priorityDiff !== 0) return priorityDiff;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -145,34 +150,78 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       lines.forEach(line => {
         // Parse different formats:
-        // - [A] Task title: description
-        // - Priority A: Task title
-        // - Task title (Priority: B)
+        // - [A1] Task title: description
+        // - A1 Task title (assigned to: Me) [Day, time]
+        // - Priority A2: Task title
+        // - Task title (Priority: B3)
         // - Simple task title
         
-        let priority: Priority = 'C'; // Default priority
+        let priority: Priority = 'C1'; // Default priority
+        let assignment: Assignment = 'me'; // Default assignment
         let title = line;
         let description = '';
+        let dayOfWeek = '';
+        let scheduledTime = '';
 
-        // Match [A], [B], [C], [D] format
-        const priorityMatch = line.match(/^\[([ABCD])\]\s*(.+)/);
-        if (priorityMatch) {
-          priority = priorityMatch[1] as Priority;
-          title = priorityMatch[2];
-        }
+        // First, try to match the exact format: "A1 Task title (assigned to: Me) [Day, time]"
+        const exactFormatMatch = line.match(/^([ABCD][123]?)\s+(.+?)(?:\s+\(assigned to:\s*(Me|Partner|Both)\))?(?:\s+\[([^\]]+)\])?$/i);
+        if (exactFormatMatch) {
+          const priorityStr = exactFormatMatch[1].toUpperCase();
+          priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
+          title = exactFormatMatch[2].trim();
+          if (exactFormatMatch[3]) {
+            assignment = exactFormatMatch[3].toLowerCase() as Assignment;
+          }
+          if (exactFormatMatch[4]) {
+            const dayTimeStr = exactFormatMatch[4];
+            const dayTimeMatch = dayTimeStr.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*(.+))?$/i);
+            if (dayTimeMatch) {
+              dayOfWeek = dayTimeMatch[1];
+              scheduledTime = dayTimeMatch[2]?.trim() || '';
+            }
+          }
+        } else {
+          // Fallback to individual parsing methods
 
-        // Match "Priority A:" format
-        const priorityMatch2 = line.match(/^Priority\s+([ABCD]):\s*(.+)/i);
-        if (priorityMatch2) {
-          priority = priorityMatch2[1].toUpperCase() as Priority;
-          title = priorityMatch2[2];
-        }
+          // Match [A1], [B2], [C3], [D] format
+          const priorityMatch = line.match(/^\[([ABCD][123]?)\]\s*(.+)/);
+          if (priorityMatch) {
+            const priorityStr = priorityMatch[1];
+            // Normalize single letter priorities to level 1
+            priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
+            title = priorityMatch[2];
+          }
 
-        // Match "(Priority: B)" format
-        const priorityMatch3 = line.match(/^(.+)\s*\(Priority:\s*([ABCD])\)/i);
-        if (priorityMatch3) {
-          title = priorityMatch3[1];
-          priority = priorityMatch3[2].toUpperCase() as Priority;
+          // Match "Priority A2:" format
+          const priorityMatch2 = line.match(/^Priority\s+([ABCD][123]?):\s*(.+)/i);
+          if (priorityMatch2) {
+            const priorityStr = priorityMatch2[1].toUpperCase();
+            priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
+            title = priorityMatch2[2];
+          }
+
+          // Match "(Priority: B3)" format
+          const priorityMatch3 = line.match(/^(.+)\s*\(Priority:\s*([ABCD][123]?)\)/i);
+          if (priorityMatch3) {
+            title = priorityMatch3[1];
+            const priorityStr = priorityMatch3[2].toUpperCase();
+            priority = (priorityStr.length === 1 ? priorityStr + '1' : priorityStr) as Priority;
+          }
+
+          // Parse assignment from title
+          const assignmentMatch = title.match(/\(assigned to:\s*(Me|Partner|Both)\)/i);
+          if (assignmentMatch) {
+            assignment = assignmentMatch[1].toLowerCase() as Assignment;
+            title = title.replace(/\(assigned to:\s*(Me|Partner|Both)\)/i, '').trim();
+          }
+
+          // Parse day and time from title
+          const dayTimeMatch = title.match(/\[(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*(.+?))?\]/i);
+          if (dayTimeMatch) {
+            dayOfWeek = dayTimeMatch[1];
+            scheduledTime = dayTimeMatch[2] || '';
+            title = title.replace(/\[(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:,\s*.+?)?\]/i, '').trim();
+          }
         }
 
         // Split title and description on colon
@@ -187,14 +236,31 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (title) {
           const now = new Date().toISOString();
+          
+          // Calculate scheduledDate based on dayOfWeek
+          let scheduledDate = '';
+          if (dayOfWeek) {
+            const today = new Date();
+            const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const targetDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(dayOfWeek);
+            const daysUntilTarget = (targetDay - currentDay + 7) % 7;
+            const targetDate = new Date(today);
+            targetDate.setDate(today.getDate() + (daysUntilTarget === 0 ? 7 : daysUntilTarget)); // If today, schedule for next week
+            scheduledDate = targetDate.toISOString().split('T')[0];
+          }
+
           const task: Task = {
             id: generateId(),
             title,
             description: description || undefined,
             priority,
-            color: getDefaultColorForPriority(priority),
+            assignment,
+            color: getDefaultColorForAssignment(assignment, user),
             completed: false,
             createdBy: user.id,
+            scheduledDate: scheduledDate || undefined,
+            scheduledTime: scheduledTime || undefined,
+            dayOfWeek: dayOfWeek || undefined,
             createdAt: now,
             updatedAt: now,
           };
@@ -230,10 +296,24 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 // Helper function to get default colors for priorities
 const getDefaultColorForPriority = (priority: Priority): string => {
   const colors = {
-    A: '#ef4444', // Red
-    B: '#f97316', // Orange
-    C: '#eab308', // Yellow
-    D: '#22c55e', // Green
+    A1: '#dc2626', A2: '#ef4444', A3: '#f87171', // Red shades for A priorities
+    B1: '#ea580c', B2: '#f97316', B3: '#fb923c', // Orange shades for B priorities  
+    C1: '#ca8a04', C2: '#eab308', C3: '#facc15', // Yellow shades for C priorities
+    D: '#22c55e', // Green for D priority
   };
   return colors[priority];
+};
+
+// Helper function to get default colors based on assignment
+const getDefaultColorForAssignment = (assignment: Assignment, user: any): string => {
+  switch (assignment) {
+    case 'me':
+      return user?.color || '#ec4899'; // Default pink
+    case 'partner':
+      return '#3b82f6'; // Default blue
+    case 'both':
+      return '#8b5cf6'; // Purple for both (will use gradient in UI)
+    default:
+      return user?.color || '#3b82f6';
+  }
 };

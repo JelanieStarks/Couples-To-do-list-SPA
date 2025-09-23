@@ -57,6 +57,65 @@ function AppContent() {
         {/* Weekly Calendar */}
         <WeeklyCalendar />
 
+        {/* AI Prompt Display */}
+        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            🤖 AI Prompt for External Use
+          </h3>
+          <p className="text-sm text-gray-600 mb-4">
+            Copy this prompt and use it with any AI assistant to process your task notes:
+          </p>
+          <textarea
+            readOnly
+            value={`You are an assistant helping two partners with ADHD organize their weekly tasks.
+Rephrase and prioritize the following notes into clear, concise, past-tense, objective-style tasks.
+Assign each task a priority category:
+- A1–A3 = Urgent & important (A1 highest)
+- B1–B3 = Important but less urgent
+- C1–C3 = Nice to do, low urgency
+- D = Can be postponed or ignored
+
+Format each task exactly like this:
+[PRIORITY] Task description (assigned to: Me / Partner / Both) [Day of Week, optional time]
+
+Separate each task with three dashes on its own line, like this:
+---
+
+Example:
+A1 Finish project report (assigned to: Me) [Monday, 9:00 AM]
+---
+B2 Call plumber about leak (assigned to: Both) [Wednesday]
+---
+D Organize bookshelf (assigned to: Partner)
+
+Do not include any extra commentary or numbering.
+Only output the tasks in the exact format above, with \`---\` as the delimiter between them.`}
+            className="w-full h-48 p-4 border border-gray-300 rounded-lg bg-white font-mono text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          />
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-xs text-gray-500">
+              💡 Use this prompt with ChatGPT, Claude, or any AI assistant to convert your messy notes into organized tasks
+            </p>
+            <button
+              onClick={() => {
+                const textarea = document.querySelector('textarea[readonly]');
+                textarea.select();
+                document.execCommand('copy');
+                // Show a brief success message
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                  button.textContent = originalText;
+                }, 1000);
+              }}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+            >
+              📋 Copy Prompt
+            </button>
+          </div>
+        </div>
+
         {/* Footer with Jarvis Wisdom */}
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-6 text-center">
           <h3 className="text-xl font-semibold mb-2">🤖 Jarvis's Productivity Wisdom</h3>
