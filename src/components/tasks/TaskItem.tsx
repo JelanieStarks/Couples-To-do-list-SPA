@@ -57,7 +57,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
     D: { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800', emoji: '🟢' },
   };
 
-  const priority = priorityConfig[task.priority];
+  const priority = priorityConfig[task.priority] || priorityConfig['C1']; // Fallback to C1 if priority is invalid
 
   const handleSaveEdit = () => {
     if (!editData.title.trim()) return;
