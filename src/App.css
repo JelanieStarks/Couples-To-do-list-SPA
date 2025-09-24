@@ -14,6 +14,18 @@
   animation: gentle-pulse 2s ease-in-out infinite;
 }
 
+/* Staggered fade + slide in for drawer nav */
+@keyframes fadeSlideIn {
+  0% { opacity: 0; transform: translateY(6px); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Utility class used in JS via literal (can't rely on Tailwind plugin here) */
+.animate-fade-slide-in {
+  animation: fadeSlideIn .5s ease forwards;
+}
+
 /* Smooth transitions for better UX */
 * {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
@@ -30,13 +42,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  background: #f3f4f6; /* gray-100 */
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  background: #d1d5db; /* gray-300 */
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  background: #9ca3af; /* gray-400 */
 }

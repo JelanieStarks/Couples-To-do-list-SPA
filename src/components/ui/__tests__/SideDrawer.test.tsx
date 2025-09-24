@@ -33,27 +33,33 @@ describe('SideDrawer', () => {
 
   it('renders drawer container when open', () => {
     setup(true);
-    expect(screen.getByTestId('side-drawer')).toBeInTheDocument();
+  const drawer = screen.getByTestId('side-drawer');
+  expect(drawer).toBeTruthy();
+  const root = screen.getByTestId('drawer-root');
+  // Basic style presence checks
+  expect(root.getAttribute('class')).toMatch(/fixed/);
+  const navList = screen.getByTestId('nav-list');
+  expect(navList.querySelectorAll('li').length >= 5).toBe(true);
   });
 
   it('toggles completed section visibility', () => {
     setup(true);
     const toggle = screen.getByTestId('toggle-completed');
-  expect(screen.getByTestId('completed-section')).toBeInTheDocument();
+  expect(!!screen.getByTestId('completed-section')).toBe(true);
   fireEvent.click(toggle); // hide
   expect(screen.queryByTestId('completed-section')).toBeNull();
   fireEvent.click(toggle); // show again
-  expect(screen.getByTestId('completed-section')).toBeInTheDocument();
+  expect(!!screen.getByTestId('completed-section')).toBe(true);
   });
 
   it('toggles deleted section visibility', () => {
     setup(true);
     const toggle = screen.getByTestId('toggle-deleted');
-  expect(screen.getByTestId('deleted-section')).toBeInTheDocument();
+  expect(!!screen.getByTestId('deleted-section')).toBe(true);
   fireEvent.click(toggle); // hide
   expect(screen.queryByTestId('deleted-section')).toBeNull();
   fireEvent.click(toggle); // show
-  expect(screen.getByTestId('deleted-section')).toBeInTheDocument();
+  expect(!!screen.getByTestId('deleted-section')).toBe(true);
   });
 
   it('shows empty trash button only when deleted tasks exist', () => {

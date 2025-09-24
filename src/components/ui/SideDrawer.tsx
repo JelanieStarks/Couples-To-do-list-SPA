@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
-import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox } from 'lucide-react';
-import { TaskItem } from '../tasks/TaskItem';
+import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDays, User2, Brain, Settings, ChevronDown } from 'lucide-react';
+// import { TaskItem } from '../tasks/TaskItem'; // (Not currently needed inside archive lists)
 
 interface SideDrawerProps {
   open: boolean;
@@ -34,42 +35,85 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
     if (e.key === 'Escape' && open) onClose();
   }, [open, onClose]);
 
+  const firstNavItemRef = useRef<HTMLButtonElement | null>(null);
+
   useEffect(() => {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleKey]);
 
-  return (
-    <div className={`fixed inset-0 z-50 transition-pointer-events ${open ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!open} data-testid="drawer-root">
-      {/* Backdrop */}
+  useEffect(() => {
+    if (open) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      queueMicrotask(() => firstNavItemRef.current?.focus());
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [open]);
+
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+
+  const content = (
+    <div className={`fixed inset-0 z-50 overflow-hidden ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} data-testid="drawer-root">
+      {/* Backdrop with slight delay for smoother entrance */}
       <div
-        className={`absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
+        className={`absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
         data-testid="drawer-backdrop"
       />
       {/* Drawer */}
       <aside
-        className={`absolute top-0 left-0 h-full w-[320px] max-w-[80%] transform transition-transform duration-400 ease-out flex flex-col panel-neon panel-neon-border rounded-none !border-0 shadow-2xl ${open ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`absolute top-0 right-0 h-full w-full max-w-none md:max-w-[520px] lg:max-w-[640px] transform transition-transform duration-500 ease-[cubic-bezier(.18,.89,.32,1.05)] flex flex-col panel-neon panel-neon-border !border-slate-700/60 rounded-none shadow-2xl ${open ? 'translate-x-0' : 'translate-x-full'}`}
         role="dialog"
         aria-modal="true"
         aria-label="Task archives"
         data-testid="side-drawer"
+        data-open={open || undefined}
       >
-  <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60" data-testid="drawer-header">
-          <h2 className="text-sm font-semibold tracking-wider text-slate-200 uppercase">Archives</h2>
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60 px-1" data-testid="drawer-header">
+          <h2 className="text-sm font-semibold tracking-wider text-slate-200 uppercase">Menu</h2>
           <button className="icon-btn-neon" onClick={onClose} aria-label="Close drawer">✕</button>
         </div>
 
-        {/* Completed Tasks Section */}
-        <div className="mb-6">
+        {/* Primary Nav */}
+        <nav className="mb-6 px-1" aria-label="Primary">
+          <ul className="space-y-1 text-sm font-medium tracking-wide" data-testid="nav-list">
+            {[
+              { icon: LayoutGrid, label: 'Dashboard' },
+              { icon: CalendarDays, label: 'Weekly Planner' },
+              { icon: Brain, label: 'AI Import' },
+              { icon: User2, label: 'Partner' },
+              { icon: Settings, label: 'Settings' },
+            ].map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.label} style={{ animationDelay: `${idx * 55}ms` }} className="opacity-0 animate-fade-slide-in">
+                  <button
+                    ref={idx === 0 ? firstNavItemRef : undefined}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-slate-200 border border-slate-700/40 hover:border-slate-500/50 bg-slate-800/40 hover:bg-slate-700/50 shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500/60 focus:ring-offset-2 focus:ring-offset-slate-900`}> 
+                    <Icon className="h-4 w-4 opacity-80" /> {item.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+  <div className="mt-1 mb-4 text-[10px] uppercase tracking-wider text-slate-500 font-semibold px-1">Archives</div>
+
+  {/* Completed Tasks Section */}
+  <div className="mb-6 px-1">
           <button
             onClick={() => setShowCompleted(v => !v)}
-            className="w-full flex items-center justify-between text-left mb-2 btn-neon" data-variant="soft" data-size="sm"
+            className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
             aria-expanded={showCompleted}
             data-testid="toggle-completed"
           >
             <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Completed ({completed.length})</span>
-            <span className="text-[10px] opacity-70">{showCompleted ? 'Hide' : 'Show'}</span>
+            <span className="flex items-center gap-1 text-[10px] opacity-70">
+              {showCompleted ? 'Hide' : 'Show'}
+              <ChevronDown className={`h-3 w-3 transition-transform duration-300 ${showCompleted ? 'rotate-180' : 'rotate-0'}`} />
+            </span>
           </button>
           {showCompleted && (
             <div className="space-y-2 max-h-52 overflow-y-auto pr-1 scroll-thin" data-testid="completed-section">
@@ -97,16 +141,19 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
           )}
         </div>
 
-        {/* Deleted Tasks Section */}
-  <div className="mb-2">
+    {/* Deleted Tasks Section */}
+  <div className="mb-2 px-1">
           <button
             onClick={() => setShowDeleted(v => !v)}
-            className="w-full flex items-center justify-between text-left mb-2 btn-neon" data-variant="soft" data-size="sm"
+            className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
             aria-expanded={showDeleted}
             data-testid="toggle-deleted"
           >
             <span className="flex items-center gap-2"><Trash2 className="h-4 w-4" /> Deleted ({deleted.length})</span>
-            <span className="text-[10px] opacity-70">{showDeleted ? 'Hide' : 'Show'}</span>
+            <span className="flex items-center gap-1 text-[10px] opacity-70">
+              {showDeleted ? 'Hide' : 'Show'}
+              <ChevronDown className={`h-3 w-3 transition-transform duration-300 ${showDeleted ? 'rotate-180' : 'rotate-0'}`} />
+            </span>
           </button>
           {showDeleted && (
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scroll-thin" data-testid="deleted-section">
@@ -145,10 +192,14 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
           )}
         </div>
 
-        <div className="mt-auto pt-4 text-[10px] text-slate-500 border-t border-slate-700/60">
-          <p>⚠️ Deleted tasks are retained locally until permanently removed.</p>
+        <div className="mt-auto pt-4 border-t border-slate-700/60 space-y-3 px-1">
+          <p className="text-[10px] text-slate-500">⚠️ Deleted tasks are retained locally until permanently removed.</p>
+          <p className="text-[10px] text-slate-600">v0.1.0 • Local First</p>
         </div>
       </aside>
     </div>
   );
+
+  if (!portalTarget) return content;
+  return createPortal(content, portalTarget);
 };
