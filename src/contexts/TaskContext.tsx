@@ -153,11 +153,22 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getCompletedTasks = (): Task[] => {
-    return tasks.filter(t => t.completed && !t.deletedAt).sort((a,b) => {
-      const ad = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-      const bd = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-      return bd - ad; // newest completed first
-    });
+    // Sort primarily by completedAt descending. If identical (can happen when toggled rapidly in same ms)
+    // fall back to updatedAt descending, then creation order (later index first) to ensure deterministic ordering.
+    return tasks
+      .filter(t => t.completed && !t.deletedAt)
+      .sort((a, b) => {
+        const aCompleted = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bCompleted = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        if (bCompleted !== aCompleted) return bCompleted - aCompleted;
+        const aUpdated = new Date(a.updatedAt).getTime();
+        const bUpdated = new Date(b.updatedAt).getTime();
+        if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+        // Fallback: reverse original order so the task toggled later (higher index) comes first
+        const aIndex = tasks.findIndex(t => t.id === a.id);
+        const bIndex = tasks.findIndex(t => t.id === b.id);
+        return bIndex - aIndex;
+      });
   };
 
   const getDeletedTasks = (): Task[] => {
