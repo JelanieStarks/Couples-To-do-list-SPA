@@ -211,7 +211,64 @@ src/
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
 
-## 🤝 Contributing
+## � Testing
+
+The project uses **Vitest** + **@testing-library/react** with a lightweight setup oriented around clarity and behavior-driven assertions.
+
+### Running Tests
+```bash
+npm test          # One-off run
+npm run test:watch  # Watch mode while developing
+```
+
+### What Is Covered (Currently)
+- Core Task lifecycle (create, complete, soft delete, restore, hard delete)
+- Timestamp ordering for completed tasks (newest first)
+
+### Coming Soon (Good First Issues)
+- Parsing edge cases for AI import
+- Date-based filtering and scheduling behaviors
+- Drag + drop interaction state tests (dnd-kit harness)
+
+### Coverage
+Coverage reporting is enabled. After a run you'll see summary output (LCOV is generated for CI tooling).
+
+### Testing Philosophy
+1. **Readable over clever** – Straightforward expectations using jest-dom matchers.
+2. **Behavior over implementation** – Focus on what the context returns, not internal state details.
+3. **Small & Focused** – Each test isolates one feature path.
+4. **Deterministic** – Avoid relying on timers or real network.
+
+### File Locations
+```
+src/contexts/__tests__/TaskContext.test.tsx
+vitest.setup.ts
+```
+
+### Adding New Tests
+1. Create a file near the code under `__tests__` or co-locate as `*.test.tsx`.
+2. Use `render` from `@testing-library/react` for component tests.
+3. Import shared matchers automatically via `vitest.setup.ts`.
+
+### Example Snippet
+```ts
+import { describe, it, expect } from 'vitest';
+
+describe('math', () => {
+   it('adds', () => {
+      expect(1 + 1).toBe(2);
+   });
+});
+```
+
+If you add new context APIs, ensure:
+- Edge cases (empty input) are tested
+- State mutations update timestamps where expected
+- Items hidden by filters stay hidden
+
+> Tip: For complex async UI flows, prefer `findBy*` queries and avoid arbitrary `setTimeout` usage.
+
+## �🤝 Contributing
 
 We'd love your help making this app even better!
 
