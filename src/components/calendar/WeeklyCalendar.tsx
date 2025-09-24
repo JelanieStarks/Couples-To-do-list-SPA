@@ -18,9 +18,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
 // 📅 Weekly Calendar - Drag and drop task scheduler
@@ -166,12 +165,7 @@ interface DayColumnProps {
 }
 
 const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, isToday, isPast }) => {
-  const {
-    setNodeRef,
-    isOver,
-  } = useSortable({
-    id: `day-${dateStr}`,
-  });
+  const { setNodeRef, isOver } = useDroppable({ id: `day-${dateStr}` });
 
   return (
     <div ref={setNodeRef} className={`day-square ${isToday ? 'today' : ''} ${isPast ? 'day-square-past' : ''} ${isOver ? 'ring-2 ring-indigo-400 ring-offset-0' : ''}`}>
@@ -238,7 +232,7 @@ const DraggableTask: React.FC<DraggableTaskProps> = ({ task }) => {
       className="cursor-grab active:cursor-grabbing"
       data-task-id={task.id}
     >
-      <TaskItem task={task} showDate={false} isDragging={isDragging} compact />
+      <TaskItem task={task} showDate={false} isDragging={isDragging} compact forceActions />
     </div>
   );
 };

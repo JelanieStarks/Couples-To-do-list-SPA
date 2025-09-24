@@ -86,7 +86,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
         </div>
 
         {/* Deleted Tasks Section */}
-        <div className="mb-2">
+  <div className="mb-2">
           <button
             onClick={() => setShowDeleted(v => !v)}
             className="w-full flex items-center justify-between text-left mb-2 btn-neon" data-variant="soft" data-size="sm"
@@ -121,6 +121,12 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
                   </div>
                 </div>
               ))}
+              {deleted.length > 0 && (
+                <button
+                  onClick={() => { if (confirm('Empty trash? This permanently deletes all trashed tasks.')) { deleted.forEach((t:any)=> hardDeleteTask(t.id)); } }}
+                  className="w-full mt-2 btn-neon" data-variant="outline" data-size="xs"
+                >🗑️ Empty Trash</button>
+              )}
             </div>
           )}
         </div>

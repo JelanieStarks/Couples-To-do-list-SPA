@@ -11,10 +11,11 @@ interface TaskItemProps {
   isDragging?: boolean;
   onTaskClick?: (taskId: string) => void;
   compact?: boolean; // compact card variant for calendar grid
+  forceActions?: boolean; // force show actions even in compact mode
 }
 
 // 📋 Task Item Component - Individual task with all the bells and whistles
-export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDragging = false, onTaskClick, compact = false }) => {
+export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDragging = false, onTaskClick, compact = false, forceActions = false }) => {
   const { updateTask, softDeleteTask, toggleTaskComplete } = useTask() as any;
   const { user, partner } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
@@ -191,7 +192,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
             </div>
           </div>
 
-          {!compact && (
+          {(!compact || forceActions) && (
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center space-x-3 text-[10px] text-slate-400">
                 <div className="flex items-center space-x-1">
@@ -216,7 +217,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
                   </div>
                 )}
               </div>
-              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className={`flex items-center space-x-1 ${forceActions ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                 {!task.completed && (
                   <button
                     onClick={() => toggleTaskComplete(task.id)}
