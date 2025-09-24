@@ -12,6 +12,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  const toggleDrawer = () => setDrawerOpen(o => !o);
+
   return (
   <div className="min-h-screen flex flex-col items-center bg-transparent">
       {/* Header */}
@@ -21,9 +23,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Logo and Title */}
             <div className="flex items-center space-x-3">
               <button
-                onClick={() => setDrawerOpen(true)}
+                onClick={toggleDrawer}
                 className="icon-btn-neon"
-                aria-label="Open menu"
+                aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
+                data-testid="hamburger-btn"
               >
                 <Menu className="h-5 w-5" />
               </button>
@@ -97,7 +100,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </div>
-      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+  <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </div>
   );
 };

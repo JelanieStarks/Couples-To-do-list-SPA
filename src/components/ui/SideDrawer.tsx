@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox } from 'lucide-react';
 import { TaskItem } from '../tasks/TaskItem';
@@ -30,12 +30,22 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
   const [showCompleted, setShowCompleted] = useState(true);
   const [showDeleted, setShowDeleted] = useState(true);
 
+  const handleKey = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape' && open) onClose();
+  }, [open, onClose]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [handleKey]);
+
   return (
-    <div className={`fixed inset-0 z-50 transition-pointer-events ${open ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!open}>
+    <div className={`fixed inset-0 z-50 transition-pointer-events ${open ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-hidden={!open} data-testid="drawer-root">
       {/* Backdrop */}
       <div
         className={`absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
+        data-testid="drawer-backdrop"
       />
       {/* Drawer */}
       <aside
@@ -43,8 +53,9 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
         role="dialog"
         aria-modal="true"
         aria-label="Task archives"
+        data-testid="side-drawer"
       >
-        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60">
+  <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60" data-testid="drawer-header">
           <h2 className="text-sm font-semibold tracking-wider text-slate-200 uppercase">Archives</h2>
           <button className="icon-btn-neon" onClick={onClose} aria-label="Close drawer">✕</button>
         </div>
@@ -55,12 +66,13 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
             onClick={() => setShowCompleted(v => !v)}
             className="w-full flex items-center justify-between text-left mb-2 btn-neon" data-variant="soft" data-size="sm"
             aria-expanded={showCompleted}
+            data-testid="toggle-completed"
           >
             <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4" /> Completed ({completed.length})</span>
             <span className="text-[10px] opacity-70">{showCompleted ? 'Hide' : 'Show'}</span>
           </button>
           {showCompleted && (
-            <div className="space-y-2 max-h-52 overflow-y-auto pr-1 scroll-thin">
+            <div className="space-y-2 max-h-52 overflow-y-auto pr-1 scroll-thin" data-testid="completed-section">
               {completed.length === 0 && (
                 <div className="text-[11px] text-slate-500 flex items-center gap-2"><Inbox className="h-4 w-4" /> None yet</div>
               )}
@@ -91,12 +103,13 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
             onClick={() => setShowDeleted(v => !v)}
             className="w-full flex items-center justify-between text-left mb-2 btn-neon" data-variant="soft" data-size="sm"
             aria-expanded={showDeleted}
+            data-testid="toggle-deleted"
           >
             <span className="flex items-center gap-2"><Trash2 className="h-4 w-4" /> Deleted ({deleted.length})</span>
             <span className="text-[10px] opacity-70">{showDeleted ? 'Hide' : 'Show'}</span>
           </button>
           {showDeleted && (
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scroll-thin">
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1 scroll-thin" data-testid="deleted-section">
               {deleted.length === 0 && (
                 <div className="text-[11px] text-slate-500 flex items-center gap-2"><Inbox className="h-4 w-4" /> Trash empty</div>
               )}
@@ -125,6 +138,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
                 <button
                   onClick={() => { if (confirm('Empty trash? This permanently deletes all trashed tasks.')) { deleted.forEach((t:any)=> hardDeleteTask(t.id)); } }}
                   className="w-full mt-2 btn-neon" data-variant="outline" data-size="xs"
+                  data-testid="empty-trash"
                 >🗑️ Empty Trash</button>
               )}
             </div>
