@@ -20,6 +20,8 @@ export interface Task {
   priority: Priority;
   assignment: Assignment;
   color: string;
+  // Numeric ordering within a priority bucket for custom user reordering
+  order?: number;
   completed: boolean;
   createdBy: string;
   assignedTo?: string;

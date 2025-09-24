@@ -264,8 +264,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
       </div>
 
       {!compact && task.priority.startsWith('A') && !task.completed && (
-        <div className="mt-3 p-2 rounded bg-gradient-to-r from-indigo-900/60 to-fuchsia-900/40 border border-rose-500/30">
-          <p className="text-[10px] text-rose-200 tracking-wide">
+        <div className="mt-3 p-2 rounded-lg bg-gradient-to-r from-indigo-900/70 to-fuchsia-900/60 border border-rose-400">
+          <p className="text-[11px] text-rose-200 tracking-wide font-medium">
             🤖 Priority {task.priority}! {task.priority === 'A1' ? 'Handle immediately.' : 'High importance - schedule soon.'}
           </p>
         </div>

@@ -1,17 +1,28 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { TaskItem } from './TaskItem';
+import type { Task } from '../../types';
 import { Clock, Star, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // 📅 Today's Tasks - Your daily command center
 export const TodaysTasks: React.FC = () => {
-  const { getTodaysTasks } = useTask();
+  const { getTodaysTasks, reorderTasksWithinPriority } = useTask() as any;
   const todaysTasks = getTodaysTasks();
 
-  const completedTasks = todaysTasks
-    .filter(task => task.completed)
+  const completedTasks: Task[] = todaysTasks
+    .filter((task: Task) => task.completed)
     .slice()
-    .sort((a,b) => {
+    .sort((a: Task, b: Task) => {
       if (a.completedAt && b.completedAt) {
         return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
       }
@@ -19,9 +30,9 @@ export const TodaysTasks: React.FC = () => {
       if (b.completedAt) return 1;
       return 0;
     });
-  const incompleteTasks = todaysTasks.filter(task => !task.completed);
-  const priorityATasks = incompleteTasks.filter(task => task.priority.startsWith('A'));
-  const otherTasks = incompleteTasks.filter(task => !task.priority.startsWith('A'));
+  const incompleteTasks: Task[] = todaysTasks.filter((task: Task) => !task.completed);
+  const priorityATasks: Task[] = incompleteTasks.filter((task: Task) => task.priority.startsWith('A'));
+  const otherTasks: Task[] = incompleteTasks.filter((task: Task) => !task.priority.startsWith('A'));
 
   const completionRate = todaysTasks.length > 0 
     ? Math.round((completedTasks.length / todaysTasks.length) * 100) 
@@ -67,6 +78,24 @@ export const TodaysTasks: React.FC = () => {
     
     return "🤖 Ready to tackle today's challenges? Let's make things happen! ⚡";
   };
+
+  // Sensors for minimal drag constraint inside urgent list
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+  const currentOrder = priorityATasks.map((t: Task) => t.id);
+    const oldIndex = currentOrder.indexOf(active.id as string);
+    const newIndex = currentOrder.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = [...currentOrder];
+    const [moved] = reordered.splice(oldIndex, 1);
+    reordered.splice(newIndex, 0, moved);
+    reorderTasksWithinPriority('A', reordered);
+  }, [priorityATasks, reorderTasksWithinPriority]);
 
   return (
   <div className="panel-neon panel-neon-border">
@@ -136,12 +165,17 @@ export const TodaysTasks: React.FC = () => {
             <span className="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-1 rounded-full">
               {priorityATasks.length}
             </span>
+            <span className="ml-2 text-[10px] text-slate-500">(Drag to reorder)</span>
           </div>
-          <div className="space-y-3">
-            {priorityATasks.map(task => (
-              <TaskItem key={task.id} task={task} onTaskClick={handleTaskClick} />
-            ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={priorityATasks.map((t: Task) => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-3">
+                {priorityATasks.map((task: Task) => (
+                  <SortableTaskRow key={task.id} id={task.id} task={task} onTaskClick={handleTaskClick} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       )}
 
@@ -156,7 +190,7 @@ export const TodaysTasks: React.FC = () => {
             </span>
           </div>
           <div className="space-y-3">
-            {otherTasks.map(task => (
+            {otherTasks.map((task: Task) => (
               <TaskItem key={task.id} task={task} onTaskClick={handleTaskClick} />
             ))}
           </div>
@@ -174,7 +208,7 @@ export const TodaysTasks: React.FC = () => {
             </span>
           </div>
           <div className="space-y-3">
-            {completedTasks.map(task => (
+            {completedTasks.map((task: Task) => (
               <TaskItem key={task.id} task={task} onTaskClick={handleTaskClick} />
             ))}
           </div>
@@ -189,6 +223,26 @@ export const TodaysTasks: React.FC = () => {
           <p className="text-slate-400 max-w-md mx-auto text-xs">🤖 Free day detected! Add tasks or savor the calm.</p>
         </div>
       )}
+    </div>
+  );
+};
+
+// Sortable row wrapper for Urgent (priority A) tasks
+interface SortableTaskRowProps {
+  id: string;
+  task: Task;
+  onTaskClick?: (id: string) => void;
+}
+
+const SortableTaskRow: React.FC<SortableTaskRowProps> = ({ id, task, onTaskClick }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing" data-task-id={task.id}>
+      <TaskItem task={task} onTaskClick={onTaskClick} isDragging={isDragging} />
     </div>
   );
 };

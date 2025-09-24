@@ -20,6 +20,7 @@ interface TaskContextType {
   getDeletedTasks: () => Task[];
   importTasksFromText: (text: string) => Task[];
   moveTaskToDate: (taskId: string, date: string) => void;
+  reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -59,15 +60,33 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
 
     const now = new Date().toISOString();
+    // Determine next order within this priority group
+    const samePriority = tasks.filter(t => t.priority === taskData.priority && !t.deletedAt);
+    const nextOrder = samePriority.length > 0 ? Math.max(...samePriority.map(t => t.order || 0)) + 1 : 1;
     const newTask: Task = {
       ...taskData,
       id: generateId(),
       createdBy: user.id,
       createdAt: now,
       updatedAt: now,
+      order: nextOrder,
     };
 
     setTasks(prev => [...prev, newTask]);
+  };
+  // Reorder tasks inside a priority bucket (e.g., all A* priorities) based on new ordered id list
+  const reorderTasksWithinPriority = (priorityPrefix: string, orderedIds: string[]) => {
+    setTasks(prev => {
+      const updated = [...prev];
+      // Assign new order sequentially (1..n) in given order
+      orderedIds.forEach((id, index) => {
+        const idx = updated.findIndex(t => t.id === id);
+        if (idx !== -1) {
+          updated[idx] = { ...updated[idx], order: index + 1, updatedAt: new Date().toISOString() };
+        }
+      });
+      return updated;
+    });
   };
 
   const updateTask = (id: string, updates: Partial<Task>): void => {
@@ -139,7 +158,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return new Date(taskDate).toDateString() === today;
       })
       .sort((a, b) => {
-        // Sort by priority (A1 > A2 > A3 > B1 > B2 > B3 > C1 > C2 > C3 > D), then by creation time
+        // Sort by priority (A1 > A2 > A3 > B1 > B2 > B3 > C1 > C2 > C3 > D), then by custom order (ascending), then by creation time
         const priorityOrder = { 
           A1: 10, A2: 9, A3: 8, 
           B1: 7, B2: 6, B3: 5, 
@@ -148,6 +167,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
         if (priorityDiff !== 0) return priorityDiff;
+        if (a.order && b.order && a.order !== b.order) return a.order - b.order;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
   };
@@ -337,6 +357,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getDeletedTasks,
     importTasksFromText,
     moveTaskToDate,
+    reorderTasksWithinPriority,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
