@@ -59,16 +59,16 @@ export const TodaysTasks: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+  <div className="panel-neon panel-neon-border">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-r from-blue-100 to-indigo-100 p-2 rounded-lg">
-            <Clock className="h-6 w-6 text-blue-600" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Today's Tasks</h2>
-            <p className="text-sm text-gray-500">
+            <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
+              <Clock className="h-6 w-6 text-indigo-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-slate-100 tracking-wide">Today's Tasks</h2>
+              <p className="text-xs text-slate-400 tracking-wide">
               {new Date().toLocaleDateString('en-US', { 
                 weekday: 'long', 
                 year: 'numeric', 
@@ -83,12 +83,12 @@ export const TodaysTasks: React.FC = () => {
         {todaysTasks.length > 0 && (
           <div className="text-right">
             <div className={`text-2xl font-bold ${
-              completionRate === 100 ? 'text-green-600' : 
-              completionRate >= 50 ? 'text-blue-600' : 'text-gray-600'
+              completionRate === 100 ? 'text-emerald-400' : 
+              completionRate >= 50 ? 'text-indigo-300' : 'text-slate-500'
             }`}>
               {completionRate}%
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-[10px] text-slate-500">
               {completedTasks.length} of {todaysTasks.length} done
             </div>
           </div>
@@ -96,8 +96,8 @@ export const TodaysTasks: React.FC = () => {
       </div>
 
       {/* Jarvis Commentary */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-        <p className="text-sm text-blue-800 font-medium">
+      <div className="mb-6 p-4 rounded-lg bg-slate-800/60 border border-slate-700">
+        <p className="text-xs text-slate-300 font-medium">
           {getJarvisEncouragement()}
         </p>
       </div>
@@ -105,15 +105,14 @@ export const TodaysTasks: React.FC = () => {
       {/* Progress Bar */}
       {todaysTasks.length > 0 && (
         <div className="mb-6">
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className={`h-3 rounded-full transition-all duration-500 ${
-                completionRate === 100 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                completionRate >= 50 ? 'bg-gradient-to-r from-blue-500 to-indigo-500' :
-                'bg-gradient-to-r from-gray-400 to-gray-500'
+          <div className="w-full h-2 rounded-full bg-slate-700 overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 bg-gradient-to-r ${
+                completionRate === 100 ? 'from-emerald-400 to-green-500' :
+                completionRate >= 50 ? 'from-indigo-400 to-fuchsia-500' : 'from-slate-500 to-slate-400'
               }`}
               style={{ width: `${completionRate}%` }}
-            ></div>
+            />
           </div>
         </div>
       )}
@@ -122,9 +121,9 @@ export const TodaysTasks: React.FC = () => {
       {priorityATasks.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-3">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <h3 className="font-semibold text-red-800">🔥 URGENT - Do These NOW!</h3>
-            <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
+            <AlertCircle className="h-5 w-5 text-rose-400" />
+            <h3 className="font-semibold text-rose-300 tracking-wide text-sm">🔥 URGENT</h3>
+            <span className="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-1 rounded-full">
               {priorityATasks.length}
             </span>
           </div>
@@ -140,9 +139,9 @@ export const TodaysTasks: React.FC = () => {
       {otherTasks.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-3">
-            <Star className="h-5 w-5 text-blue-600" />
-            <h3 className="font-semibold text-gray-800">📋 Other Tasks</h3>
-            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+            <Star className="h-5 w-5 text-indigo-300" />
+            <h3 className="font-semibold text-slate-200 text-sm">📋 Other Tasks</h3>
+            <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-2 py-1 rounded-full">
               {otherTasks.length}
             </span>
           </div>
@@ -158,9 +157,9 @@ export const TodaysTasks: React.FC = () => {
       {completedTasks.length > 0 && (
         <div>
           <div className="flex items-center space-x-2 mb-3">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <h3 className="font-semibold text-green-800">✅ Completed</h3>
-            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+            <CheckCircle className="h-5 w-5 text-emerald-300" />
+            <h3 className="font-semibold text-emerald-300 text-sm">✅ Completed</h3>
+            <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-1 rounded-full">
               {completedTasks.length}
             </span>
           </div>
@@ -174,14 +173,10 @@ export const TodaysTasks: React.FC = () => {
 
       {/* Empty State */}
       {todaysTasks.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">🌅</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No tasks scheduled for today
-          </h3>
-          <p className="text-gray-600 max-w-md mx-auto">
-            🤖 Looks like you have a free day! Add some tasks above or enjoy the calm before the storm.
-          </p>
+        <div className="text-center py-10">
+          <div className="text-5xl mb-3">🌅</div>
+          <h3 className="text-base font-semibold text-slate-100 mb-2 tracking-wide">No tasks today</h3>
+          <p className="text-slate-400 max-w-md mx-auto text-xs">🤖 Free day detected! Add tasks or savor the calm.</p>
         </div>
       )}
     </div>

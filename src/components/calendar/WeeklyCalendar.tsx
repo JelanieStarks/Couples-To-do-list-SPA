@@ -67,38 +67,36 @@ export const WeeklyCalendar: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="panel-neon panel-neon-border">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+  <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-2 rounded-lg">
-            <CalendarIcon className="h-6 w-6 text-purple-600" />
+          <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
+            <CalendarIcon className="h-6 w-6 text-indigo-400" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Weekly Planner</h2>
-            <p className="text-sm text-gray-500">🤖 Drag tasks between days like a time wizard!</p>
+            <h2 className="text-xl font-semibold text-slate-100 tracking-wide">Weekly Planner</h2>
+            <p className="text-xs text-slate-400">🤖 Drag & drop tasks across your week</p>
           </div>
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center space-x-3">
+  <div className="flex items-center space-x-3">
           <button
             onClick={() => navigateWeek('prev')}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 rounded-lg bg-slate-800/70 border border-slate-600 text-slate-300 hover:text-white hover:border-indigo-400 hover:shadow-md transition"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           
           <button
             onClick={goToToday}
-            className="px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
-          >
-            Today
-          </button>
+            className="px-4 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow hover:shadow-lg tracking-wide"
+          >Today</button>
           
           <button
             onClick={() => navigateWeek('next')}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 rounded-lg bg-slate-800/70 border border-slate-600 text-slate-300 hover:text-white hover:border-indigo-400 hover:shadow-md transition"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -107,10 +105,10 @@ export const WeeklyCalendar: React.FC = () => {
 
       {/* Week Display */}
       <div className="mb-4 text-center">
-        <h3 className="text-lg font-medium text-gray-900">
+        <h3 className="text-lg font-medium text-slate-100">
           {weekDates[0].toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </h3>
-        <p className="text-sm text-gray-500">
+        <p className="text-xs text-slate-400 tracking-wide">
           {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
         </p>
       </div>
@@ -121,7 +119,7 @@ export const WeeklyCalendar: React.FC = () => {
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
           {weekDates.map((date, index) => {
             const dateStr = date.toISOString().split('T')[0];
             const dayTasks = getTasksByDate(dateStr);
@@ -144,13 +142,13 @@ export const WeeklyCalendar: React.FC = () => {
       </DndContext>
 
       {/* Jarvis Tips */}
-      <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-        <h4 className="font-medium text-blue-900 mb-2">🤖 Jarvis Calendar Tips:</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Drag any task to a different day to reschedule it</li>
-          <li>• Today's column is highlighted for your convenience</li>
-          <li>• Past days are dimmed but still editable (in case you're a time traveler)</li>
-          <li>• Tasks without dates show up in "Today" by default</li>
+      <div className="mt-6 p-4 rounded-lg bg-slate-800/60 border border-slate-700 text-xs text-slate-300 leading-relaxed">
+        <h4 className="font-semibold text-indigo-300 mb-2 tracking-wide">🤖 Jarvis Calendar Tips</h4>
+        <ul className="space-y-1">
+          <li><span className="text-indigo-400">•</span> Drag any task to a different day to reschedule it</li>
+          <li><span className="text-indigo-400">•</span> Today is outlined in neon glow</li>
+          <li><span className="text-indigo-400">•</span> Past days are slightly dimmed</li>
+          <li><span className="text-indigo-400">•</span> No date? It appears in Today's list</li>
         </ul>
       </div>
     </div>
@@ -176,45 +174,27 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
   });
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`min-h-[400px] border-2 border-dashed rounded-lg p-3 transition-all ${
-        isOver 
-          ? 'border-purple-400 bg-purple-50' 
-          : 'border-gray-200 hover:border-gray-300'
-      } ${isToday ? 'bg-blue-50 border-blue-200' : ''} ${isPast ? 'opacity-60' : ''}`}
-    >
-      {/* Day Header */}
-      <div className="mb-3 text-center">
-        <h3 className={`font-semibold ${isToday ? 'text-blue-900' : 'text-gray-900'}`}>
-          {dayName}
-        </h3>
-        <p className={`text-sm ${isToday ? 'text-blue-700' : 'text-gray-600'}`}>
-          {date.getDate()}
-        </p>
-        {isToday && (
-          <div className="inline-block bg-blue-600 text-white text-xs px-2 py-1 rounded-full mt-1">
-            Today
+    <div ref={setNodeRef} className={`day-square ${isToday ? 'today' : ''} ${isPast ? 'day-square-past' : ''} ${isOver ? 'ring-2 ring-indigo-400 ring-offset-0' : ''}`}>
+      <div className="day-square-header">
+        <div>{dayName}</div>
+        <div className="text-[10px] font-normal opacity-70">{date.getDate()}</div>
+      </div>
+      <div className="day-tasks-scroll scroll-thin grid gap-2 grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-5 auto-rows-max">
+        {tasks
+          .slice()
+          .sort((a,b) => {
+            if (a.completed === b.completed) return 0;
+            return a.completed ? 1 : -1; // completed last
+          })
+          .map(task => (
+          <DraggableTask key={task.id} task={task} />
+        ))}
+        {tasks.length === 0 && (
+          <div className="col-span-full text-center py-6 text-[11px] text-slate-500">
+            {isToday ? 'No tasks today' : 'Drag tasks here'}
           </div>
         )}
       </div>
-
-      {/* Tasks */}
-      <div className="space-y-2">
-        {tasks.map(task => (
-          <DraggableTask key={task.id} task={task} />
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {tasks.length === 0 && (
-        <div className="text-center py-8">
-          <div className="text-gray-400 text-2xl mb-2">📝</div>
-          <p className="text-xs text-gray-500">
-            {isToday ? 'No tasks today' : 'Drag tasks here'}
-          </p>
-        </div>
-      )}
     </div>
   );
 };
@@ -248,7 +228,7 @@ const DraggableTask: React.FC<DraggableTaskProps> = ({ task }) => {
       className="cursor-grab active:cursor-grabbing"
       data-task-id={task.id}
     >
-      <TaskItem task={task} showDate={false} isDragging={isDragging} />
+      <TaskItem task={task} showDate={false} isDragging={isDragging} compact />
     </div>
   );
 };

@@ -10,11 +10,12 @@ interface TaskItemProps {
   showDate?: boolean;
   isDragging?: boolean;
   onTaskClick?: (taskId: string) => void;
+  compact?: boolean; // compact card variant for calendar grid
 }
 
 // 📋 Task Item Component - Individual task with all the bells and whistles
-export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDragging = false, onTaskClick }) => {
-  const { updateTask, deleteTask, toggleTaskComplete } = useTask();
+export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDragging = false, onTaskClick, compact = false }) => {
+  const { updateTask, softDeleteTask, toggleTaskComplete } = useTask() as any;
   const { user, partner } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
@@ -83,8 +84,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   };
 
   const handleDelete = () => {
-    if (confirm('🤖 Are you sure you want to delete this task? Jarvis will miss it!')) {
-      deleteTask(task.id);
+    if (confirm('🤖 Soft delete this task? You can restore it from the menu.')) {
+      softDeleteTask(task.id);
     }
   };
 
@@ -155,127 +156,117 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   return (
     <div 
-      className={`group bg-white rounded-lg border-2 p-4 transition-all duration-200 hover:shadow-md cursor-pointer ${
-        task.assignment === 'both'
-          ? 'border-purple-200 bg-gradient-to-r from-purple-50 via-pink-50 to-blue-50' 
-          : 'border-gray-200 hover:border-gray-300'
-      } ${task.completed ? 'opacity-75' : ''} ${isDragging ? 'opacity-50 rotate-3' : ''}`}
-      style={{ 
-        borderLeftColor: assignmentInfo.color === 'gradient' ? '#8b5cf6' : assignmentInfo.color, 
-        borderLeftWidth: '4px' 
-      }}
+      className={`group task-card-neon ${compact ? 'px-2 py-2' : ''} ${task.assignment === 'both' ? 'shared' : ''} ${task.completed ? 'opacity-60' : ''} ${isDragging ? 'opacity-40 scale-[0.98]' : ''}`}
+      data-task-id={task.id}
       onClick={() => onTaskClick?.(task.id)}
     >
-      <div className="flex items-start space-x-3">
-        {/* Checkbox */}
+      <div className="flex items-start space-x-2">
         <button
           onClick={() => toggleTaskComplete(task.id)}
-          className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+          aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
+          className={`flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold transition-colors ${
             task.completed
-              ? 'bg-green-500 border-green-500 text-white'
-              : 'border-gray-300 hover:border-green-400'
+              ? 'bg-emerald-500 border-emerald-500 text-white shadow'
+              : 'border-slate-500/70 text-slate-300 hover:border-emerald-400'
           }`}
         >
           {task.completed && <Check className="h-4 w-4" />}
         </button>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className={`font-medium text-gray-900 ${task.completed ? 'line-through' : ''}`}>
+          <div className={`flex ${compact ? 'items-center' : 'items-start'} justify-between`}>
+            <div className="flex-1 min-w-0">
+              <h3 className={`font-medium text-slate-100 leading-tight text-[12px] ${task.completed ? 'line-through opacity-70' : ''}`}>
                 {task.title}
               </h3>
-              {task.description && (
-                <p className={`text-sm text-gray-600 mt-1 ${task.completed ? 'line-through' : ''}`}>
+              {!compact && task.description && (
+                <p className={`text-[10px] leading-snug text-slate-400 mt-1 ${task.completed ? 'line-through opacity-60' : ''}`}>
                   {task.description}
                 </p>
               )}
             </div>
 
-            {/* Priority Badge */}
-            <div className={`flex-shrink-0 ml-3 px-2 py-1 rounded-full text-xs font-medium ${priority.bg} ${priority.text} flex items-center space-x-1`}>
-              <span>{priority.emoji}</span>
-              <span>{task.priority}</span>
+            <div className="flex-shrink-0 ml-2 flex items-center space-x-1 task-priority-badge">
+              <span className="text-[10px]">{task.priority}</span>
             </div>
           </div>
 
-          {/* Metadata */}
-          <div className="flex items-center justify-between mt-3">
-            <div className="flex items-center space-x-3 text-xs text-gray-500">
-              {/* Assignment Info */}
-              <div className="flex items-center space-x-1">
-                <span>{assignmentInfo.icon}</span>
-                <span>{assignmentInfo.label}</span>
+          {!compact && (
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center space-x-3 text-[10px] text-slate-400">
+                <div className="flex items-center space-x-1">
+                  <span>{assignmentInfo.icon}</span>
+                  <span>{assignmentInfo.label}</span>
+                </div>
+                {task.scheduledTime && (
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-3 w-3" />
+                    <span>{task.scheduledTime}</span>
+                  </div>
+                )}
+                {(showDate || task.scheduledDate) && (
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>
+                      {task.scheduledDate 
+                        ? formatDate(task.scheduledDate) 
+                        : formatDate(task.createdAt)
+                      }
+                    </span>
+                  </div>
+                )}
               </div>
-
-              {/* Time Info */}
-              {task.scheduledTime && (
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{task.scheduledTime}</span>
-                </div>
-              )}
-
-              {/* Date Info */}
-              {(showDate || task.scheduledDate) && (
-                <div className="flex items-center space-x-1">
-                  <Calendar className="h-3 w-3" />
-                  <span>
-                    {task.scheduledDate 
-                      ? formatDate(task.scheduledDate) 
-                      : formatDate(task.createdAt)
-                    }
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {partner && (
-                <button
-                  onClick={handleToggleShare}
-                  className={`p-1 rounded transition-colors ${
-                    isShared 
-                      ? 'text-purple-600 hover:bg-purple-100' 
-                      : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
-                  }`}
-                  title={isShared ? 'Unshare task' : 'Share with partner'}
-                >
-                  <Users className="h-4 w-4" />
-                </button>
-              )}
-
-              {isOwner && (
-                <>
+              <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {!task.completed && (
                   <button
-                    onClick={() => setIsEditing(true)}
-                    className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    title="Edit task"
+                    onClick={() => toggleTaskComplete(task.id)}
+                    className="p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded transition-colors"
+                    title="Complete task"
                   >
-                    <Edit className="h-4 w-4" />
+                    <Check className="h-4 w-4" />
                   </button>
-
+                )}
+                {partner && (
                   <button
-                    onClick={handleDelete}
-                    className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                    title="Delete task"
+                    onClick={handleToggleShare}
+                    className={`p-1 rounded transition-colors ${
+                      isShared 
+                        ? 'text-purple-600 hover:bg-purple-100' 
+                        : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
+                    }`}
+                    title={isShared ? 'Unshare task' : 'Share with partner'}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Users className="h-4 w-4" />
                   </button>
-                </>
-              )}
+                )}
+                {isOwner && (
+                  <>
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                      title="Edit task"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                      title="Delete task"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Jarvis Commentary */}
-      {task.priority.startsWith('A') && !task.completed && (
-        <div className="mt-3 p-2 bg-red-50 border-l-4 border-red-400 rounded">
-          <p className="text-xs text-red-700">
-            🤖 <strong>Jarvis says:</strong> This is Priority {task.priority}! {task.priority === 'A1' ? 'URGENT ALERT! Handle this NOW!' : 'High priority - handle this before it becomes critical!'} 🚨
+      {!compact && task.priority.startsWith('A') && !task.completed && (
+        <div className="mt-3 p-2 rounded bg-gradient-to-r from-indigo-900/60 to-fuchsia-900/40 border border-rose-500/30">
+          <p className="text-[10px] text-rose-200 tracking-wide">
+            🤖 Priority {task.priority}! {task.priority === 'A1' ? 'Handle immediately.' : 'High importance - schedule soon.'}
           </p>
         </div>
       )}

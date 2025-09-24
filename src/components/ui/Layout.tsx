@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, Heart, Users, Settings } from 'lucide-react';
+import { LogOut, Heart, Users, Menu } from 'lucide-react';
+import { SideDrawer } from './SideDrawer';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,24 +10,32 @@ interface LayoutProps {
 // 🏠 Main Layout - Your digital home base with style
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout } = useAuth();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+  <div className="min-h-screen flex flex-col items-center bg-transparent">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-purple-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 w-full flex justify-center">
+        <div className="w-full max-w-[80vw] px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
             {/* Logo and Title */}
             <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-2 rounded-lg">
-                <Heart className="h-6 w-6 text-white" />
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="icon-btn-neon"
+                aria-label="Open menu"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
+                <Heart className="h-6 w-6 text-indigo-400" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-slate-100 tracking-wide">
                   Couples To-Do
                 </h1>
-                <p className="text-xs text-gray-500">
-                  🤖 Powered by Jarvis-level organization
+                <p className="text-[10px] text-slate-400 tracking-wide">
+                  🤖 Jarvis-level organization
                 </p>
               </div>
             </div>
@@ -34,25 +43,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* User Info and Actions */}
             <div className="flex items-center space-x-4">
               {partner && (
-                <div className="flex items-center space-x-2 bg-purple-100 px-3 py-1 rounded-full">
-                  <Users className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm text-purple-800 font-medium">
-                    Connected with {partner.name}
+                <div className="hidden md:flex items-center space-x-2 bg-slate-800/70 px-3 py-1 rounded-full border border-slate-600">
+                  <Users className="h-4 w-4 text-indigo-400" />
+                  <span className="text-xs text-slate-300 font-medium tracking-wide">
+                    {partner.name}
                   </span>
                 </div>
               )}
-              
               <div className="flex items-center space-x-3">
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500">
-                    Code: <span className="font-mono bg-gray-100 px-1 rounded">{user?.inviteCode}</span>
+                  <p className="text-sm font-medium text-slate-100">{user?.name}</p>
+                  <p className="text-[10px] text-slate-500">
+                    Code: <span className="font-mono bg-slate-800 px-1 rounded border border-slate-600">{user?.inviteCode}</span>
                   </p>
                 </div>
-                
                 <button
                   onClick={logout}
-                  className="btn-secondary !p-2"
+                  className="icon-btn-neon"
                   title="Logout"
                 >
                   <LogOut className="h-4 w-4" />
@@ -64,8 +71,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
+      <main className="w-full flex justify-center py-8 px-4 sm:px-6">
+        <div className="w-full max-w-[80vw] space-y-8">
+          {children}
+        </div>
       </main>
 
       {/* Jarvis-style Help Bubble */}
@@ -88,6 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </div>
+      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </div>
   );
 };

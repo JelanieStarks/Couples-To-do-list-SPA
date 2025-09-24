@@ -7,13 +7,17 @@ import { useAuth } from './AuthContext';
 interface TaskContextType {
   tasks: Task[];
   isLoading: boolean;
-  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
   toggleTaskComplete: (id: string) => void;
+  softDeleteTask: (id: string) => void;
+  restoreTask: (id: string) => void;
+  hardDeleteTask: (id: string) => void;
   filterTasks: (filter: TaskFilter) => Task[];
   getTasksByDate: (date: string) => Task[];
   getTodaysTasks: () => Task[];
+  getCompletedTasks: () => Task[];
+  getDeletedTasks: () => Task[];
   importTasksFromText: (text: string) => Task[];
   moveTaskToDate: (taskId: string, date: string) => void;
 }
@@ -51,7 +55,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [tasks, isLoading]);
 
-  const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): void => {
+  const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>): void => {
     if (!user) return;
 
     const now = new Date().toISOString();
@@ -76,22 +80,34 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
-  const deleteTask = (id: string): void => {
+  const softDeleteTask = (id: string): void => {
+    setTasks(prev => prev.map(task => task.id === id ? { ...task, deletedAt: new Date().toISOString() } : task));
+  };
+
+  const restoreTask = (id: string): void => {
+    setTasks(prev => prev.map(task => task.id === id ? { ...task, deletedAt: undefined } : task));
+  };
+
+  const hardDeleteTask = (id: string): void => {
     setTasks(prev => prev.filter(task => task.id !== id));
   };
 
   const toggleTaskComplete = (id: string): void => {
-    setTasks(prev => 
-      prev.map(task => 
-        task.id === id 
-          ? { ...task, completed: !task.completed, updatedAt: new Date().toISOString() }
-          : task
-      )
-    );
+    setTasks(prev => prev.map(task => {
+      if (task.id !== id) return task;
+      const completed = !task.completed;
+      return {
+        ...task,
+        completed,
+        completedAt: completed ? new Date().toISOString() : undefined,
+        updatedAt: new Date().toISOString(),
+      };
+    }));
   };
 
   const filterTasks = (filter: TaskFilter): Task[] => {
     return tasks.filter(task => {
+      if (task.deletedAt) return false;
       if (filter.priority && task.priority !== filter.priority) return false;
       if (filter.completed !== undefined && task.completed !== filter.completed) return false;
       if (filter.createdBy && task.createdBy !== filter.createdBy) return false;
@@ -108,6 +124,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getTasksByDate = (date: string): Task[] => {
     const targetDate = new Date(date).toDateString();
     return tasks.filter(task => {
+      if (task.deletedAt) return false;
       const taskDate = task.scheduledDate || task.createdAt;
       return new Date(taskDate).toDateString() === targetDate;
     });
@@ -117,6 +134,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const today = new Date().toDateString();
     return tasks
       .filter(task => {
+        if (task.deletedAt) return false;
         const taskDate = task.scheduledDate || task.createdAt;
         return new Date(taskDate).toDateString() === today;
       })
@@ -132,6 +150,22 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (priorityDiff !== 0) return priorityDiff;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
+  };
+
+  const getCompletedTasks = (): Task[] => {
+    return tasks.filter(t => t.completed && !t.deletedAt).sort((a,b) => {
+      const ad = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const bd = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return bd - ad; // newest completed first
+    });
+  };
+
+  const getDeletedTasks = (): Task[] => {
+    return tasks.filter(t => t.deletedAt).sort((a,b) => {
+      const ad = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
+      const bd = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
+      return bd - ad; // newest deleted first
+    });
   };
 
   const moveTaskToDate = (taskId: string, date: string): void => {
@@ -281,11 +315,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     createTask,
     updateTask,
-    deleteTask,
     toggleTaskComplete,
+    softDeleteTask,
+    restoreTask,
+    hardDeleteTask,
     filterTasks,
     getTasksByDate,
     getTodaysTasks,
+    getCompletedTasks,
+    getDeletedTasks,
     importTasksFromText,
     moveTaskToDate,
   };

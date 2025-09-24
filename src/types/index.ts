@@ -30,6 +30,8 @@ export interface Task {
   dayOfWeek?: string; // Optional day of week
   createdAt: string;
   updatedAt: string;
+  completedAt?: string; // timestamp when marked complete
+  deletedAt?: string; // soft delete marker timestamp
 }
 
 export interface AuthState {
