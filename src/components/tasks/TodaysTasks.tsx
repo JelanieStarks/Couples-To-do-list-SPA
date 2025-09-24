@@ -8,7 +8,17 @@ export const TodaysTasks: React.FC = () => {
   const { getTodaysTasks } = useTask();
   const todaysTasks = getTodaysTasks();
 
-  const completedTasks = todaysTasks.filter(task => task.completed);
+  const completedTasks = todaysTasks
+    .filter(task => task.completed)
+    .slice()
+    .sort((a,b) => {
+      if (a.completedAt && b.completedAt) {
+        return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+      }
+      if (a.completedAt) return -1;
+      if (b.completedAt) return 1;
+      return 0;
+    });
   const incompleteTasks = todaysTasks.filter(task => !task.completed);
   const priorityATasks = incompleteTasks.filter(task => task.priority.startsWith('A'));
   const otherTasks = incompleteTasks.filter(task => !task.priority.startsWith('A'));

@@ -11,8 +11,22 @@ interface SideDrawerProps {
 // 🛠 Side Drawer - Archive & Deleted Tasks Management
 export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
   const { getCompletedTasks, getDeletedTasks, restoreTask, hardDeleteTask, toggleTaskComplete } = useTask() as any;
-  const completed = getCompletedTasks();
-  const deleted = getDeletedTasks();
+  const completed = getCompletedTasks()
+    .slice()
+    .sort((a:any,b:any) => {
+      if (a.completedAt && b.completedAt) return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+      if (a.completedAt) return -1;
+      if (b.completedAt) return 1;
+      return 0;
+    });
+  const deleted = getDeletedTasks()
+    .slice()
+    .sort((a:any,b:any) => {
+      if (a.deletedAt && b.deletedAt) return new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime();
+      if (a.deletedAt) return -1;
+      if (b.deletedAt) return 1;
+      return 0;
+    });
   const [showCompleted, setShowCompleted] = useState(true);
   const [showDeleted, setShowDeleted] = useState(true);
 

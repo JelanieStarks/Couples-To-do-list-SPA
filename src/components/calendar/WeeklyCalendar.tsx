@@ -183,8 +183,18 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
         {tasks
           .slice()
           .sort((a,b) => {
-            if (a.completed === b.completed) return 0;
-            return a.completed ? 1 : -1; // completed last
+            // Incomplete first
+            if (a.completed && !b.completed) return 1;
+            if (!a.completed && b.completed) return -1;
+            // Both incomplete: optional priority or created ordering (keep original for now)
+            if (!a.completed && !b.completed) return 0;
+            // Both completed: most recently completed first using completedAt
+            if (a.completedAt && b.completedAt) {
+              return new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime();
+            }
+            if (a.completedAt) return -1; // a has timestamp b not -> a first
+            if (b.completedAt) return 1;
+            return 0;
           })
           .map(task => (
           <DraggableTask key={task.id} task={task} />
