@@ -4,6 +4,8 @@
   "version": "1.0.2-beta",
   "type": "module",
   "main": "electron/main.js",
+  "description": "Couples To-do: a simple shared to-do list with weekly planner, desktop builds via Electron.",
+  "author": "Couples To-do Team",
   "scripts": {
     "dev": "vite",
     "dev:desktop": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",

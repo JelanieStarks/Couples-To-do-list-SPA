@@ -86,6 +86,17 @@ A delightful React + Tailwind CSS single-page application designed specifically 
 
 This repo includes an Electron scaffold to package the Vite React app as a desktop application.
 
+Primary download (Windows):
+
+- Get the latest Windows installer (.exe) from the Releases page.
+  - If a new tag is pushed (vX.Y.Z), CI builds the .exe automatically on a Windows runner and attaches it to the Release.
+  - You can also trigger it manually under Actions -> "Build Windows Installer".
+
+Linux and macOS builds:
+
+- Linux AppImage is published as part of selected releases.
+- macOS dmg can be built locally on macOS or wired up similarly in CI.
+
 Scripts:
 
 - Dev (web only): `npm run dev`
@@ -98,6 +109,7 @@ Notes:
 
 - Cross-compiling Windows installers from Linux requires Wine. On Ubuntu:
   - `sudo apt-get update && sudo apt-get install -y wine64` (optional if building Windows on Windows CI)
+  - In headless containers, Wine may not be able to run GUI-dependent tools. Prefer the provided GitHub Actions workflow (Windows runner) for reliable .exe builds.
 - Place platform icons in `build/`:
   - `build/icon.ico` (Windows), `build/icon.icns` (macOS), `build/icon.png` (Linux)
 - Electron loads `dist/index.html` in production. Vite is configured with `base: './'` for file:// compatibility.
@@ -105,7 +117,7 @@ Notes:
 
 Troubleshooting:
 
-- If packaging on Linux for Windows fails due to missing tooling, either install Wine or build the Windows target on a Windows runner.
+- If packaging on Linux for Windows fails due to missing tooling, either install Wine (including wine32/i386) or build the Windows target on a Windows runner (recommended).
 - If the app shows a blank screen in Electron production build, ensure `npm run build:web` completed and `dist/` exists.
 
 ### Production Build
