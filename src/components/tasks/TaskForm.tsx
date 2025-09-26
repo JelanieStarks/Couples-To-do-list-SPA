@@ -22,16 +22,16 @@ export const TaskForm: React.FC = () => {
   });
 
   const priorityOptions = [
-    { value: 'A1' as Priority, label: 'Priority A1', description: 'URGENT! Do this NOW! 🚨', color: 'red' },
-    { value: 'A2' as Priority, label: 'Priority A2', description: 'Very urgent and important 🔥', color: 'red' },
-    { value: 'A3' as Priority, label: 'Priority A3', description: 'Urgent but manageable 🟥', color: 'red' },
-    { value: 'B1' as Priority, label: 'Priority B1', description: 'Important, not urgent 🟠', color: 'orange' },
-    { value: 'B2' as Priority, label: 'Priority B2', description: 'Important but can wait 🟧', color: 'orange' },
-    { value: 'B3' as Priority, label: 'Priority B3', description: 'Somewhat important 🟨', color: 'orange' },
-    { value: 'C1' as Priority, label: 'Priority C1', description: 'Nice to have done 🟡', color: 'yellow' },
-    { value: 'C2' as Priority, label: 'Priority C2', description: 'Would be good to do 🟤', color: 'yellow' },
-    { value: 'C3' as Priority, label: 'Priority C3', description: 'Low priority task 🟫', color: 'yellow' },
-    { value: 'D' as Priority, label: 'Priority D', description: 'Someday, maybe 🟢', color: 'green' },
+    { value: 'A1' as Priority, label: 'A1', description: 'URGENT! Do this NOW! 🚨', color: 'red' },
+    { value: 'A2' as Priority, label: 'A2', description: 'Very urgent & important 🔥', color: 'red' },
+    { value: 'A3' as Priority, label: 'A3', description: 'Urgent but manageable 🟥', color: 'red' },
+    { value: 'B1' as Priority, label: 'B1', description: 'Important, not urgent 🟠', color: 'orange' },
+    { value: 'B2' as Priority, label: 'B2', description: 'Important but can wait 🟧', color: 'orange' },
+    { value: 'B3' as Priority, label: 'B3', description: 'Somewhat important 🟨', color: 'orange' },
+    { value: 'C1' as Priority, label: 'C1', description: 'Nice to have done 🟡', color: 'yellow' },
+    { value: 'C2' as Priority, label: 'C2', description: 'Would be good to do 🟤', color: 'yellow' },
+    { value: 'C3' as Priority, label: 'C3', description: 'Low priority task 🟫', color: 'yellow' },
+    { value: 'D' as Priority, label: 'D', description: 'Someday / optional 🟢', color: 'green' },
   ];
 
   const assignmentOptions = [
@@ -103,52 +103,41 @@ export const TaskForm: React.FC = () => {
 
   if (!isOpen) {
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center space-x-3 group"
-      >
-        <div className="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition-transform">
-          <Plus className="h-6 w-6" />
-        </div>
-        <div className="text-left">
-          <p className="font-semibold">Add New Task</p>
-          <p className="text-sm opacity-90">🤖 Tell Jarvis what needs doing!</p>
-        </div>
+      <button onClick={() => setIsOpen(true)} className="w-full btn-neon" data-size="lg">
+        <Plus className="h-5 w-5" />
+        <span className="flex flex-col items-start leading-tight">
+          <span className="font-semibold tracking-wide">Add New Task</span>
+          <span className="text-[10px] opacity-80 normal-case font-normal">🤖 Tell Jarvis what needs doing!</span>
+        </span>
       </button>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-slide-up">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-2 rounded-lg">
-            <Star className="h-6 w-6 text-purple-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">Create New Task</h3>
-            <p className="text-sm text-gray-500">🤖 Let's turn that idea into action!</p>
-          </div>
+  <div className="panel-neon panel-neon-border animate-slide-up">
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center space-x-3">
+        <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
+          <Star className="h-6 w-6 text-indigo-400" />
         </div>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100"
-        >
-          ✕
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Task Title */}
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-            What needs to be done? ✨
-          </label>
+          <h3 className="text-lg font-semibold text-slate-100 tracking-wide">Create New Task</h3>
+          <p className="text-xs text-slate-400 tracking-wide">🤖 Let's turn that idea into action!</p>
+        </div>
+      </div>
+      <button onClick={() => setIsOpen(false)} className="icon-btn-neon" aria-label="Close task form">✕</button>
+    </div>
+
+  <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Task Title */}
+        <div className="neon-field">
+          <label htmlFor="title">What needs to be done? ✨</label>
+          <div className="neon-glow-ambient" />
           <input
             type="text"
             id="title"
             required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="neon-input"
             placeholder="Buy groceries, save the world, etc..."
             value={formData.title}
             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
@@ -156,14 +145,13 @@ export const TaskForm: React.FC = () => {
         </div>
 
         {/* Description */}
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-            Any additional details? 📝
-          </label>
+        <div className="neon-field">
+          <label htmlFor="description">Any additional details? 📝</label>
+          <div className="neon-glow-ambient" />
           <textarea
             id="description"
             rows={3}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+            className="neon-textarea"
             placeholder="Optional details, notes, or instructions..."
             value={formData.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
@@ -172,49 +160,49 @@ export const TaskForm: React.FC = () => {
 
         {/* Priority Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            How urgent is this? 🚨
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            {priorityOptions.map((option) => (
-              <label
-                key={option.value}
-                className={`relative flex items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                  formData.priority === option.value
-                    ? `border-${option.color}-300 bg-${option.color}-50`
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="priority"
-                  value={option.value}
-                  checked={formData.priority === option.value}
-                  onChange={(e) => setFormData(prev => ({ ...prev, priority: e.target.value as Priority }))}
-                  className="sr-only"
-                />
-                <div className={`flex-1 ${formData.priority === option.value ? `text-${option.color}-800` : 'text-gray-700'}`}>
-                  <p className="font-medium">{option.label}</p>
-                  <p className="text-xs">{option.description}</p>
-                </div>
-              </label>
-            ))}
+          <label className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-2 uppercase">Priority (A1 highest → D lowest)</label>
+          <div className="w-full grid gap-2" style={{gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))'}}>
+            {priorityOptions.map(opt => {
+              const active = formData.priority === opt.value;
+              const colorMap: Record<string, { base: string; ring: string; text: string; hover: string; } > = {
+                red: { base: 'bg-red-50 border-red-300', ring: 'ring-red-300', text: 'text-red-800', hover: 'hover:bg-red-100' },
+                orange: { base: 'bg-orange-50 border-orange-300', ring: 'ring-orange-300', text: 'text-orange-800', hover: 'hover:bg-orange-100' },
+                yellow: { base: 'bg-yellow-50 border-yellow-300', ring: 'ring-yellow-300', text: 'text-yellow-800', hover: 'hover:bg-yellow-100' },
+                green: { base: 'bg-green-50 border-green-300', ring: 'ring-green-300', text: 'text-green-800', hover: 'hover:bg-green-100' },
+              };
+              const color = colorMap[opt.color];
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, priority: opt.value }))}
+                  className={`relative group text-left flex flex-col justify-start items-start rounded-lg border px-3 py-2 transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 ${
+                    active
+                      ? `${color.base} ${color.text} ring-2 ${color.ring} shadow-sm`
+                      : 'bg-slate-900/40 border-slate-600/50 text-slate-300 hover:border-slate-400/70'
+                  }`}
+                >
+                  <span className={`text-xs font-semibold tracking-wide`}>{opt.label}</span>
+                  <span className={`mt-1 text-[10px] leading-snug font-medium break-words ${active ? 'opacity-90' : 'text-slate-400'}`}>{opt.description}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Assignment Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-3 uppercase">
             Who will handle this? 👥
           </label>
           <div className="grid grid-cols-3 gap-3">
             {assignmentOptions.map((option) => (
               <label
                 key={option.value}
-                className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                className={`relative flex flex-col items-center p-4 rounded-lg border-2 cursor-pointer transition-colors text-center ${
                   formData.assignment === option.value
-                    ? 'border-purple-300 bg-purple-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-indigo-400/70 bg-slate-800/80'
+                    : 'border-slate-600/40 bg-slate-900/40 hover:border-slate-500/70'
                 }`}
               >
                 <input
@@ -226,9 +214,9 @@ export const TaskForm: React.FC = () => {
                   className="sr-only"
                 />
                 <div className="text-2xl mb-2">{option.icon}</div>
-                <div className={`text-center ${formData.assignment === option.value ? 'text-purple-800' : 'text-gray-700'}`}>
-                  <p className="font-medium text-sm">{option.label}</p>
-                  <p className="text-xs">{option.description}</p>
+                <div className={`text-center ${formData.assignment === option.value ? 'text-indigo-300' : 'text-slate-300'}`}>
+                  <p className="font-medium text-xs tracking-wide uppercase">{option.label}</p>
+                  <p className="text-[10px] leading-snug opacity-80">{option.description}</p>
                 </div>
               </label>
             ))}
@@ -259,14 +247,14 @@ export const TaskForm: React.FC = () => {
         )}
 
         {/* Day and Time Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <label htmlFor="dayOfWeek" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="dayOfWeek" className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-2 uppercase">
               Day of the week 📅
             </label>
             <select
               id="dayOfWeek"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="select-neon"
               value={formData.dayOfWeek}
               onChange={(e) => setFormData(prev => ({ ...prev, dayOfWeek: e.target.value }))}
             >
@@ -279,13 +267,13 @@ export const TaskForm: React.FC = () => {
           </div>
           
           <div>
-            <label htmlFor="scheduledTime" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="scheduledTime" className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-2 uppercase">
               Time (optional) ⏰
             </label>
             <input
               type="time"
               id="scheduledTime"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="time-neon"
               value={formData.scheduledTime}
               onChange={(e) => setFormData(prev => ({ ...prev, scheduledTime: e.target.value }))}
             />
@@ -315,38 +303,28 @@ export const TaskForm: React.FC = () => {
 
         {/* Scheduled Date */}
         <div>
-          <label htmlFor="scheduledDate" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="scheduledDate" className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-1 uppercase">
             When should this be done? 📅
           </label>
           <input
             type="date"
             id="scheduledDate"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="date-neon"
             value={formData.scheduledDate}
             onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-[10px] text-slate-400 mt-2 tracking-wide">
             🤖 Leave blank for "whenever" tasks (they'll show up in Today's Tasks)
           </p>
         </div>
 
         {/* Submit Button */}
-        <div className="flex space-x-3 pt-4">
-          <button
-            type="submit"
-            disabled={!formData.title.trim()}
-            className="flex-1 btn-primary flex items-center justify-center space-x-2"
-          >
-            <Plus className="h-5 w-5" />
+        <div className="btn-row pt-3">
+          <button type="submit" disabled={!formData.title.trim()} className="btn-neon" data-size="sm">
+            <Plus className="h-4 w-4" />
             <span>Create Task</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            className="btn-secondary"
-          >
-            Cancel
-          </button>
+          <button type="button" onClick={() => setIsOpen(false)} className="btn-neon" data-variant="outline" data-size="sm">Cancel</button>
         </div>
       </form>
     </div>

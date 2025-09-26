@@ -20,6 +20,8 @@ export interface Task {
   priority: Priority;
   assignment: Assignment;
   color: string;
+  // Numeric ordering within a priority bucket for custom user reordering
+  order?: number;
   completed: boolean;
   createdBy: string;
   assignedTo?: string;
@@ -30,6 +32,8 @@ export interface Task {
   dayOfWeek?: string; // Optional day of week
   createdAt: string;
   updatedAt: string;
+  completedAt?: string; // timestamp when marked complete
+  deletedAt?: string; // soft delete marker timestamp
 }
 
 export interface AuthState {

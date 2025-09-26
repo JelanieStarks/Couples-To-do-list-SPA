@@ -51,45 +51,44 @@ Priority D: Clean garage
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center space-x-3 group"
+        className="w-full btn-neon" data-size="lg"
       >
-        <div className="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition-transform">
-          <Brain className="h-6 w-6" />
-        </div>
-        <div className="text-left">
-          <p className="font-semibold">AI Task Import</p>
-          <p className="text-sm opacity-90">🤖 Paste text, get organized tasks!</p>
-        </div>
+        <Brain className="h-5 w-5" />
+        <span className="flex flex-col items-start leading-tight">
+          <span className="font-semibold tracking-wide">AI Task Import</span>
+          <span className="text-[10px] opacity-80 normal-case font-normal">🤖 Paste text, get organized tasks!</span>
+        </span>
       </button>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 animate-slide-up">
-      <div className="flex items-center justify-between mb-6">
+    <div className="panel-neon panel-neon-border animate-slide-up">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-r from-indigo-100 to-purple-100 p-2 rounded-lg">
-            <Brain className="h-6 w-6 text-indigo-600" />
+          <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
+            <Brain className="h-6 w-6 text-indigo-400" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">AI Task Import</h3>
-            <p className="text-sm text-gray-500">🤖 Jarvis will parse your text into tasks</p>
+            <h3 className="text-lg font-semibold text-slate-100 tracking-wide">AI Task Import</h3>
+            <p className="text-xs text-slate-400 tracking-wide">🤖 Jarvis will parse your text into tasks</p>
           </div>
         </div>
         <button
           onClick={() => setIsOpen(false)}
-          className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100"
+          className="icon-btn-neon"
+          aria-label="Close AI import panel"
         >
           ✕
         </button>
       </div>
 
       {lastImportCount > 0 && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mb-4 p-3 rounded-lg bg-emerald-900/30 border border-emerald-600/40">
           <div className="flex items-center space-x-2">
-            <Zap className="h-5 w-5 text-green-600" />
-            <p className="text-green-800 font-medium">
-              🎉 Successfully imported {lastImportCount} tasks!
+            <Zap className="h-4 w-4 text-emerald-300" />
+            <p className="text-emerald-200 text-xs font-medium tracking-wide">
+              🎉 Imported {lastImportCount} tasks successfully!
             </p>
           </div>
         </div>
@@ -97,17 +96,17 @@ Priority D: Clean garage
 
       <div className="space-y-6">
         {/* Instructions */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+        <div className="p-4 rounded-lg bg-slate-800/60 border border-slate-700/70">
           <div className="flex items-start space-x-3">
-            <Info className="h-5 w-5 text-blue-600 mt-0.5" />
+            <Info className="h-5 w-5 text-indigo-300 mt-0.5" />
             <div>
-              <h4 className="font-medium text-blue-900 mb-2">🤖 How Jarvis Parses Your Text:</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Use <code className="bg-blue-100 px-1 rounded">---</code> to separate sections</li>
-                <li>• Format: <code className="bg-blue-100 px-1 rounded">[A] Task title: description</code></li>
-                <li>• Or: <code className="bg-blue-100 px-1 rounded">Priority B: Task name</code></li>
-                <li>• Or: <code className="bg-blue-100 px-1 rounded">Task (Priority: C)</code></li>
-                <li>• Bullet points and numbers work too!</li>
+              <h4 className="font-medium text-indigo-300 mb-2 text-sm tracking-wide">🤖 How Jarvis Parses Your Text:</h4>
+              <ul className="text-[11px] text-slate-300 space-y-1 leading-relaxed tracking-wide">
+                <li><span className="text-indigo-400">•</span> Use <code className="px-1 rounded bg-slate-900/60 border border-slate-600/60">---</code> to separate sections</li>
+                <li><span className="text-indigo-400">•</span> Format: <code className="px-1 rounded bg-slate-900/60 border border-slate-600/60">[A] Task title: description</code></li>
+                <li><span className="text-indigo-400">•</span> Or: <code className="px-1 rounded bg-slate-900/60 border border-slate-600/60">Priority B: Task name</code></li>
+                <li><span className="text-indigo-400">•</span> Or: <code className="px-1 rounded bg-slate-900/60 border border-slate-600/60">Task (Priority: C)</code></li>
+                <li><span className="text-indigo-400">•</span> Bullet points & numbers work too</li>
               </ul>
             </div>
           </div>
@@ -115,47 +114,47 @@ Priority D: Clean garage
 
         {/* Text Input */}
         <div>
-          <label htmlFor="importText" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="importText" className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-2 uppercase">
             Paste your text here 📝
           </label>
           <textarea
             id="importText"
             rows={10}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono text-sm"
+            className="neon-textarea font-mono text-xs min-h-[200px]"
             placeholder={exampleText}
             value={importText}
             onChange={(e) => setImportText(e.target.value)}
           />
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-[10px] text-slate-500 mt-2 tracking-wide">
             🤖 Tip: Copy/paste from anywhere - meeting notes, emails, brain dumps, etc.
           </p>
         </div>
 
         {/* Example */}
-        <div className="border-t pt-6">
-          <h4 className="font-medium text-gray-900 mb-3">📖 Example Format:</h4>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">
+        <div className="border-t border-slate-700/70 pt-5">
+          <h4 className="font-medium text-slate-200 mb-3 text-sm tracking-wide">📖 Example Format:</h4>
+          <div className="rounded-lg p-4 bg-slate-800/60 border border-slate-700/70">
+            <pre className="text-[11px] text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
               {exampleText}
             </pre>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex space-x-3 pt-4">
+        <div className="btn-row pt-3">
           <button
             onClick={handleImport}
             disabled={isImporting || !importText.trim()}
-            className="flex-1 btn-primary flex items-center justify-center space-x-2"
+            className="btn-neon" data-size="sm"
           >
             {isImporting ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-300 border-t-transparent"></div>
                 <span>Processing...</span>
               </>
             ) : (
               <>
-                <Upload className="h-5 w-5" />
+                <Upload className="h-4 w-4" />
                 <span>Import Tasks</span>
               </>
             )}
@@ -163,7 +162,7 @@ Priority D: Clean garage
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="btn-secondary"
+            className="btn-neon" data-variant="outline" data-size="sm"
           >
             Cancel
           </button>

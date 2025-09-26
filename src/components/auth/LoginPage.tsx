@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Heart, Users, ArrowRight, UserPlus } from 'lucide-react';
+import { Heart, Users, ArrowRight } from 'lucide-react';
 
-// 🔐 Login Page - Where the magic begins
+// 🔐 Login Page - Neon Gamified Experience
 export const LoginPage: React.FC = () => {
   const { login, linkPartner } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -16,156 +16,151 @@ export const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
-
     setIsLoading(true);
     try {
-      await login(formData.name, formData.email);
-      
-      // If user provided an invite code, try to link partner
+      await login(formData.name.trim(), formData.email.trim());
       if (formData.inviteCode.trim()) {
-        await linkPartner(formData.inviteCode);
+        await linkPartner(formData.inviteCode.trim());
       }
-    } catch (error) {
-      console.error('Login failed:', error);
+    } catch (err) {
+      console.error('Login failed', err);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-full inline-block mb-4">
-            <Heart className="h-12 w-12 text-white" />
+    <div className="min-h-screen w-full flex items-center justify-center px-5 py-10">
+      <div className="w-full max-w-xl relative">
+        <div className="panel-neon panel-neon-border p-8 md:p-10">
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="relative mb-6">
+              <div className="h-24 w-24 rounded-2xl flex items-center justify-center bg-gradient-to-br from-indigo-700 via-fuchsia-700 to-pink-700 shadow-lg shadow-indigo-900/40 border border-indigo-400/30">
+                <Heart className="h-14 w-14 text-pink-300 drop-shadow" />
+              </div>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-wide bg-gradient-to-r from-indigo-300 via-fuchsia-300 to-pink-300 bg-clip-text text-transparent mb-3">
+              Couples To-Do
+            </h1>
+            <p className="text-slate-300 text-base md:text-lg tracking-wide">
+              🤖 Organize together. Shine brighter.
+            </p>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Couples To-Do
-          </h1>
-          <p className="text-gray-600">
-            🤖 Your AI-powered productivity partner for two
-          </p>
-        </div>
 
-        {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                What should we call you? ✨
-              </label>
+          <form onSubmit={handleSubmit} className="space-y-7">
+            {/* Name Field */}
+            <div className="neon-field">
+              <label htmlFor="name">Your Name</label>
               <input
-                type="text"
                 id="name"
+                type="text"
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                placeholder="Your awesome name"
+                autoComplete="name"
+                className="neon-input"
+                placeholder="Player One"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
               />
+              <div className="neon-glow-ambient" />
             </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email (optional) 📧
-              </label>
+            {/* Email Field */}
+            <div className="neon-field">
+              <label htmlFor="email">Email (optional)</label>
               <input
-                type="email"
                 id="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                placeholder="your.email@example.com"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                className="neon-input"
+                placeholder="you@example.com"
                 value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
               />
+              <div className="neon-glow-ambient" />
             </div>
 
-            {/* Partner Link Section */}
-            <div className="border-t pt-6">
+            {/* Partner Code Toggle */}
+            <div className="pt-2">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-700">
-                  Got a partner's invite code? 👫
-                </span>
+                <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">Partner Invite Code</span>
                 <button
                   type="button"
-                  onClick={() => setShowPartnerLink(!showPartnerLink)}
-                  className="text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  aria-expanded={showPartnerLink}
+                  aria-controls="partner-section"
+                  onClick={() => setShowPartnerLink(v => !v)}
+                  className="btn-neon" data-size="sm" data-variant="soft"
                 >
-                  {showPartnerLink ? 'Hide' : 'Show'}
+                  {showPartnerLink ? 'Hide' : 'Add'}
                 </button>
               </div>
-              
               {showPartnerLink && (
-                <div className="animate-slide-up">
+                <div id="partner-section" className="neon-field animate-fade-in">
+                  <label htmlFor="inviteCode">Invite Code</label>
                   <input
-                    type="text"
                     id="inviteCode"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors font-mono uppercase"
-                    placeholder="ABC123"
+                    type="text"
                     maxLength={6}
+                    className="neon-input font-mono tracking-widest uppercase"
+                    placeholder="ABC123"
                     value={formData.inviteCode}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      inviteCode: e.target.value.toUpperCase() 
-                    }))}
+                    onChange={(e) => setFormData(p => ({ ...p, inviteCode: e.target.value.toUpperCase() }))}
                   />
-                  <p className="text-xs text-gray-500 mt-2">
-                    🤖 Jarvis will connect you faster than you can say "couple goals"
-                  </p>
+                  <div className="neon-glow-ambient" />
+                  <p className="text-[11px] text-slate-500 mt-2 tracking-wide">Share + link = synced superpowers 💫</p>
                 </div>
               )}
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={isLoading || !formData.name.trim()}
-              className="w-full btn-primary flex items-center justify-center space-x-2 py-3"
+              className="btn-neon w-full !text-sm md:!text-base !py-4 !rounded-2xl relative overflow-hidden"
+              data-size="lg"
             >
               {isLoading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <div className="flex items-center gap-3">
+                  <div className="h-5 w-5 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+                  <span>Booting Jarvis...</span>
+                </div>
               ) : (
-                <>
-                  <span>Let's Get Organized!</span>
+                <span className="flex items-center gap-3 tracking-wide">
+                  <span>Enter The Dashboard</span>
                   <ArrowRight className="h-5 w-5" />
-                </>
+                </span>
               )}
             </button>
           </form>
 
-          {/* Info Cards */}
-          <div className="mt-8 space-y-4">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
-              <div className="flex items-start space-x-3">
-                <div className="bg-purple-100 p-2 rounded-lg">
-                  <Users className="h-5 w-5 text-purple-600" />
+          {/* Feature Panels */}
+          <div className="mt-10 grid sm:grid-cols-2 gap-4">
+            <div className="relative panel-neon !p-4 rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="icon-btn-neon !w-9 !h-9">
+                  <Users className="h-4 w-4" />
                 </div>
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-1">
-                    Partner Collaboration
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Share your invite code with your partner to sync tasks and conquer life together! 💪
-                  </p>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold tracking-wide text-slate-200">Sync As One</h3>
+                  <p className="text-[11px] leading-relaxed text-slate-400">Link with a code & instantly share tasks.</p>
                 </div>
               </div>
             </div>
-
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
-              <div className="flex items-start space-x-3">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <span className="text-blue-600 text-lg">🧠</span>
+            <div className="relative panel-neon !p-4 rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="icon-btn-neon !w-9 !h-9">
+                  <span className="text-base">🧠</span>
                 </div>
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-1">
-                    ADHD-Friendly Design
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Color-coded priorities, gentle animations, and clear visual cues to keep your brain happy.
-                  </p>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold tracking-wide text-slate-200">ADHD Friendly</h3>
+                  <p className="text-[11px] leading-relaxed text-slate-400">Low-noise visuals & priority clarity.</p>
                 </div>
               </div>
             </div>
           </div>
+          <p className="mt-8 text-center text-[11px] text-slate-500 tracking-wide">
+            No passwords needed. We keep it simple & local first.
+          </p>
         </div>
       </div>
     </div>

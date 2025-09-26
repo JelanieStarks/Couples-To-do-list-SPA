@@ -1,5 +1,7 @@
 # Couples To-Do List SPA 💕
 
+> Status: Beta v1.0
+
 ![Couples To-Do App](https://github.com/user-attachments/assets/43c3eb02-ae2b-45f3-af15-c45a411838c0)
 
 A delightful React + Tailwind CSS single-page application designed specifically for couples to organize their lives together with style, humor, and ADHD-friendly features. Powered by Jarvis-level AI assistance! 🤖
@@ -7,17 +9,20 @@ A delightful React + Tailwind CSS single-page application designed specifically 
 ## ✨ Features
 
 ### 🔐 Smart Authentication
+
 - **LocalStorage-based login** - No servers, no hassle
 - **Invite code system** - Share 6-character codes to connect with your partner
 - **Partner linking** - Sync tasks and collaborate seamlessly
 
 ### 📝 Intelligent Task Management
+
 - **Full CRUD operations** - Create, edit, delete, and complete tasks
 - **Priority system** - A (urgent), B (important), C (nice-to-have), D (someday)
 - **Color coding** - 10 beautiful colors to organize your thoughts
 - **Smart descriptions** - Add detailed notes to any task
 
 ### 🧠 AI-Powered Import
+
 - **Text parsing** - Import tasks from any text format
 - **Multiple formats supported**:
   - `[A] Task title: description`
@@ -28,18 +33,21 @@ A delightful React + Tailwind CSS single-page application designed specifically 
 - **Bulk import** - Turn meeting notes into organized tasks instantly
 
 ### 📅 Weekly Calendar
+
 - **Drag & drop scheduling** - Move tasks between days effortlessly
 - **Today's focus** - Highlighted current day with priority sorting
 - **Weekly overview** - Monday through Sunday columns
 - **Visual task management** - See your week at a glance
 
 ### 💖 Partner Collaboration
+
 - **Task sharing** - Share any task with your partner
 - **Gradient styling** - Shared tasks get beautiful gradient backgrounds
 - **Creator tracking** - See who created each task
 - **Partner status** - Know when you're connected
 
 ### 🎨 ADHD-Friendly Design
+
 - **Clear visual hierarchy** - Easy to scan and understand
 - **Gentle animations** - Smooth transitions without overwhelm
 - **Color-coded priorities** - Red (A) to Green (D) system
@@ -49,23 +57,27 @@ A delightful React + Tailwind CSS single-page application designed specifically 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 16+ 
+
+- Node.js 16+
 - npm or yarn
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/JelanieStarks/Couples-To-do-list-SPA.git
    cd Couples-To-do-list-SPA
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Start the development server**
+
    ```bash
    npm run dev
    ```
@@ -74,6 +86,7 @@ A delightful React + Tailwind CSS single-page application designed specifically 
    Navigate to `http://localhost:5173`
 
 ### Production Build
+
 ```bash
 npm run build
 npm run preview
@@ -82,12 +95,14 @@ npm run preview
 ## 🎯 How to Use
 
 ### First Time Setup
+
 1. **Enter your name** (and optionally email)
 2. **Share your invite code** with your partner
 3. **Connect using their code** if they already signed up
 4. **Start creating tasks!**
 
 ### Creating Tasks
+
 ![Task Creation](https://github.com/user-attachments/assets/241b99b4-0605-4b1f-ba2b-db351cd0ad15)
 
 1. Click **"Add New Task"**
@@ -98,9 +113,11 @@ npm run preview
 6. Create and watch it appear!
 
 ### AI Import Magic
+
 ![AI Import](https://github.com/user-attachments/assets/82828cfd-e5d0-4f0a-8da3-62342bc6295d)
 
 Copy and paste text from anywhere:
+
 ```
 --- Work Tasks ---
 [A] Finish quarterly report: Due Friday at 5 PM
@@ -116,6 +133,7 @@ Priority C: Update documentation
 Jarvis will automatically parse it into organized tasks with proper priorities!
 
 ### Calendar Management
+
 - **Drag tasks** between days to reschedule
 - **Today's column** is highlighted in blue
 - **Priority A tasks** get special "URGENT" treatment
@@ -134,6 +152,7 @@ Jarvis will automatically parse it into organized tasks with proper priorities!
 ## 🎨 Design Philosophy
 
 ### ADHD-Friendly Principles
+
 - **Clear visual hierarchy** - Important things stand out
 - **Gentle animations** - Smooth without being distracting
 - **Color coding** - Visual shortcuts to information
@@ -141,6 +160,7 @@ Jarvis will automatically parse it into organized tasks with proper priorities!
 - **Humor integration** - Jarvis keeps things light
 
 ### Couples-Focused Features
+
 - **Shared responsibility** - Both partners can manage tasks
 - **Visual distinction** - Shared tasks have gradient backgrounds
 - **Individual ownership** - Clear attribution of who created what
@@ -149,6 +169,7 @@ Jarvis will automatically parse it into organized tasks with proper priorities!
 ## 🤖 Meet Jarvis
 
 Your AI-powered productivity assistant provides:
+
 - **Helpful commentary** on Priority A tasks
 - **Parsing intelligence** for AI imports
 - **ADHD-friendly tips** in the floating help bubble
@@ -158,6 +179,7 @@ Your AI-powered productivity assistant provides:
 ## 📱 Responsive Design
 
 Works beautifully on:
+
 - **Desktop** - Full featured experience
 - **Tablet** - Optimized layout
 - **Mobile** - Touch-friendly interface
@@ -172,18 +194,21 @@ Works beautifully on:
 ## 🚀 Deployment
 
 ### Vercel (Recommended)
+
 ```bash
 npm install -g vercel
 vercel
 ```
 
 ### Netlify
+
 ```bash
 npm run build
 # Upload dist/ folder to Netlify
 ```
 
 ### GitHub Pages
+
 ```bash
 npm run build
 # Deploy dist/ folder to gh-pages branch
@@ -192,6 +217,7 @@ npm run build
 ## 🧪 Development
 
 ### Project Structure
+
 ```
 src/
 ├── components/
@@ -206,12 +232,79 @@ src/
 ```
 
 ### Key Commands
+
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
 
-## 🤝 Contributing
+## � Testing
+
+The project uses **Vitest** + **@testing-library/react** with a lightweight setup oriented around clarity and behavior-driven assertions.
+
+### Running Tests
+
+```bash
+npm test          # One-off run
+npm run test:watch  # Watch mode while developing
+```
+
+### What Is Covered (Currently)
+
+- Core Task lifecycle (create, complete, soft delete, restore, hard delete)
+- Timestamp ordering for completed tasks (newest first)
+
+### Coming Soon (Good First Issues)
+
+- Parsing edge cases for AI import
+- Date-based filtering and scheduling behaviors
+- Drag + drop interaction state tests (dnd-kit harness)
+
+### Coverage
+
+Coverage reporting is enabled. After a run you'll see summary output (LCOV is generated for CI tooling).
+
+### Testing Philosophy
+
+1. **Readable over clever** – Straightforward expectations using jest-dom matchers.
+2. **Behavior over implementation** – Focus on what the context returns, not internal state details.
+3. **Small & Focused** – Each test isolates one feature path.
+4. **Deterministic** – Avoid relying on timers or real network.
+
+### File Locations
+
+```
+src/contexts/__tests__/TaskContext.test.tsx
+vitest.setup.ts
+```
+
+### Adding New Tests
+
+1. Create a file near the code under `__tests__` or co-locate as `*.test.tsx`.
+2. Use `render` from `@testing-library/react` for component tests.
+3. Import shared matchers automatically via `vitest.setup.ts`.
+
+### Example Snippet
+
+```ts
+import { describe, it, expect } from 'vitest';
+
+describe('math', () => {
+  it('adds', () => {
+    expect(1 + 1).toBe(2);
+  });
+});
+```
+
+If you add new context APIs, ensure:
+
+- Edge cases (empty input) are tested
+- State mutations update timestamps where expected
+- Items hidden by filters stay hidden
+
+> Tip: For complex async UI flows, prefer `findBy*` queries and avoid arbitrary `setTimeout` usage.
+
+## �🤝 Contributing
 
 We'd love your help making this app even better!
 
@@ -222,6 +315,7 @@ We'd love your help making this app even better!
 5. **Open a Pull Request**
 
 ### Ideas for Contributions
+
 - **Real-time sync** - Replace LocalStorage with backend
 - **Mobile app** - React Native version
 - **Themes** - Dark mode and custom themes
@@ -243,4 +337,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Built with ❤️ for couples who want to conquer life together, one task at a time!**
 
-*"Sir, I've analyzed your productivity patterns. Remember: Priority A tasks are like arc reactor maintenance - critical for survival. Everything else is just Iron Man suit upgrades."* - Jarvis 🤖
+_"Sir, I've analyzed your productivity patterns. Remember: Priority A tasks are like arc reactor maintenance - critical for survival. Everything else is just Iron Man suit upgrades."_ - Jarvis 🤖

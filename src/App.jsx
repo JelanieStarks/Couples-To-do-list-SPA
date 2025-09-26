@@ -8,6 +8,7 @@ import { TaskForm } from './components/tasks/TaskForm';
 import { TodaysTasks } from './components/tasks/TodaysTasks';
 import { AIImport } from './components/tasks/AIImport';
 import { WeeklyCalendar } from './components/calendar/WeeklyCalendar';
+import { ExportTasks } from './components/tasks/ExportTasks';
 
 // 🚀 Main App Component - Where the magic happens
 function AppContent() {
@@ -37,8 +38,8 @@ function AppContent() {
             Welcome to Your Productivity Command Center! 🎯
           </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
-            🤖 Jarvis here! Ready to help you and your partner organize your lives with 
-            the precision of a Swiss watch and the style of a superhero suit.
+            🤖 Jarvis here! Ready to help you and your partner organize your lives with the
+            precision of a Swiss watch and the style of a superhero suit.
           </p>
         </div>
 
@@ -47,6 +48,9 @@ function AppContent() {
           <TaskForm />
           <AIImport />
         </div>
+
+        {/* Export & Share */}
+        <ExportTasks />
 
         {/* Partner Manager */}
         <PartnerManager />
@@ -94,7 +98,8 @@ Only output the tasks in the exact format above, with \`---\` as the delimiter b
           />
           <div className="mt-4 flex items-center justify-between">
             <p className="text-xs text-gray-500">
-              💡 Use this prompt with ChatGPT, Claude, or any AI assistant to convert your messy notes into organized tasks
+              💡 Use this prompt with ChatGPT, Claude, or any AI assistant to convert your messy
+              notes into organized tasks
             </p>
             <button
               onClick={() => {
@@ -120,12 +125,13 @@ Only output the tasks in the exact format above, with \`---\` as the delimiter b
         <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl p-6 text-center">
           <h3 className="text-xl font-semibold mb-2">🤖 Jarvis's Productivity Wisdom</h3>
           <p className="opacity-90">
-            "Sir, I've analyzed your productivity patterns. Remember: Priority A tasks are like arc reactor maintenance - 
-            critical for survival. Everything else is just Iron Man suit upgrades - important, but you won't explode without them."
+            "Sir, I've analyzed your productivity patterns. Remember: Priority A tasks are like arc
+            reactor maintenance - critical for survival. Everything else is just Iron Man suit
+            upgrades - important, but you won't explode without them."
           </p>
           <div className="mt-4 text-sm opacity-75">
-            Pro tip: Color-code your tasks, share with your partner, and drag them around the calendar. 
-            It's like having superpowers, but for organization! ⚡
+            Pro tip: Color-code your tasks, share with your partner, and drag them around the
+            calendar. It's like having superpowers, but for organization! ⚡
           </div>
         </div>
       </div>

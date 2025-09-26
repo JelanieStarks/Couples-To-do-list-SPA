@@ -1,21 +1,26 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Task, Priority, TaskFilter, Assignment } from '../types';
-import { storage, STORAGE_KEYS, generateId } from '../utils';
+import { storage, STORAGE_KEYS, generateId, isSameLocalDay, parseLocalDate, toLocalDateString } from '../utils';
 import { useAuth } from './AuthContext';
 
 // 📝 Task Context - Your digital task manager with a sense of humor
 interface TaskContextType {
   tasks: Task[];
   isLoading: boolean;
-  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>) => void;
+  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
   toggleTaskComplete: (id: string) => void;
+  softDeleteTask: (id: string) => void;
+  restoreTask: (id: string) => void;
+  hardDeleteTask: (id: string) => void;
   filterTasks: (filter: TaskFilter) => Task[];
   getTasksByDate: (date: string) => Task[];
   getTodaysTasks: () => Task[];
+  getCompletedTasks: () => Task[];
+  getDeletedTasks: () => Task[];
   importTasksFromText: (text: string) => Task[];
   moveTaskToDate: (taskId: string, date: string) => void;
+  reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -28,21 +33,23 @@ export const useTask = () => {
   return context;
 };
 
-export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Added optional initialTasks for deterministic tests (prevents flaky async seeding in tests)
+export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: Task[] }> = ({ children, initialTasks }) => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load tasks on app start - Jarvis never forgets your to-dos
   useEffect(() => {
-    const loadTasks = () => {
-      const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
-      setTasks(savedTasks);
+    if (initialTasks) {
+      setTasks(initialTasks);
       setIsLoading(false);
-    };
-
-    loadTasks();
-  }, []);
+      return;
+    }
+    const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
+    setTasks(savedTasks);
+    setIsLoading(false);
+  }, [initialTasks]);
 
   // Save tasks to localStorage whenever tasks change
   useEffect(() => {
@@ -51,87 +58,153 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [tasks, isLoading]);
 
-  const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>): void => {
+  const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>): void => {
     if (!user) return;
 
     const now = new Date().toISOString();
+    // Determine next order within this priority group
+    const samePriority = tasks.filter(t => t.priority === taskData.priority && !t.deletedAt);
+    const nextOrder = samePriority.length > 0 ? Math.max(...samePriority.map(t => t.order || 0)) + 1 : 1;
     const newTask: Task = {
       ...taskData,
       id: generateId(),
       createdBy: user.id,
       createdAt: now,
       updatedAt: now,
+      order: nextOrder,
     };
 
     setTasks(prev => [...prev, newTask]);
   };
+  // Reorder tasks inside a priority bucket (e.g., all A* priorities) based on new ordered id list
+  const reorderTasksWithinPriority = (priorityPrefix: string, orderedIds: string[]) => {
+    setTasks(prev => {
+      const updated = [...prev];
+      // Assign new order sequentially (1..n) in given order
+      orderedIds.forEach((id, index) => {
+        const idx = updated.findIndex(t => t.id === id);
+        if (idx !== -1) {
+          updated[idx] = { ...updated[idx], order: index + 1, updatedAt: new Date().toISOString() };
+        }
+      });
+      return updated;
+    });
+  };
 
   const updateTask = (id: string, updates: Partial<Task>): void => {
-    setTasks(prev => 
-      prev.map(task => 
-        task.id === id 
+    setTasks(prev =>
+      prev.map(task =>
+        task.id === id
           ? { ...task, ...updates, updatedAt: new Date().toISOString() }
           : task
       )
     );
   };
 
-  const deleteTask = (id: string): void => {
+  const softDeleteTask = (id: string): void => {
+    setTasks(prev => prev.map(task => task.id === id ? { ...task, deletedAt: new Date().toISOString() } : task));
+  };
+
+  const restoreTask = (id: string): void => {
+    setTasks(prev => prev.map(task => task.id === id ? { ...task, deletedAt: undefined } : task));
+  };
+
+  const hardDeleteTask = (id: string): void => {
     setTasks(prev => prev.filter(task => task.id !== id));
   };
 
   const toggleTaskComplete = (id: string): void => {
-    setTasks(prev => 
-      prev.map(task => 
-        task.id === id 
-          ? { ...task, completed: !task.completed, updatedAt: new Date().toISOString() }
-          : task
-      )
-    );
+    setTasks(prev => prev.map(task => {
+      if (task.id !== id) return task;
+      const completed = !task.completed;
+      return {
+        ...task,
+        completed,
+        completedAt: completed ? new Date().toISOString() : undefined,
+        updatedAt: new Date().toISOString(),
+      };
+    }));
   };
 
   const filterTasks = (filter: TaskFilter): Task[] => {
     return tasks.filter(task => {
+      if (task.deletedAt) return false;
       if (filter.priority && task.priority !== filter.priority) return false;
       if (filter.completed !== undefined && task.completed !== filter.completed) return false;
       if (filter.createdBy && task.createdBy !== filter.createdBy) return false;
-      
+
       if (filter.dateRange) {
         const taskDate = task.scheduledDate || task.createdAt;
         if (taskDate < filter.dateRange.start || taskDate > filter.dateRange.end) return false;
       }
-      
+
       return true;
     });
   };
 
   const getTasksByDate = (date: string): Task[] => {
-    const targetDate = new Date(date).toDateString();
+    // date is expected as YYYY-MM-DD
+    const target = parseLocalDate(date);
     return tasks.filter(task => {
-      const taskDate = task.scheduledDate || task.createdAt;
-      return new Date(taskDate).toDateString() === targetDate;
+      if (task.deletedAt) return false;
+      const taskDateStr = task.scheduledDate
+        ? task.scheduledDate // already YYYY-MM-DD
+        : toLocalDateString(new Date(task.createdAt));
+      return isSameLocalDay(parseLocalDate(taskDateStr), target);
     });
   };
 
   const getTodaysTasks = (): Task[] => {
-    const today = new Date().toDateString();
+    const today = new Date();
     return tasks
       .filter(task => {
-        const taskDate = task.scheduledDate || task.createdAt;
-        return new Date(taskDate).toDateString() === today;
+        if (task.deletedAt) return false;
+        // Prefer scheduledDate (YYYY-MM-DD). If absent, use createdAt's local day so unscheduled tasks appear today.
+        const taskDateStr = task.scheduledDate
+          ? task.scheduledDate
+          : toLocalDateString(new Date(task.createdAt));
+        return isSameLocalDay(parseLocalDate(taskDateStr), today);
       })
       .sort((a, b) => {
-        // Sort by priority (A1 > A2 > A3 > B1 > B2 > B3 > C1 > C2 > C3 > D), then by creation time
-        const priorityOrder = { 
-          A1: 10, A2: 9, A3: 8, 
-          B1: 7, B2: 6, B3: 5, 
-          C1: 4, C2: 3, C3: 2, 
-          D: 1 
+        // Sort by priority (A1 > A2 > A3 > B1 > B2 > B3 > C1 > C2 > C3 > D), then by custom order (ascending), then by creation time
+        const priorityOrder = {
+          A1: 10, A2: 9, A3: 8,
+          B1: 7, B2: 6, B3: 5,
+          C1: 4, C2: 3, C3: 2,
+          D: 1
         };
         const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
         if (priorityDiff !== 0) return priorityDiff;
+        if (a.order && b.order && a.order !== b.order) return a.order - b.order;
         return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
+  };
+
+  const getCompletedTasks = (): Task[] => {
+    // Sort primarily by completedAt descending. If identical (can happen when toggled rapidly in same ms)
+    // fall back to updatedAt descending, then creation order (later index first) to ensure deterministic ordering.
+    return tasks
+      .filter(t => t.completed && !t.deletedAt)
+      .sort((a, b) => {
+        const aCompleted = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bCompleted = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        if (bCompleted !== aCompleted) return bCompleted - aCompleted;
+        const aUpdated = new Date(a.updatedAt).getTime();
+        const bUpdated = new Date(b.updatedAt).getTime();
+        if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+        // Fallback: reverse original order so the task toggled later (higher index) comes first
+        const aIndex = tasks.findIndex(t => t.id === a.id);
+        const bIndex = tasks.findIndex(t => t.id === b.id);
+        return bIndex - aIndex;
+      });
+  };
+
+  const getDeletedTasks = (): Task[] => {
+    return tasks.filter(t => t.deletedAt).sort((a, b) => {
+      const ad = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
+      const bd = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
+      return bd - ad; // newest deleted first
+    });
   };
 
   const moveTaskToDate = (taskId: string, date: string): void => {
@@ -147,7 +220,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     sections.forEach(section => {
       const lines = section.split('\n').map(line => line.trim()).filter(Boolean);
-      
+
       lines.forEach(line => {
         // Parse different formats:
         // - [A1] Task title: description
@@ -155,7 +228,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // - Priority A2: Task title
         // - Task title (Priority: B3)
         // - Simple task title
-        
+
         let priority: Priority = 'C1'; // Default priority
         let assignment: Assignment = 'me'; // Default assignment
         let title = line;
@@ -236,7 +309,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (title) {
           const now = new Date().toISOString();
-          
+
           // Calculate scheduledDate based on dayOfWeek
           let scheduledDate = '';
           if (dayOfWeek) {
@@ -272,7 +345,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Add imported tasks to the current task list
     setTasks(prev => [...prev, ...importedTasks]);
-    
+
     return importedTasks;
   };
 
@@ -281,13 +354,18 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     createTask,
     updateTask,
-    deleteTask,
     toggleTaskComplete,
+    softDeleteTask,
+    restoreTask,
+    hardDeleteTask,
     filterTasks,
     getTasksByDate,
     getTodaysTasks,
+    getCompletedTasks,
+    getDeletedTasks,
     importTasksFromText,
     moveTaskToDate,
+    reorderTasksWithinPriority,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
