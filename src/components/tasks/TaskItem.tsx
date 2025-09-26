@@ -92,10 +92,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   const handleToggleShare = () => {
     if (!partner) return;
-    
-    updateTask(task.id, {
-      sharedWith: task.sharedWith ? undefined : partner.id,
-    });
+    // Toggle between owner-specific assignment and 'both' to reflect shared state in UI
+    if (task.assignment === 'both') {
+      // Revert to the likely owner
+      const nextAssignment: Assignment = createdByPartner ? 'partner' : 'me';
+      updateTask(task.id, { assignment: nextAssignment, sharedWith: undefined });
+    } else {
+      updateTask(task.id, { assignment: 'both', sharedWith: partner.id });
+    }
   };
 
   if (isEditing) {
@@ -232,8 +236,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
                     onClick={handleToggleShare}
                     className={`p-1 rounded transition-colors ${
                       isShared 
-                        ? 'text-purple-600 hover:bg-purple-100' 
-                        : 'text-gray-400 hover:text-purple-600 hover:bg-purple-50'
+                        ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-500/10' 
+                        : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/10'
                     }`}
                     title={isShared ? 'Unshare task' : 'Share with partner'}
                   >

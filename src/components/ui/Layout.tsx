@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LogOut, Heart, Users, Menu } from 'lucide-react';
 import { SideDrawer } from './SideDrawer';
+import { TopNavPanel } from './TopNavPanel';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,29 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [topNavActive, setTopNavActive] = useState<null | 'ai' | 'partner' | 'settings'>(null);
+
+  const mainRef = useRef<HTMLDivElement | null>(null);
+  const scrollToMain = () => mainRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const [copied, setCopied] = useState(false);
+  const copyInvite = async () => {
+    if (!user?.inviteCode) return;
+    try {
+      // Fallback for environments without clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(user.inviteCode);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = user.inviteCode;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
 
   const toggleDrawer = () => setDrawerOpen(o => !o);
 
@@ -18,19 +42,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   <div className="min-h-screen flex flex-col items-center bg-transparent">
       {/* Fixed App Header (contains hamburger + app title + user block) */}
       <header className="fixed top-0 left-0 right-0 z-[60] w-full flex justify-center" data-tag="app-header">
+        {/* Absolute button rail to nudge controls slightly outside the 80vw content with a bit of padding */}
+        <div className="absolute inset-x-0 top-0 h-16 pointer-events-none">
+          <button
+            onClick={toggleDrawer}
+            className="icon-btn-neon pointer-events-auto absolute top-1/2 -translate-y-1/2"
+            aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
+            data-testid="hamburger-btn"
+            data-tag="hamburger"
+            style={{ left: 'calc(50% - 40vw - 12px)' }}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <button
+            onClick={logout}
+            className="icon-btn-neon pointer-events-auto absolute top-1/2 -translate-y-1/2"
+            title="Logout"
+            data-tag="logout-button"
+            style={{ right: 'calc(50% - 40vw - 12px)' }}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
         <div className="w-full max-w-[80vw] px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
-            {/* Left: Hamburger + App identity */}
+            {/* Left: App identity (hamburger moved to absolute rail) */}
             <div className="flex items-center space-x-3" data-tag="header-left">
-              <button
-                onClick={toggleDrawer}
-                className="icon-btn-neon"
-                aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
-                data-testid="hamburger-btn"
-                data-tag="hamburger"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
               <div className="hidden sm:block">
                 <h1 className="text-xl font-bold text-slate-100 tracking-wide">
                   Couples To-Do
@@ -41,7 +78,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
 
-            {/* Right: Partner pill (if any) + User name + invite code + logout */}
+            {/* Right: Partner pill (if any) + User name + invite code (logout moved to absolute rail) */}
             <div className="flex items-center space-x-4" data-tag="header-right">
               {partner && (
                 <div className="hidden md:flex items-center space-x-2 bg-slate-800/70 px-3 py-1 rounded-full border border-slate-600">
@@ -55,30 +92,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {/* User identity + invite code */}
                 <div className="text-right" data-tag="user-identifiers">
                   <p className="text-sm font-medium text-slate-100">{user?.name}</p>
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-slate-500 flex items-center gap-2">
                     Code: <span className="font-mono bg-slate-800 px-1 rounded border border-slate-600">{user?.inviteCode}</span>
+                    <button
+                      type="button"
+                      onClick={copyInvite}
+                      className="px-2 py-[2px] rounded border border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white transition"
+                      title="Copy invite code"
+                      data-testid="copy-invite"
+                    >Copy</button>
+                    {copied && <span className="text-emerald-400">Copied!</span>}
                   </p>
                 </div>
-                {/* Logout button */}
-                <button
-                  onClick={logout}
-                  className="icon-btn-neon"
-                  title="Logout"
-                  data-tag="logout-button"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
               </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Spacer to offset fixed header height (16 = 64px) */}
+  {/* Top slide-down fallback panel (very visible) */}
+  <TopNavPanel open={drawerOpen} onClose={() => setDrawerOpen(false)} active={topNavActive} onChangeActive={setTopNavActive} />
+
+  {/* Spacer to offset fixed header height (16 = 64px) */}
       <div className="h-16 w-full" aria-hidden="true" />
 
       {/* Main Content */}
-      <main className="w-full flex justify-center py-8 px-4 sm:px-6">
+      <main ref={mainRef} className="w-full flex justify-center py-8 px-4 sm:px-6">
         <div className="w-full max-w-[80vw] space-y-8">
           {children}
         </div>
@@ -116,7 +155,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
       </div>
-  <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} variant="full" />
+  <SideDrawer
+    open={drawerOpen}
+    onClose={() => setDrawerOpen(false)}
+    variant="drawer"
+    onOpenTopCard={(k) => { setTopNavActive(k); }}
+    onGoToSection={(k) => {
+      // Smooth scroll to main sections (top of main for dashboard; bottom for planner hint)
+      scrollToMain();
+    }}
+  />
     </div>
   );
 };

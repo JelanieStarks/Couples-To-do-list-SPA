@@ -338,3 +338,40 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Built with ❤️ for couples who want to conquer life together, one task at a time!**
 
 _"Sir, I've analyzed your productivity patterns. Remember: Priority A tasks are like arc reactor maintenance - critical for survival. Everything else is just Iron Man suit upgrades."_ - Jarvis 🤖
+
+## 🔭 Future Features / Known Gaps
+
+The app is fully functional for local-first use, but a few items mentioned in the README/UI are intentionally simplified or simulated for this beta. Here's what’s on the roadmap:
+
+- Real-time sync and backend API
+
+  - Current partner linking and invite codes work locally (simulated). A real backend for multi-device sync and auth is planned.
+
+- Drag & Drop testing harness
+
+  - Calendar drag & drop works in the UI via dnd-kit, but automated tests don’t simulate pointer drag yet. We plan to add a lightweight testing harness or switch to a library that supports synthetic drag testing.
+
+- More AI import formats
+
+  - We support multiple line formats today. Planned: due dates with natural language (e.g., “tomorrow at 5”), recurring tasks, and section labeling that maps directly to tags.
+
+- Export formats
+
+  - JSON export exists (copyable/download via UI). CSV export is planned. ICS calendar export is under consideration.
+
+- Deeper progress tracking
+
+  - We show completion visuals and ordering by completedAt. Future iterations may include per-day progress metrics and streaks.
+
+- Accessibility polish
+
+  - Drawer focus trapping is basic. We’ll add more robust focus management, ARIA roles/labels coverage, and keyboard-resize affordances.
+
+- Mobile gestures
+
+  - Side-drawer resizing is desktop-only. On mobile, we’ll consider swipe gestures to open/close and tune hit targets.
+
+- Theming
+  - Neon/glass theme is default. Future: opt-in themes (e.g., high-contrast, minimal, warm) and a theme switcher.
+
+If you’re excited about any of the above, contributions are welcome!

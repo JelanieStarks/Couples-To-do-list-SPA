@@ -1,35 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TaskProvider } from '../../../contexts/TaskContext';
 import { AuthProvider } from '../../../contexts/AuthContext';
 import { Layout } from '../Layout';
+import { SideDrawer } from '../SideDrawer';
 
 // This test verifies overlay click-to-close and presence of drawer sections
 
 describe('Drawer overlay and sections', () => {
-  it('opens on hamburger click and closes on overlay click', () => {
-    render(
-      <AuthProvider>
-        <TaskProvider>
-          <Layout>
-            <div>Child</div>
-          </Layout>
-        </TaskProvider>
-      </AuthProvider>
-    );
+  it('overlay click closes full-screen variant', () => {
+    const Wrapper = () => {
+      const [open, setOpen] = useState(true);
+      return (
+        <AuthProvider>
+          <TaskProvider>
+            <SideDrawer open={open} onClose={() => setOpen(false)} variant="full" />
+          </TaskProvider>
+        </AuthProvider>
+      );
+    };
 
-    // Open
-    const btn = screen.getByTestId('hamburger-btn');
-    fireEvent.click(btn);
+    render(<Wrapper />);
+
+    // Ensure initially open
     const drawer = screen.getByTestId('side-drawer');
-    expect(drawer).toBeTruthy();
+    expect(drawer.getAttribute('data-open')).toBe('true');
 
-    // Overlay click closes (drawer remains in DOM but data-open attribute should be removed and root becomes non-interactive)
+    // Click backdrop to close
     const backdrop = screen.getByTestId('drawer-backdrop');
     fireEvent.click(backdrop);
 
-    // Drawer should still be in DOM for animation but flagged as closed
+    // Drawer should remain mounted but closed
     const drawerAfter = screen.getByTestId('side-drawer');
     expect(drawerAfter.getAttribute('data-open')).toBeNull();
     const root = screen.getByTestId('drawer-root');
