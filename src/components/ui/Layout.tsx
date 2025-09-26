@@ -42,26 +42,32 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   <div className="min-h-screen flex flex-col items-center bg-transparent">
       {/* Fixed App Header (contains hamburger + app title + user block) */}
       <header className="fixed top-0 left-0 right-0 z-[60] w-full flex justify-center" data-tag="app-header">
-        {/* Absolute button rail to nudge controls slightly outside the 80vw content with a bit of padding */}
-        <div className="absolute inset-x-0 top-0 h-16 pointer-events-none">
+        {/* Corner controls with safe-area padding (do not overlap central content) */}
+        <div className="absolute inset-x-0 top-0 h-16 pointer-events-none z-[65]">
           <button
             onClick={toggleDrawer}
-            className="icon-btn-neon pointer-events-auto absolute top-1/2 -translate-y-1/2"
+            className="icon-btn-neon pointer-events-auto absolute"
             aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
             data-testid="hamburger-btn"
             data-tag="hamburger"
-            style={{ left: 'calc(50% - 40vw - 12px)' }}
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+              left: 'calc(env(safe-area-inset-left, 0px) + 12px)'
+            }}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-5 w-5 sm:h-5 sm:w-5" />
           </button>
           <button
             onClick={logout}
-            className="icon-btn-neon pointer-events-auto absolute top-1/2 -translate-y-1/2"
+            className="icon-btn-neon pointer-events-auto absolute"
             title="Logout"
             data-tag="logout-button"
-            style={{ right: 'calc(50% - 40vw - 12px)' }}
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+              right: 'calc(env(safe-area-inset-right, 0px) + 12px)'
+            }}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4 sm:h-4 sm:w-4" />
           </button>
         </div>
         <div className="w-full max-w-[80vw] px-4 sm:px-6">
@@ -113,8 +119,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   {/* Top slide-down fallback panel (very visible) */}
   <TopNavPanel open={drawerOpen} onClose={() => setDrawerOpen(false)} active={topNavActive} onChangeActive={setTopNavActive} />
 
-  {/* Spacer to offset fixed header height (16 = 64px) */}
-      <div className="h-16 w-full" aria-hidden="true" />
+  {/* Spacer to offset fixed header height (16 = 64px) plus a tiny buffer for corner buttons on very small screens */}
+  <div className="h-16 sm:h-16 w-full" aria-hidden="true" style={{ paddingTop: '4px' }} />
 
       {/* Main Content */}
       <main ref={mainRef} className="w-full flex justify-center py-8 px-4 sm:px-6">
