@@ -42,23 +42,33 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   <div className="min-h-screen flex flex-col items-center bg-transparent">
       {/* Fixed App Header (contains hamburger + app title + user block) */}
       <header className="fixed top-0 left-0 right-0 z-[60] w-full flex justify-center" data-tag="app-header">
-        {/* Corner controls with safe-area padding (do not overlap central content) */}
-        <div className="absolute inset-x-0 top-0 h-16 pointer-events-none z-[65]">
-          <button
-            onClick={toggleDrawer}
-            className="icon-btn-neon pointer-events-auto absolute"
-            aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
-            data-testid="hamburger-btn"
-            data-tag="hamburger"
-            style={{
-              top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-              left: 'calc(env(safe-area-inset-left, 0px) + 12px)'
-            }}
-          >
-            <Menu className="h-5 w-5 sm:h-5 sm:w-5" />
-          </button>
-          {/** Logout button moved back into the right user block below */}
-        </div>
+        {/* Corner controls: hamburger fixed at top-left; logout floats just outside content at right */}
+        <button
+          onClick={toggleDrawer}
+          className="icon-btn-neon fixed z-[65]"
+          aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
+          data-testid="hamburger-btn"
+          data-tag="hamburger"
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            left: 'calc(env(safe-area-inset-left, 0px) + 12px)'
+          }}
+        >
+          <Menu className="h-5 w-5 sm:h-5 sm:w-5" />
+        </button>
+        {/* Right-outside logout aligned with content width: 50% - 40vw (content edge) minus small gap */}
+        <button
+          onClick={logout}
+          className="icon-btn-neon fixed z-[65] hidden sm:block"
+          title="Logout"
+          data-tag="logout-button"
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+            right: 'calc(50% - 40vw + 12px)'
+          }}
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
         <div className="w-full max-w-[80vw] px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
             {/* Left: App identity (hamburger moved to absolute rail) */}
@@ -73,7 +83,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
             </div>
 
-            {/* Right: Partner pill (if any) + User name + invite code (logout moved to absolute rail) */}
+            {/* Right: Partner pill (if any) + User name + invite code (logout floats outside on the right) */}
             <div className="flex items-center space-x-4" data-tag="header-right">
               {partner && (
                 <div className="hidden md:flex items-center space-x-2 bg-slate-800/70 px-3 py-1 rounded-full border border-slate-600">
@@ -99,10 +109,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {copied && <span className="text-emerald-400">Copied!</span>}
                   </p>
                 </div>
-                {/* Logout button inside user block */}
+                {/* Logout button is positioned outside on the right for md+; keep inline for xs for accessibility */}
                 <button
                   onClick={logout}
-                  className="icon-btn-neon"
+                  className="icon-btn-neon sm:hidden"
                   title="Logout"
                   data-tag="logout-button"
                 >
