@@ -58,9 +58,6 @@ A delightful React + Tailwind CSS single-page application designed specifically 
 
 ### Prerequisites
 
-- Node.js 16+
-- npm or yarn
-
 ### Installation
 
 1. **Clone the repository**
@@ -84,6 +81,32 @@ A delightful React + Tailwind CSS single-page application designed specifically 
 
 4. **Open your browser**
    Navigate to `http://localhost:5173`
+
+## Desktop app (.exe/.AppImage/.dmg)
+
+This repo includes an Electron scaffold to package the Vite React app as a desktop application.
+
+Scripts:
+
+- Dev (web only): `npm run dev`
+- Dev (desktop shell around dev server): `npm run dev:desktop`
+- Build web assets: `npm run build:web`
+- Package Windows (.exe via NSIS): `npm run build:desktop:win`
+- Package Linux (AppImage): `npm run build:desktop:linux`
+
+Notes:
+
+- Cross-compiling Windows installers from Linux requires Wine. On Ubuntu:
+  - `sudo apt-get update && sudo apt-get install -y wine64` (optional if building Windows on Windows CI)
+- Place platform icons in `build/`:
+  - `build/icon.ico` (Windows), `build/icon.icns` (macOS), `build/icon.png` (Linux)
+- Electron loads `dist/index.html` in production. Vite is configured with `base: './'` for file:// compatibility.
+- To run Electron against the dev server, use `npm run dev:desktop` which sets `VITE_DEV_SERVER_URL`.
+
+Troubleshooting:
+
+- If packaging on Linux for Windows fails due to missing tooling, either install Wine or build the Windows target on a Windows runner.
+- If the app shows a blank screen in Electron production build, ensure `npm run build:web` completed and `dist/` exists.
 
 ### Production Build
 
