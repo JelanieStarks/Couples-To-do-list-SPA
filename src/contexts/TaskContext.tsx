@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Task, Priority, TaskFilter, Assignment } from '../types';
-import { storage, STORAGE_KEYS, generateId } from '../utils';
+import { storage, STORAGE_KEYS, generateId, isSameLocalDay, parseLocalDate, toLocalDateString } from '../utils';
 import { useAuth } from './AuthContext';
 
 // 📝 Task Context - Your digital task manager with a sense of humor
@@ -33,21 +33,23 @@ export const useTask = () => {
   return context;
 };
 
-export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Added optional initialTasks for deterministic tests (prevents flaky async seeding in tests)
+export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: Task[] }> = ({ children, initialTasks }) => {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load tasks on app start - Jarvis never forgets your to-dos
   useEffect(() => {
-    const loadTasks = () => {
-      const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
-      setTasks(savedTasks);
+    if (initialTasks) {
+      setTasks(initialTasks);
       setIsLoading(false);
-    };
-
-    loadTasks();
-  }, []);
+      return;
+    }
+    const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
+    setTasks(savedTasks);
+    setIsLoading(false);
+  }, [initialTasks]);
 
   // Save tasks to localStorage whenever tasks change
   useEffect(() => {
@@ -90,9 +92,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateTask = (id: string, updates: Partial<Task>): void => {
-    setTasks(prev => 
-      prev.map(task => 
-        task.id === id 
+    setTasks(prev =>
+      prev.map(task =>
+        task.id === id
           ? { ...task, ...updates, updatedAt: new Date().toISOString() }
           : task
       )
@@ -130,40 +132,46 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (filter.priority && task.priority !== filter.priority) return false;
       if (filter.completed !== undefined && task.completed !== filter.completed) return false;
       if (filter.createdBy && task.createdBy !== filter.createdBy) return false;
-      
+
       if (filter.dateRange) {
         const taskDate = task.scheduledDate || task.createdAt;
         if (taskDate < filter.dateRange.start || taskDate > filter.dateRange.end) return false;
       }
-      
+
       return true;
     });
   };
 
   const getTasksByDate = (date: string): Task[] => {
-    const targetDate = new Date(date).toDateString();
+    // date is expected as YYYY-MM-DD
+    const target = parseLocalDate(date);
     return tasks.filter(task => {
       if (task.deletedAt) return false;
-      const taskDate = task.scheduledDate || task.createdAt;
-      return new Date(taskDate).toDateString() === targetDate;
+      const taskDateStr = task.scheduledDate
+        ? task.scheduledDate // already YYYY-MM-DD
+        : toLocalDateString(new Date(task.createdAt));
+      return isSameLocalDay(parseLocalDate(taskDateStr), target);
     });
   };
 
   const getTodaysTasks = (): Task[] => {
-    const today = new Date().toDateString();
+    const today = new Date();
     return tasks
       .filter(task => {
         if (task.deletedAt) return false;
-        const taskDate = task.scheduledDate || task.createdAt;
-        return new Date(taskDate).toDateString() === today;
+        // Prefer scheduledDate (YYYY-MM-DD). If absent, use createdAt's local day so unscheduled tasks appear today.
+        const taskDateStr = task.scheduledDate
+          ? task.scheduledDate
+          : toLocalDateString(new Date(task.createdAt));
+        return isSameLocalDay(parseLocalDate(taskDateStr), today);
       })
       .sort((a, b) => {
         // Sort by priority (A1 > A2 > A3 > B1 > B2 > B3 > C1 > C2 > C3 > D), then by custom order (ascending), then by creation time
-        const priorityOrder = { 
-          A1: 10, A2: 9, A3: 8, 
-          B1: 7, B2: 6, B3: 5, 
-          C1: 4, C2: 3, C3: 2, 
-          D: 1 
+        const priorityOrder = {
+          A1: 10, A2: 9, A3: 8,
+          B1: 7, B2: 6, B3: 5,
+          C1: 4, C2: 3, C3: 2,
+          D: 1
         };
         const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
         if (priorityDiff !== 0) return priorityDiff;
@@ -192,7 +200,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getDeletedTasks = (): Task[] => {
-    return tasks.filter(t => t.deletedAt).sort((a,b) => {
+    return tasks.filter(t => t.deletedAt).sort((a, b) => {
       const ad = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
       const bd = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
       return bd - ad; // newest deleted first
@@ -212,7 +220,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     sections.forEach(section => {
       const lines = section.split('\n').map(line => line.trim()).filter(Boolean);
-      
+
       lines.forEach(line => {
         // Parse different formats:
         // - [A1] Task title: description
@@ -220,7 +228,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // - Priority A2: Task title
         // - Task title (Priority: B3)
         // - Simple task title
-        
+
         let priority: Priority = 'C1'; // Default priority
         let assignment: Assignment = 'me'; // Default assignment
         let title = line;
@@ -301,7 +309,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (title) {
           const now = new Date().toISOString();
-          
+
           // Calculate scheduledDate based on dayOfWeek
           let scheduledDate = '';
           if (dayOfWeek) {
@@ -337,7 +345,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Add imported tasks to the current task list
     setTasks(prev => [...prev, ...importedTasks]);
-    
+
     return importedTasks;
   };
 

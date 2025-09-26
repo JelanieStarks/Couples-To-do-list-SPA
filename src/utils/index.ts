@@ -71,12 +71,33 @@ export const formatDate = (date: string | Date): string => {
   } else if (d.toDateString() === yesterday.toDateString()) {
     return 'Yesterday';
   } else {
-    return d.toLocaleDateString('en-US', { 
-      weekday: 'short', 
-      month: 'short', 
-      day: 'numeric' 
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
     });
   }
+};
+
+// Normalize a Date to a local date-only string YYYY-MM-DD (no timezone pitfalls)
+export const toLocalDateString = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// Parse a YYYY-MM-DD date string as a local date (no timezone shift)
+export const parseLocalDate = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
+// Compare two dates by local calendar day (ignores time)
+export const isSameLocalDay = (a: string | Date, b: string | Date): boolean => {
+  const da = typeof a === 'string' ? new Date(a) : a;
+  const db = typeof b === 'string' ? new Date(b) : b;
+  return toLocalDateString(da) === toLocalDateString(db);
 };
 
 // Get day of week for calendar columns
@@ -97,6 +118,6 @@ export const getWeekDates = (date: Date = new Date()): Date[] => {
     dayDate.setDate(startOfWeek.getDate() + i);
     week.push(dayDate);
   }
-  
+
   return week;
 };

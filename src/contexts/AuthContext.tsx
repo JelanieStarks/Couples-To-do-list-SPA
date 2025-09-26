@@ -21,30 +21,27 @@ export const useAuth = () => {
   return context;
 };
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    partner: null,
-    isAuthenticated: false,
-    isLoading: true,
-  });
+// Added optional initialUser/initialPartner for deterministic tests (so we don't have to "login" in every unit test).
+export const AuthProvider: React.FC<{ children: React.ReactNode; initialUser?: User; initialPartner?: User }> = ({ children, initialUser, initialPartner }) => {
+  const [authState, setAuthState] = useState<AuthState>(() => ({
+    user: initialUser || null,
+    partner: initialPartner || null,
+    isAuthenticated: !!initialUser,
+    isLoading: !initialUser, // If an initial user is supplied, skip the loading phase.
+  }));
 
-  // Load user data on app start - Jarvis remembers everything
+  // Load user data on app start - Jarvis remembers everything (unless tests already gave us a user)
   useEffect(() => {
-    const loadUserData = () => {
-      const savedUser = storage.get<User>(STORAGE_KEYS.USER);
-      const savedPartner = storage.get<User>(STORAGE_KEYS.PARTNER);
-
-      setAuthState({
-        user: savedUser,
-        partner: savedPartner,
-        isAuthenticated: !!savedUser,
-        isLoading: false,
-      });
-    };
-
-    loadUserData();
-  }, []);
+    if (initialUser) return; // Test scenario: skip localStorage boot.
+    const savedUser = storage.get<User>(STORAGE_KEYS.USER);
+    const savedPartner = storage.get<User>(STORAGE_KEYS.PARTNER);
+    setAuthState({
+      user: savedUser,
+      partner: savedPartner,
+      isAuthenticated: !!savedUser,
+      isLoading: false,
+    });
+  }, [initialUser]);
 
   const login = async (name: string, email?: string): Promise<void> => {
     const user: User = {

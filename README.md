@@ -1,5 +1,7 @@
 # Couples To-Do List SPA 💕
 
+> Status: Beta v1.0
+
 ![Couples To-Do App](https://github.com/user-attachments/assets/43c3eb02-ae2b-45f3-af15-c45a411838c0)
 
 A delightful React + Tailwind CSS single-page application designed specifically for couples to organize their lives together with style, humor, and ADHD-friendly features. Powered by Jarvis-level AI assistance! 🤖

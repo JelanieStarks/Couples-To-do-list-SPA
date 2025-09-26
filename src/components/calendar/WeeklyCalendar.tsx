@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { TaskItem } from '../tasks/TaskItem';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { getWeekDates, formatDate } from '../../utils';
+import { getWeekDates, formatDate, toLocalDateString } from '../../utils';
 import {
   DndContext,
   closestCenter,
@@ -26,7 +26,7 @@ import { CSS } from '@dnd-kit/utilities';
 export const WeeklyCalendar: React.FC = () => {
   const { getTasksByDate, moveTaskToDate, tasks } = useTask();
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  
+
   const weekDates = getWeekDates(currentWeek);
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -68,7 +68,7 @@ export const WeeklyCalendar: React.FC = () => {
   return (
     <div className="panel-neon panel-neon-border">
       {/* Header */}
-  <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
             <CalendarIcon className="h-6 w-6 text-indigo-400" />
@@ -80,19 +80,19 @@ export const WeeklyCalendar: React.FC = () => {
         </div>
 
         {/* Navigation */}
-  <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3">
           <button
             onClick={() => navigateWeek('prev')}
             className="p-2 rounded-lg bg-slate-800/70 border border-slate-600 text-slate-300 hover:text-white hover:border-indigo-400 hover:shadow-md transition"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          
+
           <button
             onClick={goToToday}
             className="px-4 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow hover:shadow-lg tracking-wide"
           >Today</button>
-          
+
           <button
             onClick={() => navigateWeek('next')}
             className="p-2 rounded-lg bg-slate-800/70 border border-slate-600 text-slate-300 hover:text-white hover:border-indigo-400 hover:shadow-md transition"
@@ -118,11 +118,11 @@ export const WeeklyCalendar: React.FC = () => {
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-  <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
           {weekDates.map((date, index) => {
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = toLocalDateString(date);
             const dayTasks = getTasksByDate(dateStr);
-            const isToday = date.toDateString() === new Date().toDateString();
+            const isToday = toLocalDateString(date) === toLocalDateString(new Date());
             const isPast = date < new Date() && !isToday;
 
             return (
@@ -176,7 +176,7 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
       <div className="day-tasks-scroll scroll-thin grid gap-2 grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-5 auto-rows-max">
         {tasks
           .slice()
-          .sort((a,b) => {
+          .sort((a, b) => {
             // Incomplete first
             if (a.completed && !b.completed) return 1;
             if (!a.completed && b.completed) return -1;
@@ -191,8 +191,8 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
             return 0;
           })
           .map(task => (
-          <DraggableTask key={task.id} task={task} />
-        ))}
+            <DraggableTask key={task.id} task={task} />
+          ))}
         {tasks.length === 0 && (
           <div className="col-span-full text-center py-6 text-[11px] text-slate-500">
             {isToday ? 'No tasks today' : 'Drag tasks here'}

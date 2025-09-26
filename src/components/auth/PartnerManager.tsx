@@ -4,7 +4,8 @@ import { Users, Copy, Check, UserPlus, Unlink, Share } from 'lucide-react';
 
 // 👫 Partner Management - Connection status and controls
 export const PartnerManager: React.FC = () => {
-  const { user, partner, linkPartner, unlinkPartner } = useAuth();
+  // Added updateUser which was used later but not previously destructured – without this the color buttons would explode harder than my motivation on a Monday morning.
+  const { user, partner, linkPartner, unlinkPartner, updateUser } = useAuth();
   const [inviteCode, setInviteCode] = useState('');
   const [isLinking, setIsLinking] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);

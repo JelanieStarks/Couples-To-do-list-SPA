@@ -7,10 +7,12 @@ import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDa
 interface SideDrawerProps {
   open: boolean;
   onClose: () => void;
+  // drawer: right-side panel; full: full-screen overlay
+  variant?: 'drawer' | 'full';
 }
 
 // 🛠 Side Drawer - Archive & Deleted Tasks Management
-export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
+export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant = 'drawer' }) => {
   const { getCompletedTasks, getDeletedTasks, restoreTask, hardDeleteTask, toggleTaskComplete } = useTask() as any;
   const completed = getCompletedTasks()
     .slice()
@@ -43,40 +45,47 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
   }, [handleKey]);
 
   useEffect(() => {
-    if (open) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      queueMicrotask(() => firstNavItemRef.current?.focus());
-      return () => { document.body.style.overflow = prev; };
-    }
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    queueMicrotask(() => firstNavItemRef.current?.focus());
+    return () => { document.body.style.overflow = prev; };
   }, [open]);
 
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
   const content = (
-    <div className={`fixed inset-0 z-50 overflow-hidden ${open ? '' : 'pointer-events-none'}`} aria-hidden={!open} data-testid="drawer-root">
+  <div className={`fixed inset-0 z-[100] ${open ? '' : 'pointer-events-none'} `} aria-hidden={!open} data-testid="drawer-root" data-tag="drawer-root">
       {/* Backdrop with slight delay for smoother entrance */}
       <div
         className={`absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={onClose}
         data-testid="drawer-backdrop"
       />
-      {/* Drawer */}
+      {/* Drawer / Full-screen Panel */}
       <aside
-        className={`absolute top-0 right-0 h-full w-full max-w-none md:max-w-[520px] lg:max-w-[640px] transform transition-transform duration-500 ease-[cubic-bezier(.18,.89,.32,1.05)] flex flex-col panel-neon panel-neon-border !border-slate-700/60 rounded-none shadow-2xl ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={[
+          'transform transition-transform duration-500 ease-[cubic-bezier(.18,.89,.32,1.05)] flex flex-col rounded-none shadow-2xl',
+          variant === 'full'
+            ? `${open ? 'translate-x-0' : 'translate-x-full'} fixed inset-0 w-screen h-screen bg-slate-900 text-slate-100`
+            : `${open ? 'translate-x-0' : 'translate-x-full'} absolute top-0 right-0 h-full w-full max-w-none md:max-w-[520px] lg:max-w-[640px] panel-neon panel-neon-border !border-slate-700/60`
+        ].join(' ')}
         role="dialog"
         aria-modal="true"
         aria-label="Task archives"
         data-testid="side-drawer"
         data-open={open || undefined}
+        data-tag="drawer-panel"
+        onClick={(e) => e.stopPropagation()}
+        style={{ pointerEvents: 'auto' }}
       >
-        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60 px-1" data-testid="drawer-header">
+        <div className={`flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60 ${variant === 'full' ? 'px-3' : 'px-1'}`} data-testid="drawer-header" data-tag="drawer-header">
           <h2 className="text-sm font-semibold tracking-wider text-slate-200 uppercase">Menu</h2>
           <button className="icon-btn-neon" onClick={onClose} aria-label="Close drawer">✕</button>
         </div>
 
         {/* Primary Nav */}
-        <nav className="mb-6 px-1" aria-label="Primary">
+        <nav className={`mb-6 ${variant === 'full' ? 'px-3' : 'px-1'}`} aria-label="Primary" data-tag="drawer-nav">
           <ul className="space-y-1 text-sm font-medium tracking-wide" data-testid="nav-list">
             {[
               { icon: LayoutGrid, label: 'Dashboard' },
@@ -90,7 +99,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
                 <li key={item.label} style={{ animationDelay: `${idx * 55}ms` }} className="opacity-0 animate-fade-slide-in">
                   <button
                     ref={idx === 0 ? firstNavItemRef : undefined}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-slate-200 border border-slate-700/40 hover:border-slate-500/50 bg-slate-800/40 hover:bg-slate-700/50 shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500/60 focus:ring-offset-2 focus:ring-offset-slate-900`}> 
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-slate-200 border border-slate-700/40 hover:border-slate-500/50 ${variant === 'full' ? 'bg-slate-800/60 hover:bg-slate-700/60' : 'bg-slate-800/40 hover:bg-slate-700/50'} shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-500/60 focus:ring-offset-2 focus:ring-offset-slate-900`}> 
                     <Icon className="h-4 w-4 opacity-80" /> {item.label}
                   </button>
                 </li>
@@ -99,10 +108,24 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
           </ul>
         </nav>
 
-  <div className="mt-1 mb-4 text-[10px] uppercase tracking-wider text-slate-500 font-semibold px-1">Archives</div>
+        {/* Dummy content to clearly verify visibility and scrolling */}
+        <section className={`px-3 ${variant === 'full' ? 'pb-6' : 'pb-3'}`} data-tag="drawer-dummy">
+          <h3 className="text-base font-semibold text-slate-200 mb-2">Welcome to the Menu</h3>
+          <p className="text-xs text-slate-400 mb-3">This is dummy content to confirm the menu appears and overlays the page.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="p-3 rounded-lg border border-slate-700/50 bg-slate-800/50">
+                <div className="text-[11px] font-medium text-slate-200">Menu Card {i + 1}</div>
+                <div className="text-[10px] text-slate-500">Some quick info here.</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+  <div className={`mt-1 mb-4 text-[10px] uppercase tracking-wider text-slate-500 font-semibold ${variant === 'full' ? 'px-3' : 'px-1'}`}>Archives</div>
 
   {/* Completed Tasks Section */}
-  <div className="mb-6 px-1">
+  <div className={`mb-6 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
           <button
             onClick={() => setShowCompleted(v => !v)}
             className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
@@ -142,7 +165,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
         </div>
 
     {/* Deleted Tasks Section */}
-  <div className="mb-2 px-1">
+  <div className={`mb-2 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
           <button
             onClick={() => setShowDeleted(v => !v)}
             className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
@@ -192,7 +215,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose }) => {
           )}
         </div>
 
-        <div className="mt-auto pt-4 border-t border-slate-700/60 space-y-3 px-1">
+        <div className={`mt-auto pt-4 border-t border-slate-700/60 space-y-3 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
           <p className="text-[10px] text-slate-500">⚠️ Deleted tasks are retained locally until permanently removed.</p>
           <p className="text-[10px] text-slate-600">v0.1.0 • Local First</p>
         </div>
