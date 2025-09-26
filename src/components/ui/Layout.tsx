@@ -57,18 +57,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           >
             <Menu className="h-5 w-5 sm:h-5 sm:w-5" />
           </button>
-          <button
-            onClick={logout}
-            className="icon-btn-neon pointer-events-auto absolute"
-            title="Logout"
-            data-tag="logout-button"
-            style={{
-              top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-              right: 'calc(env(safe-area-inset-right, 0px) + 12px)'
-            }}
-          >
-            <LogOut className="h-4 w-4 sm:h-4 sm:w-4" />
-          </button>
+          {/** Logout button moved back into the right user block below */}
         </div>
         <div className="w-full max-w-[80vw] px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
@@ -110,6 +99,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     {copied && <span className="text-emerald-400">Copied!</span>}
                   </p>
                 </div>
+                {/* Logout button inside user block */}
+                <button
+                  onClick={logout}
+                  className="icon-btn-neon"
+                  title="Logout"
+                  data-tag="logout-button"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>
