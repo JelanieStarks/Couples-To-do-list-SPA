@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
 import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDays, User2, Brain, Settings, ChevronDown } from 'lucide-react';
-// import { TaskItem } from '../tasks/TaskItem'; // (Not currently needed inside archive lists)
+import ExportTasks from '../tasks/ExportTasks';
+import { PartnerManager } from '../auth/PartnerManager';
 
 interface SideDrawerProps {
   open: boolean;
@@ -55,7 +56,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
   const portalTarget = typeof document !== 'undefined' ? document.body : null;
 
   const content = (
-  <div className={`fixed inset-0 z-[100] ${open ? '' : 'pointer-events-none'} `} aria-hidden={!open} data-testid="drawer-root" data-tag="drawer-root">
+    <div className={`fixed inset-0 z-[100] ${open ? '' : 'pointer-events-none'} `} aria-hidden={!open} data-testid="drawer-root" data-tag="drawer-root">
       {/* Backdrop with slight delay for smoother entrance */}
       <div
         className={`absolute inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0'}`}
@@ -72,7 +73,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
         ].join(' ')}
         role="dialog"
         aria-modal="true"
-        aria-label="Task archives"
+        aria-label="Menu and archives"
         data-testid="side-drawer"
         data-open={open || undefined}
         data-tag="drawer-panel"
@@ -85,7 +86,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
         </div>
 
         {/* Primary Nav */}
-        <nav className={`mb-6 ${variant === 'full' ? 'px-3' : 'px-1'}`} aria-label="Primary" data-tag="drawer-nav">
+        <nav className={`mb-4 ${variant === 'full' ? 'px-3' : 'px-1'}`} aria-label="Primary" data-tag="drawer-nav">
           <ul className="space-y-1 text-sm font-medium tracking-wide" data-testid="nav-list">
             {[
               { icon: LayoutGrid, label: 'Dashboard' },
@@ -108,24 +109,30 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           </ul>
         </nav>
 
-        {/* Dummy content to clearly verify visibility and scrolling */}
-        <section className={`px-3 ${variant === 'full' ? 'pb-6' : 'pb-3'}`} data-tag="drawer-dummy">
-          <h3 className="text-base font-semibold text-slate-200 mb-2">Welcome to the Menu</h3>
-          <p className="text-xs text-slate-400 mb-3">This is dummy content to confirm the menu appears and overlays the page.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="p-3 rounded-lg border border-slate-700/50 bg-slate-800/50">
-                <div className="text-[11px] font-medium text-slate-200">Menu Card {i + 1}</div>
-                <div className="text-[10px] text-slate-500">Some quick info here.</div>
-              </div>
-            ))}
+        {/* Export & Share */}
+        <section className={`${variant === 'full' ? 'px-3' : 'px-1'} mb-4`} data-testid="drawer-export">
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-2">
+            <h3 className="text-sm font-semibold text-slate-200 mb-2">Export & Share</h3>
+            <div className="bg-white rounded-lg">
+              <ExportTasks />
+            </div>
           </div>
         </section>
 
-  <div className={`mt-1 mb-4 text-[10px] uppercase tracking-wider text-slate-500 font-semibold ${variant === 'full' ? 'px-3' : 'px-1'}`}>Archives</div>
+        {/* Partner Manager (Invite code, connect form, color settings) */}
+        <section className={`${variant === 'full' ? 'px-3' : 'px-1'} mb-6`} data-testid="drawer-partner">
+          <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-2">
+            <h3 className="text-sm font-semibold text-slate-200 mb-2">Partner & Colors</h3>
+            <div className="bg-white rounded-lg">
+              <PartnerManager />
+            </div>
+          </div>
+        </section>
 
-  {/* Completed Tasks Section */}
-  <div className={`mb-6 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
+        <div className={`mt-1 mb-4 text-[10px] uppercase tracking-wider text-slate-500 font-semibold ${variant === 'full' ? 'px-3' : 'px-1'}`}>Archives</div>
+
+        {/* Completed Tasks Section */}
+        <div className={`mb-6 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
           <button
             onClick={() => setShowCompleted(v => !v)}
             className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
@@ -164,8 +171,8 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           )}
         </div>
 
-    {/* Deleted Tasks Section */}
-  <div className={`mb-2 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
+        {/* Deleted Tasks Section */}
+        <div className={`mb-2 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
           <button
             onClick={() => setShowDeleted(v => !v)}
             className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
