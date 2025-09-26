@@ -14,23 +14,20 @@ import { ExportTasks } from './components/tasks/ExportTasks';
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  let content = null;
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+    content = (
+      <div className="min-h-[50vh] bg-transparent flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">🤖 Jarvis is warming up the productivity engines...</p>
+          <p className="text-gray-300">🤖 Jarvis is warming up the productivity engines...</p>
         </div>
       </div>
     );
-  }
-
-  if (!isAuthenticated) {
-    return <LoginPage />;
-  }
-
-  return (
-    <Layout>
+  } else if (!isAuthenticated) {
+    content = <LoginPage />;
+  } else {
+    content = (
       <div className="space-y-8">
         {/* Welcome Section */}
         <div className="text-center">
@@ -135,6 +132,12 @@ Only output the tasks in the exact format above, with \`---\` as the delimiter b
           </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <Layout>
+      {content}
     </Layout>
   );
 }
