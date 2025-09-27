@@ -70,8 +70,6 @@
       "allowElevation": true,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true,
-      "installerSidebar": "build/icon.ico",
-      "uninstallerSidebar": "build/icon.ico",
       "include": "build/installer.nsh"
     },
     "win": {
@@ -80,18 +78,15 @@
           "target": "nsis",
           "arch": ["x64"]
         }
-      ],
-      "icon": "build/icon.ico"
+      ]
     },
     "linux": {
       "target": ["AppImage"],
-      "category": "Utility",
-      "icon": "build/icon.png"
+      "category": "Utility"
     },
     "mac": {
       "target": ["dmg"],
-      "category": "public.app-category.productivity",
-      "icon": "build/icon.icns"
+      "category": "public.app-category.productivity"
     }
   }
 }
