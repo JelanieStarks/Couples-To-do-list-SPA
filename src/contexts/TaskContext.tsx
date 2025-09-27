@@ -214,10 +214,19 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const target = parseLocalDate(date);
     return tasks.filter(task => {
       if (task.deletedAt) return false;
-      const taskDateStr = task.scheduledDate
-        ? task.scheduledDate // already YYYY-MM-DD
+      // Establish the start date for the task (local day)
+      const startDateStr = task.scheduledDate
+        ? task.scheduledDate
         : toLocalDateString(new Date(task.createdAt));
-      return isSameLocalDay(parseLocalDate(taskDateStr), target);
+      const start = parseLocalDate(startDateStr);
+
+      // If repeating daily, include the task on any day >= start date
+      if (task.repeat === 'daily') {
+        return toLocalDateString(target) >= toLocalDateString(start);
+      }
+
+      // Otherwise, only include if same local day
+      return isSameLocalDay(start, target);
     });
   };
 
@@ -226,10 +235,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     return tasks
       .filter(task => {
         if (task.deletedAt) return false;
+        // Repeating tasks appear today if today >= start date
+        if (task.repeat === 'daily') {
+          const startDateStr = task.scheduledDate ? task.scheduledDate : toLocalDateString(new Date(task.createdAt));
+          return toLocalDateString(today) >= startDateStr;
+        }
         // Prefer scheduledDate (YYYY-MM-DD). If absent, use createdAt's local day so unscheduled tasks appear today.
-        const taskDateStr = task.scheduledDate
-          ? task.scheduledDate
-          : toLocalDateString(new Date(task.createdAt));
+        const taskDateStr = task.scheduledDate ? task.scheduledDate : toLocalDateString(new Date(task.createdAt));
         return isSameLocalDay(parseLocalDate(taskDateStr), today);
       })
       .sort((a, b) => {

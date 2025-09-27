@@ -82,6 +82,9 @@
     transition: border-color .25s, box-shadow .25s;
     overflow: hidden;
   }
+  /* Row view: reduce internal padding a touch for compact cards */
+  .day-square[data-variant="row"] .day-tasks-scroll { padding:.4rem; }
+  .week-row { scrollbar-gutter: stable both-edges; }
   .day-square:hover { border-color: rgba(148,163,184,0.6); }
   .day-square.today { border-color: #818cf8; box-shadow: 0 0 15px -2px rgba(99,102,241,0.6); }
   .day-square-past { opacity: .6; }
@@ -107,6 +110,11 @@
     border: 1px solid rgba(71,85,105,0.6);
     transition: border-color .25s, transform .25s, box-shadow .25s;
   }
+  /* Stronger emphasis by priority */
+  .task-card-neon[data-priority^="A"] { box-shadow: 0 0 0 1px #ef4444, 0 0 18px -4px #ef4444; border-color: rgba(239,68,68,0.6); }
+  .task-card-neon[data-priority^="B"] { box-shadow: 0 0 0 1px #f59e0b, 0 0 14px -6px #f59e0b; border-color: rgba(245,158,11,0.5); }
+  .task-card-neon[data-priority^="C"] { box-shadow: 0 0 0 1px #eab30833; }
+  .task-card-neon[data-priority="D"] { box-shadow: 0 0 0 1px #22c55e33; }
   .task-card-neon:hover { border-color: #818cf8; box-shadow: 0 0 0 1px #6366f1, 0 0 12px -2px #6366f1; }
   .task-card-neon.shared {
     background: linear-gradient(135deg,#312e81 0%,#4c1d95 40%,#831843 100%);
@@ -128,6 +136,8 @@
     pointer-events: none; /* prevent overlay from blocking clicks */
   }
   .task-card-neon:hover:before { opacity: 1; }
+  /* Left accent bar for quick scanning */
+  .task-accent { position:absolute; left:0; top:0; bottom:0; width:4px; border-top-left-radius:.5rem; border-bottom-left-radius:.5rem; box-shadow: 0 0 10px 2px rgba(255,255,255,0.08); }
   .task-priority-badge { font-size:10px;font-weight:600;padding:2px 8px;border-radius:9999px;background:rgba(51,65,85,0.6);color:#e2e8f0; }
   /* Neon input fields */
   .neon-field { position: relative; }

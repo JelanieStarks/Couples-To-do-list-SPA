@@ -19,6 +19,7 @@ export const TaskForm: React.FC = () => {
     scheduledDate: '',
     scheduledTime: '',
     dayOfWeek: '',
+    repeat: '' as '' | 'daily',
   });
 
   const priorityOptions = [
@@ -70,6 +71,7 @@ export const TaskForm: React.FC = () => {
       scheduledDate: formData.scheduledDate || undefined,
       scheduledTime: formData.scheduledTime || undefined,
       dayOfWeek: formData.dayOfWeek || undefined,
+      repeat: formData.repeat || undefined,
     });
 
     // Reset form
@@ -83,6 +85,7 @@ export const TaskForm: React.FC = () => {
       scheduledDate: '',
       scheduledTime: '',
       dayOfWeek: '',
+      repeat: '',
     });
     setIsOpen(false);
   };
@@ -226,22 +229,29 @@ export const TaskForm: React.FC = () => {
         {/* Color Picker - Hidden when assignment determines color */}
         {formData.assignment === 'me' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-gray-200 mb-3">
               Pick your color 🎨
             </label>
             <div className="flex flex-wrap gap-3">
-              {colorOptions.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, color }))}
-                  className={`w-10 h-10 rounded-lg border-2 transition-transform hover:scale-110 ${
-                    formData.color === color ? 'border-gray-400 scale-110' : 'border-gray-200'
-                  }`}
-                  style={{ backgroundColor: color }}
-                  title={color}
-                />
-              ))}
+              {colorOptions.map((color) => {
+                const selected = formData.color === color;
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, color }))}
+                    data-testid={`color-btn-${color}`}
+                    className={`w-12 h-12 rounded-xl border-2 transition-all ${
+                      selected
+                        ? 'border-indigo-300 ring-2 ring-indigo-400 shadow-lg scale-105'
+                        : 'border-slate-500/50 hover:border-slate-300 hover:scale-105'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                    aria-pressed={selected}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
@@ -278,6 +288,24 @@ export const TaskForm: React.FC = () => {
               onChange={(e) => setFormData(prev => ({ ...prev, scheduledTime: e.target.value }))}
             />
           </div>
+        </div>
+
+        {/* Repeat selection (Google Calendar style simple toggle) */}
+        <div>
+          <label className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-2 uppercase">
+            Repeats 🔁
+          </label>
+          <div className="flex items-center gap-3">
+            <label className={`flex items-center gap-2 text-sm ${formData.repeat === 'daily' ? 'text-indigo-300' : 'text-slate-300'}`}>
+              <input
+                type="checkbox"
+                checked={formData.repeat === 'daily'}
+                onChange={(e) => setFormData(prev => ({ ...prev, repeat: e.target.checked ? 'daily' : '' }))}
+              />
+              This task repeats daily
+            </label>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1">Appears every day starting from the selected date (or today if none).</p>
         </div>
 
         {/* Color Picker */}

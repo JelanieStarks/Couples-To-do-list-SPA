@@ -30,6 +30,9 @@ export interface Task {
   scheduledDate?: string; // For calendar scheduling
   scheduledTime?: string; // Optional time component
   dayOfWeek?: string; // Optional day of week
+  // Repeating support (initially daily only). When set to 'daily', the task appears on every day
+  // on or after its start date (scheduledDate if set, else createdAt local date).
+  repeat?: 'daily';
   createdAt: string;
   updatedAt: string;
   completedAt?: string; // timestamp when marked complete

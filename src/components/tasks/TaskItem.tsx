@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Check, Edit, Trash2, Calendar, User, Users, Clock } from 'lucide-react';
+import { Check, Edit, Trash2, Calendar, User, Users, Clock, AlarmClockCheck } from 'lucide-react';
 import type { Task, Priority, Assignment } from '../../types';
-import { formatDate } from '../../utils';
+import { formatDate, toLocalDateString } from '../../utils';
 
 interface TaskItemProps {
   task: Task;
@@ -24,6 +24,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
     description: task.description || '',
     priority: task.priority,
     color: task.color,
+    scheduledDate: task.scheduledDate || '',
+    scheduledTime: task.scheduledTime || '',
   });
 
   const isShared = task.assignment === 'both';
@@ -69,6 +71,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
       description: editData.description.trim() || undefined,
       priority: editData.priority,
       color: editData.color,
+      scheduledDate: editData.scheduledDate || undefined,
+      scheduledTime: editData.scheduledTime || undefined,
     });
 
     setIsEditing(false);
@@ -80,6 +84,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
       description: task.description || '',
       priority: task.priority,
       color: task.color,
+      scheduledDate: task.scheduledDate || '',
+      scheduledTime: task.scheduledTime || '',
     });
     setIsEditing(false);
   };
@@ -102,6 +108,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
     }
   };
 
+  // Overdue detection (scheduled date strictly before today and not completed)
+  const todayStr = toLocalDateString(new Date());
+  const isOverdue = !!task.scheduledDate && !task.completed && task.scheduledDate < todayStr;
+
+  const snoozeToTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    updateTask(task.id, { scheduledDate: toLocalDateString(tomorrow) });
+  };
+
   if (isEditing) {
     return (
       <div className={`bg-white rounded-lg border-2 border-purple-300 p-4 shadow-lg ${isDragging ? 'opacity-50' : ''}`}>
@@ -121,6 +137,30 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
             rows={2}
             placeholder="Optional description..."
           />
+
+          {/* Date & time editors */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label htmlFor={`edit-date-${task.id}`} className="block text-[11px] font-semibold tracking-wide text-slate-700 mb-1 uppercase">Date</label>
+              <input
+                type="date"
+                id={`edit-date-${task.id}`}
+                value={editData.scheduledDate}
+                onChange={(e) => setEditData(prev => ({ ...prev, scheduledDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor={`edit-time-${task.id}`} className="block text-[11px] font-semibold tracking-wide text-slate-700 mb-1 uppercase">Time</label>
+              <input
+                type="time"
+                id={`edit-time-${task.id}`}
+                value={editData.scheduledTime}
+                onChange={(e) => setEditData(prev => ({ ...prev, scheduledTime: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1 flex-wrap">
@@ -161,10 +201,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   return (
     <div 
-      className={`group task-card-neon ${compact ? 'px-2 py-2' : ''} ${task.assignment === 'both' ? 'shared' : ''} ${task.completed ? 'opacity-60' : ''} ${isDragging ? 'opacity-40 scale-[0.98]' : ''}`}
+      className={`group task-card-neon ${compact ? 'px-2 py-2' : ''} ${task.assignment === 'both' ? 'shared' : ''} ${task.completed ? 'opacity-60' : ''} ${isDragging ? 'opacity-40 scale-[0.98]' : ''} ${isOverdue ? 'ring-1 ring-rose-400 border-rose-400' : ''}`}
       data-task-id={task.id}
+      data-overdue={isOverdue ? 'true' : 'false'}
+      data-priority={task.priority}
       onClick={() => onTaskClick?.(task.id)}
     >
+      {/* Left accent bar to improve visibility */}
+      <span className="task-accent" style={{ background: task.priority.startsWith('A') ? '#ef4444' : task.priority.startsWith('B') ? '#f59e0b' : task.priority.startsWith('C') ? '#eab308' : '#22c55e' }} aria-hidden />
       <div className="flex items-start space-x-2">
         <button
           onClick={() => toggleTaskComplete(task.id)}
@@ -193,6 +237,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
             <div className="flex-shrink-0 ml-2 flex items-center space-x-1 task-priority-badge">
               <span className="text-[10px]">{task.priority}</span>
+              {task.repeat === 'daily' && (
+                <span className="ml-1 inline-flex items-center px-2 py-[2px] rounded-full bg-indigo-900/60 text-indigo-200 border border-indigo-400/40 text-[9px]">Daily</span>
+              )}
             </div>
           </div>
 
@@ -203,6 +250,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
                   <span>{assignmentInfo.icon}</span>
                   <span>{assignmentInfo.label}</span>
                 </div>
+                {isOverdue && (
+                  <span data-testid="overdue-badge" className="inline-flex items-center px-2 py-[2px] rounded-full bg-rose-900/60 text-rose-200 border border-rose-400/40 text-[9px]">Overdue</span>
+                )}
                 {task.scheduledTime && (
                   <div className="flex items-center space-x-1">
                     <Clock className="h-3 w-3" />
@@ -229,6 +279,16 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
                     title="Complete task"
                   >
                     <Check className="h-4 w-4" />
+                  </button>
+                )}
+                {isOverdue && (
+                  <button
+                    onClick={snoozeToTomorrow}
+                    className="p-1 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 rounded transition-colors"
+                    title="Snooze to tomorrow"
+                    data-testid="snooze-btn"
+                  >
+                    <AlarmClockCheck className="h-4 w-4" />
                   </button>
                 )}
                 {partner && (

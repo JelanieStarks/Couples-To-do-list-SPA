@@ -3,6 +3,8 @@ import { useTask } from '../../contexts/TaskContext';
 import { TaskItem } from './TaskItem';
 import type { Task } from '../../types';
 import { Clock, Star, CheckCircle, AlertCircle } from 'lucide-react';
+import { TaskFilterMenu } from './TaskFilterMenu';
+import { applyTaskFilter, useTaskFilter } from '../../hooks/useTaskFilter';
 import {
   DndContext,
   closestCenter,
@@ -17,7 +19,9 @@ import { CSS } from '@dnd-kit/utilities';
 // 📅 Today's Tasks - Your daily command center
 export const TodaysTasks: React.FC = () => {
   const { getTodaysTasks, reorderTasksWithinPriority } = useTask() as any;
-  const todaysTasks = getTodaysTasks();
+  const todaysTasksRaw = getTodaysTasks();
+  const { filter } = useTaskFilter();
+  const todaysTasks = applyTaskFilter(todaysTasksRaw, filter);
 
   const completedTasks: Task[] = todaysTasks
     .filter((task: Task) => task.completed)
@@ -118,20 +122,23 @@ export const TodaysTasks: React.FC = () => {
           </div>
         </div>
 
-        {/* Progress Badge */}
-        {todaysTasks.length > 0 && (
-          <div className="text-right">
-            <div className={`text-2xl font-bold ${
-              completionRate === 100 ? 'text-emerald-400' : 
-              completionRate >= 50 ? 'text-indigo-300' : 'text-slate-500'
-            }`}>
-              {completionRate}%
+        <div className="flex items-center gap-3">
+          <TaskFilterMenu />
+          {/* Progress Badge */}
+          {todaysTasks.length > 0 && (
+            <div className="text-right">
+              <div className={`text-2xl font-bold ${
+                completionRate === 100 ? 'text-emerald-400' : 
+                completionRate >= 50 ? 'text-indigo-300' : 'text-slate-500'
+              }`}>
+                {completionRate}%
+              </div>
+              <div className="text-[10px] text-slate-500">
+                {completedTasks.length} of {todaysTasks.length} done
+              </div>
             </div>
-            <div className="text-[10px] text-slate-500">
-              {completedTasks.length} of {todaysTasks.length} done
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Jarvis Commentary */}

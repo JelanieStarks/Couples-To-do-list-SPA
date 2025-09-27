@@ -40,4 +40,25 @@ describe('TaskForm', () => {
     const submit = screen.getByRole('button', { name: /create task/i });
     expect(submit).toBeDisabled(); // Title is required, like coffee in the morning
   });
+
+  it('shows larger rounded square color buttons and selects one', () => {
+    renderWithProviders(<TaskForm />);
+    fireEvent.click(screen.getByRole('button', { name: /add new task/i }));
+
+    // Find color buttons via data-testid pattern
+    const colorButtons = screen.getAllByTestId(/color-btn-/i);
+    expect(colorButtons.length).toBeGreaterThanOrEqual(5);
+
+    // Check shape/size classes on first button
+    const first = colorButtons[0];
+    const className = first.getAttribute('class') || '';
+    expect(className).toContain('w-12');
+    expect(className).toContain('h-12');
+    expect(className).toContain('rounded-xl');
+
+    // Click a specific color and ensure it becomes selected (aria-pressed=true)
+    const target = screen.getByTestId('color-btn-#ef4444');
+    fireEvent.click(target);
+    expect(target).toHaveAttribute('aria-pressed', 'true');
+  });
 });

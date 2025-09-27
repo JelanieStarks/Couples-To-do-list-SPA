@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { TaskItem } from '../tasks/TaskItem';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { getWeekDates, formatDate, toLocalDateString } from '../../utils';
+import { getWeekDates, formatDate, toLocalDateString, STORAGE_KEYS, storage } from '../../utils';
+import { useAuth } from '../../contexts/AuthContext';
+import { TaskFilterMenu } from '../tasks/TaskFilterMenu';
+import { applyTaskFilter, useTaskFilter } from '../../hooks/useTaskFilter';
 import {
   DndContext,
   closestCenter,
@@ -23,9 +26,22 @@ import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
 // 📅 Weekly Calendar - Drag and drop task scheduler
+type ViewMode = 'classic' | 'row';
+
 export const WeeklyCalendar: React.FC = () => {
   const { getTasksByDate, moveTaskToDate, tasks } = useTask();
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const { filter } = useTaskFilter();
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
+    return (settings.calendarView as ViewMode) || 'classic';
+  });
+
+  // Persist view mode
+  useEffect(() => {
+    const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
+    storage.set(STORAGE_KEYS.SETTINGS, { ...settings, calendarView: viewMode });
+  }, [viewMode]);
 
   const weekDates = getWeekDates(currentWeek);
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -65,11 +81,27 @@ export const WeeklyCalendar: React.FC = () => {
     setCurrentWeek(new Date());
   };
 
+  // Auto-scroll to today's column in row view on mount and when switching view
+  useEffect(() => {
+    if (viewMode !== 'row') return;
+    // Defer to next tick to ensure DOM is painted
+    const id = window.setTimeout(() => {
+      const container = document.querySelector('[data-testid="calendar-row"]');
+      if (!container) return;
+      const todayIdx = new Date().getDay(); // 0=Sun..6=Sat
+      const col = container.querySelector(`[data-day-index="${todayIdx}"]`);
+      if (col && 'scrollIntoView' in col) {
+        (col as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }, 0);
+    return () => clearTimeout(id);
+  }, [viewMode, currentWeek]);
+
   return (
     <div className="panel-neon panel-neon-border">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
+  <div className="flex items-center space-x-3">
           <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
             <CalendarIcon className="h-6 w-6 text-indigo-400" />
           </div>
@@ -80,7 +112,7 @@ export const WeeklyCalendar: React.FC = () => {
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center space-x-3">
+  <div className="flex items-center space-x-3">
           <button
             onClick={() => navigateWeek('prev')}
             className="p-2 rounded-lg bg-slate-800/70 border border-slate-600 text-slate-300 hover:text-white hover:border-indigo-400 hover:shadow-md transition"
@@ -99,6 +131,30 @@ export const WeeklyCalendar: React.FC = () => {
           >
             <ChevronRight className="h-5 w-5" />
           </button>
+
+          <TaskFilterMenu />
+
+          {/* View toggle */}
+          <div className="hidden sm:flex items-center ml-2">
+            <div className="inline-flex rounded-full border border-slate-600 overflow-hidden" role="group" aria-label="Change calendar view">
+              <button
+                type="button"
+                onClick={() => setViewMode('classic')}
+                className={`px-3 py-1 text-xs font-semibold transition-colors ${viewMode === 'classic' ? 'bg-indigo-600 text-white' : 'bg-slate-800/70 text-slate-300 hover:text-white'}`}
+                data-testid="calendar-view-classic"
+                aria-pressed={viewMode === 'classic'}
+                title="Classic grid view"
+              >Classic</button>
+              <button
+                type="button"
+                onClick={() => setViewMode('row')}
+                className={`px-3 py-1 text-xs font-semibold transition-colors ${viewMode === 'row' ? 'bg-indigo-600 text-white' : 'bg-slate-800/70 text-slate-300 hover:text-white'}`}
+                data-testid="calendar-view-row"
+                aria-pressed={viewMode === 'row'}
+                title="Horizontal row view"
+              >Row</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -118,26 +174,52 @@ export const WeeklyCalendar: React.FC = () => {
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-          {weekDates.map((date, index) => {
-            const dateStr = toLocalDateString(date);
-            const dayTasks = getTasksByDate(dateStr);
-            const isToday = toLocalDateString(date) === toLocalDateString(new Date());
-            const isPast = date < new Date() && !isToday;
+        {viewMode === 'classic' ? (
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-4" data-testid="calendar-classic">
+            {weekDates.map((date, index) => {
+              const dateStr = toLocalDateString(date);
+              const dayTasks = applyTaskFilter(getTasksByDate(dateStr), filter);
+              const isToday = toLocalDateString(date) === toLocalDateString(new Date());
+              const isPast = date < new Date() && !isToday;
 
-            return (
-              <DayColumn
-                key={dateStr}
-                date={date}
-                dateStr={dateStr}
-                dayName={dayNames[index]}
-                tasks={dayTasks}
-                isToday={isToday}
-                isPast={isPast}
-              />
-            );
-          })}
-        </div>
+              return (
+                <DayColumn
+                  key={dateStr}
+                  date={date}
+                  dateStr={dateStr}
+                  dayName={dayNames[index]}
+                  tasks={dayTasks}
+                  isToday={isToday}
+                  isPast={isPast}
+                  variant="classic"
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <div className="week-row scroll-thin overflow-x-auto snap-x snap-mandatory flex gap-4 pb-2 -mx-2 px-2" data-testid="calendar-row">
+            {weekDates.map((date, index) => {
+              const dateStr = toLocalDateString(date);
+              const dayTasks = applyTaskFilter(getTasksByDate(dateStr), filter);
+              const isToday = toLocalDateString(date) === toLocalDateString(new Date());
+              const isPast = date < new Date() && !isToday;
+
+              return (
+                <div key={dateStr} className="min-w-[260px] md:min-w-[300px] snap-start" data-day-index={(new Date(date)).getDay()}>
+                  <DayColumn
+                    date={date}
+                    dateStr={dateStr}
+                    dayName={dayNames[index]}
+                    tasks={dayTasks}
+                    isToday={isToday}
+                    isPast={isPast}
+                    variant="row"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </DndContext>
 
       {/* Jarvis Tips */}
@@ -162,17 +244,103 @@ interface DayColumnProps {
   tasks: any[];
   isToday: boolean;
   isPast: boolean;
+  variant?: ViewMode;
 }
 
-const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, isToday, isPast }) => {
+const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, isToday, isPast, variant = 'classic' }) => {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${dateStr}` });
+  const { createTask } = useTask();
+  const { user } = useAuth();
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState('');
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const hoverTimer = React.useRef<number | null>(null);
+
+  const openQuickAdd = () => setAdding(true);
+  const cancelQuickAdd = () => { setAdding(false); setTitle(''); };
+  const submitQuickAdd = () => {
+    const t = title.trim();
+    if (!t) return;
+    createTask({
+      title: t,
+      description: undefined,
+      priority: 'C1',
+      assignment: 'me',
+      color: user?.color || '#ec4899',
+      completed: false,
+      scheduledDate: dateStr,
+      scheduledTime: undefined,
+      dayOfWeek: undefined,
+    });
+    setTitle('');
+    setAdding(false);
+  };
+
+  const onMouseEnter = (e: React.MouseEvent) => {
+    // Avoid opening while dragging (mouse button pressed)
+    if ((e as any).buttons && (e as any).buttons !== 0) return;
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => {
+      if (!adding) setAdding(true);
+    }, 120);
+  };
+
+  const onMouseLeave = () => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+    // Close only if not typing and nothing entered
+    if (document.activeElement !== inputRef.current && title.trim() === '') {
+      setAdding(false);
+    }
+  };
 
   return (
-    <div ref={setNodeRef} className={`day-square ${isToday ? 'today' : ''} ${isPast ? 'day-square-past' : ''} ${isOver ? 'ring-2 ring-indigo-400 ring-offset-0' : ''}`}>
+    <div
+      ref={setNodeRef}
+      className={`day-square ${isToday ? 'today' : ''} ${isPast ? 'day-square-past' : ''} ${isOver ? 'ring-2 ring-indigo-400 ring-offset-0' : ''}`}
+      data-variant={variant}
+      data-testid={`day-col-${dateStr}`}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <div className="day-square-header">
-        <div>{dayName}</div>
-        <div className="text-[10px] font-normal opacity-70">{date.getDate()}</div>
+        <button
+          type="button"
+          className="text-left hover:text-indigo-300 transition"
+          onClick={openQuickAdd}
+          aria-label={`Add task to ${dayName}`}
+          data-testid={`dayname-btn-${dateStr}`}
+        >
+          {dayName}
+        </button>
+        <button
+          type="button"
+          className="text-[10px] font-normal opacity-70 hover:opacity-100 hover:text-indigo-300 transition"
+          onClick={openQuickAdd}
+          aria-label={`Add task on ${dayName} ${date.getDate()}`}
+          data-testid={`date-btn-${dateStr}`}
+        >
+          {date.getDate()}
+        </button>
       </div>
+      {adding && (
+        <div className="mb-2 p-2 rounded-md border border-slate-600 bg-slate-800/70" data-testid={`quick-add-${dateStr}`}>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="neon-input flex-1"
+              placeholder="Quick add task..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitQuickAdd(); } if (e.key === 'Escape') { e.preventDefault(); cancelQuickAdd(); } }}
+              ref={inputRef}
+              autoFocus
+              onBlur={() => { if (title.trim() === '') setAdding(false); }}
+            />
+            <button type="button" className="btn-neon" data-size="sm" data-testid={`quick-add-submit-${dateStr}`} onClick={submitQuickAdd}>Add</button>
+            <button type="button" className="btn-neon" data-size="sm" data-variant="outline" data-testid={`quick-add-cancel-${dateStr}`} onClick={cancelQuickAdd}>Cancel</button>
+          </div>
+        </div>
+      )}
       <div className="day-tasks-scroll scroll-thin grid gap-2 grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-5 auto-rows-max">
         {tasks
           .slice()

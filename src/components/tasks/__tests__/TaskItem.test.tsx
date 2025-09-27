@@ -102,4 +102,42 @@ describe('TaskItem', () => {
     expect(screen.queryByText(/i should not persist/i)).toBeNull();
   expect(!!screen.getByText(/original title/i)).toBe(true);
   });
+
+  it('edits scheduled date and time and saves', async () => {
+    renderLiveTask();
+    await screen.findByText(/original title/i);
+    fireEvent.click(screen.getByTitle(/edit task/i));
+  const dateInput = await screen.findByLabelText(/date/i);
+  const timeInput = await screen.findByLabelText(/time/i);
+    fireEvent.change(dateInput, { target: { value: '2099-01-02' } });
+    fireEvent.change(timeInput, { target: { value: '13:45' } });
+    fireEvent.click(screen.getByText(/^save$/i));
+    // Back to view mode; scheduled time should render
+    await screen.findByText('13:45');
+  });
+
+  it('shows overdue and snoozes to tomorrow', async () => {
+    // Seed with an overdue task
+    const overdueTask = {
+      ...baseTask(),
+      id: 't-overdue',
+      title: 'Overdue Item',
+      scheduledDate: '2000-01-01',
+    } as any;
+    const { rerender } = render(
+      <AuthProvider initialUser={testUser} initialPartner={testPartner}>
+        <TaskProvider initialTasks={[overdueTask]}>
+          <LiveTaskItem taskId={overdueTask.id} />
+        </TaskProvider>
+      </AuthProvider>
+    );
+
+    // Overdue badge
+  await screen.findByTestId('overdue-badge');
+    const snooze = screen.getByTestId('snooze-btn');
+    fireEvent.click(snooze);
+    // After snooze, the overdue badge should likely disappear (depending on the current date)
+    // We at least assert the button is no longer present (scheduledDate moved to tomorrow)
+    expect(screen.queryByTestId('snooze-btn')).toBeNull();
+  });
 });
