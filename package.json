@@ -1,7 +1,7 @@
 {
   "name": "couples-todo-list-spa",
   "private": true,
-  "version": "1.0.3-beta",
+  "version": "1.0.4-beta",
   "type": "module",
   "main": "electron/main.js",
   "description": "Couples To-do: a simple shared to-do list with weekly planner, desktop builds via Electron.",
@@ -64,6 +64,15 @@
     ],
     "directories": {
       "buildResources": "build"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerSidebar": "build/icon.ico",
+      "uninstallerSidebar": "build/icon.ico",
+      "include": "build/installer.nsh"
     },
     "win": {
       "target": [

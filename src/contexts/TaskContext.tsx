@@ -21,6 +21,7 @@ interface TaskContextType {
   importTasksFromText: (text: string) => Task[];
   moveTaskToDate: (taskId: string, date: string) => void;
   reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
+  syncNow: () => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -38,6 +39,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Unique instance id to avoid processing our own broadcasts
+  const [instanceId] = useState(() => `taskctx-${Math.random().toString(36).slice(2)}`);
+  const bcRef = React.useRef<BroadcastChannel | null>(null);
 
   // Load tasks on app start - Jarvis never forgets your to-dos
   useEffect(() => {
@@ -55,8 +59,71 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   useEffect(() => {
     if (!isLoading) {
       storage.set(STORAGE_KEYS.TASKS, tasks);
+      // Broadcast change to other tabs/windows
+      try {
+        if (!bcRef.current && typeof BroadcastChannel !== 'undefined') {
+          bcRef.current = new BroadcastChannel('tasks-sync');
+        }
+        bcRef.current?.postMessage({
+          type: 'tasks-updated',
+          sourceId: instanceId,
+          updatedAt: Date.now(),
+          tasks,
+        });
+      } catch {}
     }
   }, [tasks, isLoading]);
+
+  // Handle external changes via BroadcastChannel and storage events
+  useEffect(() => {
+    // BroadcastChannel listener
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('tasks-sync');
+        bc.onmessage = (ev: MessageEvent) => {
+          const data = ev.data as { type?: string; sourceId?: string; tasks?: Task[] };
+          if (!data || data.type !== 'tasks-updated') return;
+          if (data.sourceId === instanceId) return; // ignore our own
+          if (Array.isArray(data.tasks)) {
+            // Only update if content differs
+            const current = JSON.stringify(tasks);
+            const incoming = JSON.stringify(data.tasks);
+            if (current !== incoming) {
+              setTasks(data.tasks);
+            }
+          }
+        };
+      } catch {}
+    }
+
+    // storage event (fires in other tabs)
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEYS.TASKS) return;
+      try {
+        const next = e.newValue ? (JSON.parse(e.newValue) as Task[]) : [];
+        const current = JSON.stringify(tasks);
+        const incoming = JSON.stringify(next);
+        if (current !== incoming) setTasks(next);
+      } catch {}
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      if (bc) {
+        try { bc.close(); } catch {}
+      }
+    };
+  }, [instanceId, tasks]);
+
+  const syncNow = () => {
+    // Pull latest from storage and update if different
+    const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
+    const current = JSON.stringify(tasks);
+    const incoming = JSON.stringify(savedTasks);
+    if (current !== incoming) setTasks(savedTasks);
+  };
 
   const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>): void => {
     if (!user) return;
@@ -366,6 +433,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     importTasksFromText,
     moveTaskToDate,
     reorderTasksWithinPriority,
+    syncNow,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

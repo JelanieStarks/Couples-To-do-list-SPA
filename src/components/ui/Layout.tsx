@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LogOut, Heart, Users, Menu } from 'lucide-react';
 import { SideDrawer } from './SideDrawer';
 import { TopNavPanel } from './TopNavPanel';
+import { useTask } from '../../contexts/TaskContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ interface LayoutProps {
 // 🏠 Main Layout - Your digital home base with style
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout } = useAuth();
+  const { syncNow } = useTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [topNavActive, setTopNavActive] = useState<null | 'ai' | 'partner' | 'settings'>(null);
 
@@ -37,6 +39,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const toggleDrawer = () => setDrawerOpen(o => !o);
+  const [syncFlash, setSyncFlash] = useState<'idle' | 'ok'>('idle');
+  const handleSync = () => {
+    syncNow();
+    setSyncFlash('ok');
+    setTimeout(() => setSyncFlash('idle'), 1000);
+  };
 
   return (
   <div className="min-h-screen flex flex-col items-center bg-transparent">
@@ -77,6 +85,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   title="Copy invite code"
                   data-testid="copy-invite"
                 >Copy</button>
+                <button
+                  type="button"
+                  onClick={handleSync}
+                  className={`px-2 py-[2px] rounded border transition ${syncFlash === 'ok' ? 'border-emerald-500 text-emerald-300' : 'border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white'}`}
+                  title="Sync now"
+                  data-testid="sync-now"
+                >Sync</button>
                 {copied && <span className="text-emerald-400">Copied!</span>}
               </p>
             </div>
