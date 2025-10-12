@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.8-beta] - 2025-10-12
+
+### Added / Changed
+- Quick Menu → Settings: "Check for Updates" button shows latest version and direct links to Windows .exe / Android .apk.
+
+### Infra
+- Release workflow publishes assets on tag push and generates release notes.
+
+## [1.0.7-beta] - 2025-10-12
+
+### Added / Changed
+- Android packaging scaffold via Capacitor, with scripts to build debug APK.
+- Icons wired for Electron (Windows/Linux) and web favicon updated to Heart icon.
+
+### CI
+- GitHub Actions workflows to build Windows .exe and Android .apk; release job attaches artifacts on tag.
+
 ## [1.0.6-beta] - 2025-10-12
 
 ### Added / Changed
