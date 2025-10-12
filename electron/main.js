@@ -22,6 +22,7 @@ const createWindow = async () => {
     minHeight: 600,
     backgroundColor: '#111827',
     show: false,
+    icon: path.join(__dirname, '../src/assets/HeartICON.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
