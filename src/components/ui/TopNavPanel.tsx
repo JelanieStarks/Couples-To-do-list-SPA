@@ -5,6 +5,8 @@ import { PartnerManager } from '../auth/PartnerManager';
 import ExportTasks from '../tasks/ExportTasks';
 import DeletedTasks from '../tasks/DeletedTasks';
 import { STORAGE_KEYS, storage } from '../../utils';
+import { checkForUpdates } from '../../utils/updates';
+import pkg from '../../../package.json';
 
 interface TopNavPanelProps {
   open: boolean;
@@ -39,6 +41,21 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
       const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
       storage.set(STORAGE_KEYS.SETTINGS, { ...settings, textScale: v });
     } catch {}
+  };
+
+  // Update check state
+  const [updateStatus, setUpdateStatus] = useState<
+    { loading: boolean; error?: string; latestTag?: string; releaseUrl?: string; windowsExeUrl?: string; androidApkUrl?: string; isNewer?: boolean }
+  >({ loading: false });
+
+  const doCheckUpdates = async () => {
+    try {
+      setUpdateStatus({ loading: true });
+      const info = await checkForUpdates(pkg.version);
+      setUpdateStatus({ loading: false, ...info });
+    } catch (e: any) {
+      setUpdateStatus({ loading: false, error: e?.message || 'Failed to check updates' });
+    }
   };
 
   return (
@@ -135,6 +152,44 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                               data-testid="textsize-range"
                             />
                           </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-700/60">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Updates</div>
+                              <div className="text-[10px] text-slate-500">Current version: {pkg.version}</div>
+                            </div>
+                            <div className="btn-row">
+                              <button className="btn-neon" data-size="sm" onClick={doCheckUpdates} disabled={updateStatus.loading} data-testid="check-updates">
+                                {updateStatus.loading ? 'Checking…' : 'Check for Updates'}
+                              </button>
+                            </div>
+                          </div>
+                          {updateStatus.error && (
+                            <div className="text-[11px] text-rose-300">{updateStatus.error}</div>
+                          )}
+                          {!updateStatus.error && updateStatus.latestTag && (
+                            <div className="text-[11px] text-slate-300">
+                              Latest: <span className="font-semibold">{updateStatus.latestTag}</span>{' '}
+                              {updateStatus.isNewer ? (
+                                <span className="text-emerald-300 font-medium ml-1">(Newer available)</span>
+                              ) : (
+                                <span className="text-slate-400 ml-1">(Up to date)</span>
+                              )}
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {updateStatus.windowsExeUrl && (
+                                  <a className="btn-neon" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">Download Windows (.exe)</a>
+                                )}
+                                {updateStatus.androidApkUrl && (
+                                  <a className="btn-neon" data-variant="outline" data-size="sm" href={updateStatus.androidApkUrl} target="_blank" rel="noreferrer">Download Android (.apk)</a>
+                                )}
+                                {updateStatus.releaseUrl && !updateStatus.windowsExeUrl && !updateStatus.androidApkUrl && (
+                                  <a className="btn-neon" data-variant="soft" data-size="sm" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">View Release</a>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="pt-3 border-t border-slate-700/60">
