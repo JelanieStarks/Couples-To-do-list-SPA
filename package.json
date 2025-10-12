@@ -68,7 +68,7 @@
   "build": {
     "appId": "com.couples.todo.spa",
     "productName": "Couples To-do",
-    "icon": "src/assets/HeartICON.png",
+  "icon": "src/assets/HeartICON.png",
     "files": [
       "dist/**",
       "electron/**",
@@ -85,7 +85,6 @@
       "include": "build/installer.nsh"
     },
     "win": {
-      "icon": "src/assets/HeartICON.ico",
       "target": [
         {
           "target": "nsis",
