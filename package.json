@@ -1,7 +1,7 @@
 {
   "name": "couples-todo-list-spa",
   "private": true,
-  "version": "1.0.6-beta",
+  "version": "1.0.7-beta",
   "type": "module",
   "main": "electron/main.js",
   "description": "Couples To-do: a simple shared to-do list with weekly planner, desktop builds via Electron.",
@@ -19,7 +19,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "cap:add:android": "cap add android",
+    "cap:sync": "cap sync",
+    "build:android": "vite build && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -27,9 +30,12 @@
     "@dnd-kit/utilities": "^3.2.2",
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "@capacitor/core": "^6.1.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/android": "^6.1.2",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "ws": "^8.18.0",
