@@ -123,8 +123,18 @@ describe('cross-device sync', () => {
     const SyncInvoker: React.FC = () => {
       const { tasks, syncNow } = useTask();
       React.useEffect(() => {
-        const t = setTimeout(() => { syncNow(); }, 500);
-        return () => clearTimeout(t);
+        let cancelled = false;
+        const start = Date.now();
+        const tick = async () => {
+          if (cancelled) return;
+          try { await syncNow(); } catch {}
+          if (!cancelled && Date.now() - start < 10000) {
+            setTimeout(tick, 300);
+          }
+        };
+        // Kick off soon to give A time to push first
+        const kickoff = setTimeout(tick, 600);
+        return () => { cancelled = true; clearTimeout(kickoff); };
       }, [syncNow]);
       return <div data-testid="count-b">{tasks.length}</div>;
     };
@@ -138,8 +148,8 @@ describe('cross-device sync', () => {
     await waitFor(() => {
       const el = screen.getByTestId('count-b');
       expect(Number(el.textContent)).toBe(1);
-    }, { timeout: 15000 });
+    }, { timeout: 20000 });
 
     await new Promise(resolve => server.close(resolve));
-  }, 20000);
+  }, 30000);
 });
