@@ -254,7 +254,6 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const inputRef = React.useRef<HTMLInputElement | null>(null);
-  const hoverTimer = React.useRef<number | null>(null);
 
   const openQuickAdd = () => setAdding(true);
   const cancelQuickAdd = () => { setAdding(false); setTitle(''); };
@@ -276,22 +275,7 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
     setAdding(false);
   };
 
-  const onMouseEnter = (e: React.MouseEvent) => {
-    // Avoid opening while dragging (mouse button pressed)
-    if ((e as any).buttons && (e as any).buttons !== 0) return;
-    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
-    hoverTimer.current = window.setTimeout(() => {
-      if (!adding) setAdding(true);
-    }, 120);
-  };
-
-  const onMouseLeave = () => {
-    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
-    // Close only if not typing and nothing entered
-    if (document.activeElement !== inputRef.current && title.trim() === '') {
-      setAdding(false);
-    }
-  };
+  // Hover-to-open removed in favor of click-only quick-add to prevent layout shifts
 
   return (
     <div
@@ -299,8 +283,6 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
       className={`day-square ${isToday ? 'today' : ''} ${isPast ? 'day-square-past' : ''} ${isOver ? 'ring-2 ring-indigo-400 ring-offset-0' : ''}`}
       data-variant={variant}
       data-testid={`day-col-${dateStr}`}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
     >
       <div className="day-square-header">
         <button
@@ -400,7 +382,7 @@ const DraggableTask: React.FC<DraggableTaskProps> = ({ task }) => {
       className="cursor-grab active:cursor-grabbing"
       data-task-id={task.id}
     >
-      <TaskItem task={task} showDate={false} isDragging={isDragging} compact forceActions />
+  <TaskItem task={task} showDate={false} isDragging={isDragging} compact forceActions />
     </div>
   );
 };

@@ -120,50 +120,60 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   if (isEditing) {
     return (
-      <div className={`bg-white rounded-lg border-2 border-purple-300 p-4 shadow-lg ${isDragging ? 'opacity-50' : ''}`}>
+      <div className={`panel-neon panel-neon-border p-3 ${isDragging ? 'opacity-50' : ''}`}>
         <div className="space-y-3">
-          <input
-            type="text"
-            value={editData.title}
-            onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-medium"
-            placeholder="Task title..."
-          />
-          
-          <textarea
-            value={editData.description}
-            onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm resize-none"
-            rows={2}
-            placeholder="Optional description..."
-          />
+          <div className="neon-field">
+            <label htmlFor={`edit-title-${task.id}`}>Task title</label>
+            <div className="neon-glow-ambient" />
+            <input
+              id={`edit-title-${task.id}`}
+              type="text"
+              value={editData.title}
+              onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
+              className="neon-input"
+              placeholder="Task title..."
+            />
+          </div>
+
+          <div className="neon-field">
+            <label htmlFor={`edit-desc-${task.id}`}>Description</label>
+            <div className="neon-glow-ambient" />
+            <textarea
+              id={`edit-desc-${task.id}`}
+              value={editData.description}
+              onChange={(e) => setEditData(prev => ({ ...prev, description: e.target.value }))}
+              className="neon-textarea"
+              rows={2}
+              placeholder="Optional description..."
+            />
+          </div>
 
           {/* Date & time editors */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label htmlFor={`edit-date-${task.id}`} className="block text-[11px] font-semibold tracking-wide text-slate-700 mb-1 uppercase">Date</label>
+              <label htmlFor={`edit-date-${task.id}`} className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-1 uppercase">Date</label>
               <input
                 type="date"
                 id={`edit-date-${task.id}`}
                 value={editData.scheduledDate}
                 onChange={(e) => setEditData(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                className="neon-input"
               />
             </div>
             <div>
-              <label htmlFor={`edit-time-${task.id}`} className="block text-[11px] font-semibold tracking-wide text-slate-700 mb-1 uppercase">Time</label>
+              <label htmlFor={`edit-time-${task.id}`} className="block text-[11px] font-semibold tracking-wide text-slate-300 mb-1 uppercase">Time</label>
               <input
                 type="time"
                 id={`edit-time-${task.id}`}
                 value={editData.scheduledTime}
                 onChange={(e) => setEditData(prev => ({ ...prev, scheduledTime: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                className="neon-input"
               />
             </div>
           </div>
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap">
               {['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D'].map((p) => (
                 <button
                   key={p}
@@ -171,7 +181,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
                   className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                     editData.priority === p
                       ? `${priorityConfig[p as Priority].bg} ${priorityConfig[p as Priority].text}`
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      : 'bg-slate-800/60 text-slate-300 hover:bg-slate-700/60'
                   }`}
                 >
                   {p}
@@ -179,19 +189,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
               ))}
             </div>
 
-            <div className="flex space-x-2">
-              <button
-                onClick={handleSaveEdit}
-                className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-              >
-                Save
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
-              >
-                Cancel
-              </button>
+            <div className="flex gap-2">
+              <button onClick={handleSaveEdit} className="btn-neon" data-size="sm">Save</button>
+              <button onClick={handleCancelEdit} className="btn-neon" data-variant="outline" data-size="sm">Cancel</button>
             </div>
           </div>
         </div>
@@ -211,25 +211,29 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
       <span className="task-accent" style={{ background: task.priority.startsWith('A') ? '#ef4444' : task.priority.startsWith('B') ? '#f59e0b' : task.priority.startsWith('C') ? '#eab308' : '#22c55e' }} aria-hidden />
       <div className="flex items-start space-x-2">
         <button
-          onClick={() => toggleTaskComplete(task.id)}
+          onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
           aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
           className={`flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold transition-colors ${
             task.completed
               ? 'bg-emerald-500 border-emerald-500 text-white shadow'
               : 'border-slate-500/70 text-slate-300 hover:border-emerald-400'
           }`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           {task.completed && <Check className="h-4 w-4" />}
         </button>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 text-[0.95rem]">
           <div className={`flex ${compact ? 'items-center' : 'items-start'} justify-between`}>
             <div className="flex-1 min-w-0">
-              <h3 className={`font-medium text-slate-100 leading-tight text-[12px] ${task.completed ? 'line-through opacity-70' : ''}`}>
+              <h3 className={`font-medium text-slate-100 leading-tight text-[0.95rem] ${task.completed ? 'line-through opacity-70' : ''}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}>
                 {task.title}
               </h3>
               {!compact && task.description && (
-                <p className={`text-[10px] leading-snug text-slate-400 mt-1 ${task.completed ? 'line-through opacity-60' : ''}`}>
+                <p className={`text-[0.8rem] leading-snug text-slate-300 mt-1 ${task.completed ? 'line-through opacity-60' : ''}`}>
                   {task.description}
                 </p>
               )}
@@ -274,32 +278,38 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
               <div className={`flex items-center space-x-1 ${forceActions ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                 {!task.completed && (
                   <button
-                    onClick={() => toggleTaskComplete(task.id)}
+                    onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
                     className="p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded transition-colors"
                     title="Complete task"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
                     <Check className="h-4 w-4" />
                   </button>
                 )}
                 {isOverdue && (
                   <button
-                    onClick={snoozeToTomorrow}
+                    onClick={(e) => { e.stopPropagation(); snoozeToTomorrow(); }}
                     className="p-1 text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 rounded transition-colors"
                     title="Snooze to tomorrow"
                     data-testid="snooze-btn"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
                     <AlarmClockCheck className="h-4 w-4" />
                   </button>
                 )}
                 {partner && (
                   <button
-                    onClick={handleToggleShare}
+                    onClick={(e) => { e.stopPropagation(); handleToggleShare(); }}
                     className={`p-1 rounded transition-colors ${
                       isShared 
                         ? 'text-purple-400 hover:text-purple-300 hover:bg-purple-500/10' 
                         : 'text-gray-400 hover:text-purple-400 hover:bg-purple-500/10'
                     }`}
                     title={isShared ? 'Unshare task' : 'Share with partner'}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
                     <Users className="h-4 w-4" />
                   </button>
@@ -307,16 +317,20 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
                 {isOwner && (
                   <>
                     <button
-                      onClick={() => setIsEditing(true)}
+                      onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
                       className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                       title="Edit task"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
                     >
                       <Edit className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={handleDelete}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(); }}
                       className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                       title="Delete task"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

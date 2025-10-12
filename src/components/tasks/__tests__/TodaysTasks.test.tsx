@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { screen, render } from '@testing-library/react';
+import { screen, render, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TodaysTasks } from '../../tasks/TodaysTasks';
 import { AuthProvider, useAuth } from '../../../contexts/AuthContext';
@@ -68,6 +68,29 @@ describe('TodaysTasks', () => {
     // Other Tasks & Completed headers
     expect(await screen.findByText(/other tasks/i)).toBeTruthy();
     expect(await screen.findByText(/completed/i)).toBeTruthy();
+  });
+
+  it('renders a drag handle for each urgent task', async () => {
+    render(<LoggedInProviders><SeedTasks /><TodaysTasks /></LoggedInProviders>);
+    // Wait for urgent list to appear
+    await screen.findByText(/^🔥 URGENT$/);
+    // Each A-priority task row should have a handle-only drag button
+    const handles = await screen.findAllByRole('button', { name: /drag to reorder/i });
+    expect(handles.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('keeps urgent task actions clickable under DnD', async () => {
+    render(<LoggedInProviders><SeedTasks /><TodaysTasks /></LoggedInProviders>);
+    await screen.findByText(/^🔥 URGENT$/);
+    // Initial count of toggles set to "incomplete" (present for completed tasks)
+    const before = screen.queryAllByLabelText(/mark task incomplete/i).length;
+    // Click the action button to complete one urgent task
+    const actionCompleteBtns = await screen.findAllByTitle(/complete task/i);
+  // Click first action complete
+  fireEvent.click(actionCompleteBtns[0]);
+    // Count should increase by 1
+    const after = await screen.findAllByLabelText(/mark task incomplete/i);
+    expect(after.length).toBe(before + 1);
   });
 });
 

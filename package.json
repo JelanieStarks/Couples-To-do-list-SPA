@@ -1,7 +1,7 @@
 {
   "name": "couples-todo-list-spa",
   "private": true,
-  "version": "1.0.5-beta",
+  "version": "1.0.6-beta",
   "type": "module",
   "main": "electron/main.js",
   "description": "Couples To-do: a simple shared to-do list with weekly planner, desktop builds via Electron.",
@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "vite",
     "dev:desktop": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "server": "node ./server/index.js",
+    "dev:server": "cross-env PORT=4455 node ./server/index.js",
     "build": "vite build",
     "build:web": "vite build",
     "build:desktop:win": "npm run build:web && electron-builder -w",
@@ -28,6 +30,9 @@
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ws": "^8.18.0",
     "concurrently": "^9.1.2",
     "cross-env": "^7.0.3",
     "electron": "^33.2.0",

@@ -47,10 +47,12 @@ export const TodaysTasks: React.FC = () => {
     // Find the task element in the calendar and scroll to it
     const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
     if (taskElement) {
-      taskElement.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
-      });
+      // In tests (jsdom), scrollIntoView may be missing; guard it
+      try {
+        if ('scrollIntoView' in taskElement && typeof (taskElement as any).scrollIntoView === 'function') {
+          (taskElement as any).scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      } catch {}
       // Add a brief highlight effect
       taskElement.classList.add('ring-2', 'ring-purple-400', 'ring-opacity-75');
       setTimeout(() => {
@@ -85,7 +87,7 @@ export const TodaysTasks: React.FC = () => {
 
   // Sensors for minimal drag constraint inside urgent list
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -242,14 +244,37 @@ interface SortableTaskRowProps {
 }
 
 const SortableTaskRow: React.FC<SortableTaskRowProps> = ({ id, task, onTaskClick }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing" data-task-id={task.id}>
-      <TaskItem task={task} onTaskClick={onTaskClick} isDragging={isDragging} />
+    <div ref={setNodeRef} style={style} {...attributes} className="group/row" data-task-id={task.id}>
+      <div className="flex items-start gap-2">
+        {/* Drag handle: only this control starts drag */}
+        <button
+          type="button"
+          ref={setActivatorNodeRef as any}
+          {...listeners}
+          aria-label="Drag to reorder"
+          title="Drag to reorder"
+          className="mt-1 h-5 w-5 flex items-center justify-center text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing focus:outline-none"
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {/* Simple grip icon using dots */}
+          <span className="block h-3 w-3 grid grid-cols-2 gap-[2px]">
+            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
+            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
+            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
+            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
+          </span>
+        </button>
+        <div className="flex-1">
+          <TaskItem task={task} onTaskClick={onTaskClick} isDragging={isDragging} />
+        </div>
+      </div>
     </div>
   );
 };

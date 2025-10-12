@@ -3,8 +3,8 @@ import { Brain, User2, Settings, X, Trash2 } from 'lucide-react';
 import { AIImport } from '../tasks/AIImport';
 import { PartnerManager } from '../auth/PartnerManager';
 import ExportTasks from '../tasks/ExportTasks';
-import { storage } from '../../utils';
 import DeletedTasks from '../tasks/DeletedTasks';
+import { STORAGE_KEYS, storage } from '../../utils';
 
 interface TopNavPanelProps {
   open: boolean;
@@ -22,6 +22,23 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
   const setActive = (next: null | 'ai' | 'partner' | 'settings' | 'deleted') => {
     if (onChangeActive) onChangeActive(next);
     if (!controlled) setInternalActive(next);
+  };
+
+  // Text size state (shared for Settings card)
+  const [textScale, setTextScale] = useState<number>(() => {
+    try {
+      const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
+      return typeof settings.textScale === 'number' ? settings.textScale : 1;
+    } catch { return 1; }
+  });
+
+  const applyTextScale = (v: number) => {
+    setTextScale(v);
+    document.documentElement.style.setProperty('--font-scale', String(v));
+    try {
+      const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
+      storage.set(STORAGE_KEYS.SETTINGS, { ...settings, textScale: v });
+    } catch {}
   };
 
   return (
@@ -82,7 +99,45 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                     {current === 'settings' && (
                       <>
                         <ExportTasks />
-                        <div className="pt-2 border-t border-slate-700/60">
+                        {/* Text Size Controls */}
+                        <div className="pt-3 border-t border-slate-700/60">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Text Size</div>
+                              <div className="text-[10px] text-slate-500">Adjust app-wide font scale</div>
+                            </div>
+                            <div className="btn-row max-w-[360px]">
+                              {[{label:'S',v:0.9},{label:'D',v:1},{label:'L',v:1.1},{label:'XL',v:1.2}].map(({label,v}) => (
+                                <button
+                                  key={label}
+                                  className="btn-neon"
+                                  data-size="sm"
+                                  data-variant="soft"
+                                  onClick={() => applyTextScale(v)}
+                                  data-testid={`textsize-${label}`}
+                                  title={`Set text size to ${label}`}
+                                >{label}</button>
+                              ))}
+                            </div>
+                          </div>
+                          {/* Range slider for fine-grained control */}
+                          <div className="mt-3">
+                            <label htmlFor="text-size-range" className="block text-[10px] text-slate-400 mb-1">Scale: {textScale.toFixed(2)}x</label>
+                            <input
+                              id="text-size-range"
+                              type="range"
+                              min={0.85}
+                              max={1.3}
+                              step={0.05}
+                              value={textScale}
+                              onChange={(e) => applyTextScale(parseFloat(e.target.value))}
+                              className="w-full"
+                              data-testid="textsize-range"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-700/60">
                           <button
                             className="btn-neon"
                             data-variant="outline"

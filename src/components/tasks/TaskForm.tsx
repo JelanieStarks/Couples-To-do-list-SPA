@@ -167,26 +167,19 @@ export const TaskForm: React.FC = () => {
           <div className="w-full grid gap-2" style={{gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))'}}>
             {priorityOptions.map(opt => {
               const active = formData.priority === opt.value;
-              const colorMap: Record<string, { base: string; ring: string; text: string; hover: string; } > = {
-                red: { base: 'bg-red-50 border-red-300', ring: 'ring-red-300', text: 'text-red-800', hover: 'hover:bg-red-100' },
-                orange: { base: 'bg-orange-50 border-orange-300', ring: 'ring-orange-300', text: 'text-orange-800', hover: 'hover:bg-orange-100' },
-                yellow: { base: 'bg-yellow-50 border-yellow-300', ring: 'ring-yellow-300', text: 'text-yellow-800', hover: 'hover:bg-yellow-100' },
-                green: { base: 'bg-green-50 border-green-300', ring: 'ring-green-300', text: 'text-green-800', hover: 'hover:bg-green-100' },
-              };
-              const color = colorMap[opt.color];
               return (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, priority: opt.value }))}
-                  className={`relative group text-left flex flex-col justify-start items-start rounded-lg border px-3 py-2 transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 ${
-                    active
-                      ? `${color.base} ${color.text} ring-2 ${color.ring} shadow-sm`
-                      : 'bg-slate-900/40 border-slate-600/50 text-slate-300 hover:border-slate-400/70'
-                  }`}
+                  aria-pressed={active}
+                  className={`btn-neon w-full text-left flex flex-col items-start gap-1 ${active ? '' : ''}`}
+                  data-variant="soft"
+                  data-size="sm"
+                  title={`Set priority ${opt.label}`}
                 >
-                  <span className={`text-xs font-semibold tracking-wide`}>{opt.label}</span>
-                  <span className={`mt-1 text-[10px] leading-snug font-medium break-words ${active ? 'opacity-90' : 'text-slate-400'}`}>{opt.description}</span>
+                  <span className="text-xs font-semibold tracking-wide">{opt.label}</span>
+                  <span className="text-xs opacity-90">{opt.description}</span>
                 </button>
               );
             })}

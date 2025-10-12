@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Task, Priority, TaskFilter, Assignment } from '../types';
 import { storage, STORAGE_KEYS, generateId, isSameLocalDay, parseLocalDate, toLocalDateString } from '../utils';
+import { getSyncBaseUrl, deriveRoomId } from '../config';
+import { ServerSync } from '../sync/ServerSync';
 import { useAuth } from './AuthContext';
 
 // 📝 Task Context - Your digital task manager with a sense of humor
@@ -36,26 +38,54 @@ export const useTask = () => {
 
 // Added optional initialTasks for deterministic tests (prevents flaky async seeding in tests)
 export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: Task[] }> = ({ children, initialTasks }) => {
-  const { user } = useAuth();
+  const { user, partner } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Unique instance id to avoid processing our own broadcasts
   const [instanceId] = useState(() => `taskctx-${Math.random().toString(36).slice(2)}`);
   const bcRef = React.useRef<BroadcastChannel | null>(null);
+  const serverSyncRef = React.useRef<ServerSync | null>(null);
 
-  // Load tasks on app start - Jarvis never forgets your to-dos
+  // Load tasks on app start - first try server (if configured), fallback to localStorage
   useEffect(() => {
     if (initialTasks) {
       setTasks(initialTasks);
       setIsLoading(false);
       return;
     }
-    const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
-    setTasks(savedTasks);
-    setIsLoading(false);
-  }, [initialTasks]);
+    const boot = async () => {
+  const baseUrl = getSyncBaseUrl();
+  // Derive room id using user and partner id (prefer live AuthContext partner; fallback to storage)
+  const partnerId = partner?.id || (storage.get<any>(STORAGE_KEYS.PARTNER)?.id as string | undefined);
+  const roomId = deriveRoomId(user?.id, partnerId);
+      if (baseUrl && roomId) {
+        // Initialize server sync
+        const ss = new ServerSync(baseUrl, roomId, instanceId);
+        serverSyncRef.current = ss;
+        // Establish websocket first to catch incoming right away
+        await ss.connect((remoteTasks) => {
+          // Only update if different from current
+          const current = JSON.stringify(tasks);
+          const incoming = JSON.stringify(remoteTasks);
+          if (current !== incoming) setTasks(remoteTasks);
+        });
+        // Fetch initial snapshot
+        const remote = await ss.fetchTasks();
+        if (remote.length > 0) {
+          setTasks(remote);
+          setIsLoading(false);
+          return;
+        }
+      }
+      // Fallback to local storage
+      const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
+      setTasks(savedTasks);
+      setIsLoading(false);
+    };
+    void boot();
+  }, [initialTasks, user?.id, partner?.id]);
 
-  // Save tasks to localStorage whenever tasks change
+  // Save tasks to localStorage whenever tasks change and push to server if connected
   useEffect(() => {
     if (!isLoading) {
       storage.set(STORAGE_KEYS.TASKS, tasks);
@@ -70,6 +100,10 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
           updatedAt: Date.now(),
           tasks,
         });
+      } catch {}
+      // Push to server (fire-and-forget)
+      try {
+        serverSyncRef.current?.pushTasks(tasks);
       } catch {}
     }
   }, [tasks, isLoading]);
@@ -117,8 +151,16 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     };
   }, [instanceId, tasks]);
 
-  const syncNow = () => {
-    // Pull latest from storage and update if different
+  const syncNow = async () => {
+    // If server sync is available, prefer it
+    if (serverSyncRef.current) {
+      const remote = await serverSyncRef.current.fetchTasks();
+      const current = JSON.stringify(tasks);
+      const incoming = JSON.stringify(remote);
+      if (current !== incoming) setTasks(remote);
+      return;
+    }
+    // Otherwise pull latest from local storage
     const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
     const current = JSON.stringify(tasks);
     const incoming = JSON.stringify(savedTasks);
