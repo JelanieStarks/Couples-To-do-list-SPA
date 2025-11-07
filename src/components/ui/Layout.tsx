@@ -1,8 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogOut, Heart, Users, Menu } from 'lucide-react';
+import { LogOut, Users, Menu } from 'lucide-react';
 import { SideDrawer } from './SideDrawer';
-import { TopNavPanel } from './TopNavPanel';
 import { useTask } from '../../contexts/TaskContext';
 
 interface LayoutProps {
@@ -14,7 +13,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout } = useAuth();
   const { syncNow } = useTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [topNavActive, setTopNavActive] = useState<null | 'ai' | 'partner' | 'sync' | 'settings' | 'deleted'>(null);
 
   const mainRef = useRef<HTMLDivElement | null>(null);
   const scrollToMain = () => mainRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -135,9 +133,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-  {/* Top slide-down fallback panel (very visible) */}
-  <TopNavPanel open={drawerOpen} onClose={() => setDrawerOpen(false)} active={topNavActive} onChangeActive={setTopNavActive} />
-
   {/* Spacer to offset fixed header height (16 = 64px) plus a tiny buffer for corner buttons on very small screens */}
   <div className="h-16 sm:h-16 w-full" aria-hidden="true" style={{ paddingTop: '4px' }} />
 
@@ -184,7 +179,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     open={drawerOpen}
     onClose={() => setDrawerOpen(false)}
     variant="drawer"
-    onOpenTopCard={(k) => { setTopNavActive(k); }}
     onGoToSection={(k) => {
       // Smooth scroll to main sections (top of main for dashboard; bottom for planner hint)
       scrollToMain();

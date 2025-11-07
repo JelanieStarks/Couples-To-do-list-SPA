@@ -30,7 +30,7 @@ describe('TaskFilterMenu', () => {
     renderWithProviders(<TodaysTasks />);
 
     // Open filter
-    await user.click(screen.getByTestId('task-filter-toggle'));
+  await user.click(screen.getByTestId('filter-button'));
 
     // Type search
     await user.type(screen.getByTestId('task-filter-query'), 'milk');
@@ -58,7 +58,7 @@ describe('TaskFilterMenu', () => {
     renderWithProviders(<WeeklyCalendar />);
 
     // Open filter and select priority A
-    await user.click(screen.getByTestId('task-filter-toggle'));
+  await user.click(screen.getByTestId('filter-button'));
     await user.selectOptions(screen.getByTestId('task-filter-priority'), 'A');
 
     // Only the A1 task should be visible in the today column
