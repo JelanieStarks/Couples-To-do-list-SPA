@@ -1,7 +1,7 @@
 {
   "name": "couples-todo-list-spa",
   "private": true,
-  "version": "1.0.8-beta",
+  "version": "1.0.9",
   "type": "module",
   "main": "electron/main.js",
   "description": "Couples To-do: a simple shared to-do list with weekly planner, desktop builds via Electron.",
@@ -28,51 +28,57 @@
     "build:android": "vite build && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/core": "^6.1.2",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@capacitor/core": "^6.1.2",
+    "@rollup/plugin-inject": "^5.0.5",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
     "lib0": "^0.2.97",
     "lucide-react": "^0.544.0",
+    "process": "^0.11.10",
     "qrcode": "^1.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "simple-peer": "^9.11.1",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5",
     "yjs": "^13.6.18"
   },
   "devDependencies": {
-    "@types/node": "^22.10.1",
-    "@types/simple-peer": "^9.11.7",
-    "@capacitor/cli": "^6.1.2",
     "@capacitor/android": "^6.1.2",
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "ws": "^8.18.0",
-    "concurrently": "^9.1.2",
-    "cross-env": "^7.0.3",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
+    "@capacitor/cli": "^6.1.2",
     "@eslint/js": "^9.36.0",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/postcss": "^4.1.13",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.6.1",
-    "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/postcss": "^4.1.13",
+    "@types/node": "^22.10.1",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
+    "@types/simple-peer": "^9.11.7",
     "@vitejs/plugin-react": "^5.0.3",
+    "@vitest/coverage-v8": "^2.1.4",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.1.2",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "express": "^4.21.2",
     "globals": "^16.4.0",
     "jsdom": "^26.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.2",
+    "vite": "^7.1.7",
     "vitest": "^2.1.4",
-    "@vitest/coverage-v8": "^2.1.4",
-    "vite": "^7.1.7"
+    "ws": "^8.18.0"
   },
   "build": {
     "appId": "com.couples.todo.spa",
@@ -97,17 +103,23 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
     "linux": {
       "icon": "src/assets/HeartICON.png",
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "category": "Utility"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.productivity"
     }
   }

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.9] - 2025-11-07
+
+### Added / Changed
+
+- Weekly calendar columns now stack tasks vertically on mobile to avoid overlap.
+- Added expandable "View full day" modal for detailed per-day planning.
+- Updated Android release pipeline to ship APKs as `couples2doBETA.apk`.
+
+### Quality
+
+- Bumped package metadata to 1.0.9 ahead of release automation.
+
 ## [1.0.8-beta] - 2025-10-12
 
 ### Added / Changed

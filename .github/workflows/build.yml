@@ -50,11 +50,13 @@ jobs:
           if [ ! -d "android" ]; then npm run cap:add:android; fi
       - name: Build Android debug APK
         run: npm run build:android
+      - name: Rename APK for release branding
+        run: mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/couples2doBETA.apk
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/couples2doBETA.apk
 
   release:
     name: Create GitHub Release
