@@ -14,6 +14,18 @@ All notable changes to this project will be documented in this file.
 
 - Bumped package metadata to 1.0.9 ahead of release automation.
 
+## [1.0.10] - 2025-11-07
+
+### Added / Changed
+
+- Neon UI polish across filters, navigation, and task cards for consistency.
+- Task filter overlays now track placement relative to the trigger button.
+- Task cards keep modal editing while reducing layout crowding in compact mode.
+
+### Fixes
+
+- Ensured release artifacts rebuild after UI tweaks to include latest planner changes.
+
 ## [1.0.8-beta] - 2025-10-12
 
 ### Added / Changed
