@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
 import { TaskItem } from '../tasks/TaskItem';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
@@ -6,6 +7,7 @@ import { getWeekDates, formatDate, toLocalDateString, STORAGE_KEYS, storage } fr
 import { useAuth } from '../../contexts/AuthContext';
 import { TaskFilterMenu } from '../tasks/TaskFilterMenu';
 import { applyTaskFilter, useTaskFilter } from '../../hooks/useTaskFilter';
+import type { Task } from '../../types';
 import {
   DndContext,
   closestCenter,
@@ -36,6 +38,7 @@ export const WeeklyCalendar: React.FC = () => {
     const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
     return (settings.calendarView as ViewMode) || 'classic';
   });
+  const [expandedDay, setExpandedDay] = useState<null | { date: Date; dateStr: string; dayName: string; tasks: Task[] }>(null);
 
   // Persist view mode
   useEffect(() => {
@@ -96,6 +99,8 @@ export const WeeklyCalendar: React.FC = () => {
     }, 0);
     return () => clearTimeout(id);
   }, [viewMode, currentWeek]);
+
+  const closeExpandedDay = useCallback(() => setExpandedDay(null), []);
 
   return (
     <div className="panel-neon panel-neon-border">
@@ -192,6 +197,7 @@ export const WeeklyCalendar: React.FC = () => {
                   isToday={isToday}
                   isPast={isPast}
                   variant="classic"
+                  onExpandDay={(info) => setExpandedDay(info)}
                 />
               );
             })}
@@ -214,6 +220,7 @@ export const WeeklyCalendar: React.FC = () => {
                     isToday={isToday}
                     isPast={isPast}
                     variant="row"
+                    onExpandDay={(info) => setExpandedDay(info)}
                   />
                 </div>
               );
@@ -221,6 +228,13 @@ export const WeeklyCalendar: React.FC = () => {
           </div>
         )}
       </DndContext>
+
+      {expandedDay && (
+        <ExpandedDayModal
+          day={expandedDay}
+          onClose={closeExpandedDay}
+        />
+      )}
 
       {/* Jarvis Tips */}
       <div className="mt-6 p-4 rounded-lg bg-slate-800/60 border border-slate-700 text-xs text-slate-300 leading-relaxed">
@@ -241,13 +255,14 @@ interface DayColumnProps {
   date: Date;
   dateStr: string;
   dayName: string;
-  tasks: any[];
+  tasks: Task[];
   isToday: boolean;
   isPast: boolean;
   variant?: ViewMode;
+  onExpandDay: (info: { date: Date; dateStr: string; dayName: string; tasks: Task[] }) => void;
 }
 
-const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, isToday, isPast, variant = 'classic' }) => {
+const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, isToday, isPast, variant = 'classic', onExpandDay }) => {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${dateStr}` });
   const { createTask } = useTask();
   const { user } = useAuth();
@@ -323,7 +338,7 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
           </div>
         </div>
       )}
-      <div className="day-tasks-scroll scroll-thin grid gap-2 grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-5 auto-rows-max">
+      <div className="day-tasks-scroll scroll-thin flex flex-col gap-3">
         {tasks
           .slice()
           .sort((a, b) => {
@@ -344,11 +359,21 @@ const DayColumn: React.FC<DayColumnProps> = ({ date, dateStr, dayName, tasks, is
             <DraggableTask key={task.id} task={task} />
           ))}
         {tasks.length === 0 && (
-          <div className="col-span-full text-center py-6 text-[11px] text-slate-500">
+          <div className="text-center py-6 text-[11px] text-slate-500">
             {isToday ? 'No tasks today' : 'Drag tasks here'}
           </div>
         )}
       </div>
+      <button
+        type="button"
+        onClick={() => onExpandDay({ date, dateStr, dayName, tasks })}
+        className="mt-3 w-full btn-neon"
+        data-variant="soft"
+        data-size="sm"
+        data-testid={`expand-day-${dateStr}`}
+      >
+        View full day
+      </button>
     </div>
   );
 };
@@ -382,7 +407,50 @@ const DraggableTask: React.FC<DraggableTaskProps> = ({ task }) => {
       className="cursor-grab active:cursor-grabbing"
       data-task-id={task.id}
     >
-  <TaskItem task={task} showDate={false} isDragging={isDragging} compact forceActions />
+      <TaskItem
+        task={task}
+        showDate={false}
+        isDragging={isDragging}
+        compact
+        forceActions
+        editInModal
+      />
     </div>
+  );
+};
+
+interface ExpandedDayModalProps {
+  day: { date: Date; dateStr: string; dayName: string; tasks: Task[] };
+  onClose: () => void;
+}
+
+const ExpandedDayModal: React.FC<ExpandedDayModalProps> = ({ day, onClose }) => {
+  const portalTarget = typeof document !== 'undefined' ? document.body : null;
+  if (!portalTarget) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 py-6">
+      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-md" onClick={onClose} aria-hidden />
+      <div className="relative w-full max-w-3xl panel-neon panel-neon-border overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+        <header className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-700/60 bg-slate-900/50">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{day.date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <h3 className="text-lg font-semibold text-slate-100 tracking-wide">{day.dayName}</h3>
+          </div>
+          <button className="icon-btn-neon" onClick={onClose} aria-label="Close day details">✕</button>
+        </header>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {day.tasks.length === 0 && (
+            <div className="py-10 text-center text-sm text-slate-400">No tasks scheduled for this day yet.</div>
+          )}
+          {day.tasks.map(task => (
+            <div key={task.id}>
+              <TaskItem task={task} compact={false} forceActions editInModal showDate={false} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    portalTarget
   );
 };

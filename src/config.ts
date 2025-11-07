@@ -14,3 +14,22 @@ export const deriveRoomId = (a?: string, b?: string): string | null => {
   const ids = [a as string, b as string].sort();
   return `pair-${ids[0]}-${ids[1]}`;
 };
+
+export const getLanSignalUrl = (): string | null => {
+  const envSource =
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_LAN_SIGNAL_URL) ??
+    (globalThis as any).VITE_LAN_SIGNAL_URL ??
+    (typeof process !== 'undefined' && typeof (process as any).env === 'object'
+      ? (process as any).env.LAN_SIGNAL_URL || (process as any).env.VITE_LAN_SIGNAL_URL
+      : undefined);
+
+  if (envSource && typeof envSource === 'string') {
+    return envSource;
+  }
+
+  if (typeof window !== 'undefined') {
+    return 'ws://localhost:4457';
+  }
+
+  return null;
+};

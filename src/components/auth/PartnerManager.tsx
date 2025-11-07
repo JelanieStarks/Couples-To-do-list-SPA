@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Users, Copy, Check, UserPlus, Unlink, Share } from 'lucide-react';
+import { SyncPanel } from '../sync/SyncPanel';
 
 // 👫 Partner Management - Connection status and controls
 export const PartnerManager: React.FC = () => {
@@ -279,6 +280,11 @@ export const PartnerManager: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="border-t pt-6 mt-8">
+        <h3 className="font-medium text-gray-900 mb-4">🔗 Local Sync &amp; LAN</h3>
+        <SyncPanel variant="inline" />
       </div>
     </div>
   );

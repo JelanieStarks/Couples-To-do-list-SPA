@@ -1,11 +1,67 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Task, Priority, TaskFilter, Assignment } from '../types';
 import { storage, STORAGE_KEYS, generateId, isSameLocalDay, parseLocalDate, toLocalDateString } from '../utils';
-import { getSyncBaseUrl, deriveRoomId } from '../config';
+import { getSyncBaseUrl, deriveRoomId, getLanSignalUrl } from '../config';
 import { ServerSync } from '../sync/ServerSync';
+import {
+  TaskDoc,
+  TASK_DOC_REMOTE_ORIGIN,
+  WebRTCSession,
+  type SessionState,
+  type SessionRole,
+  type SignalKind,
+} from '../p2p';
+import { LanSignalingClient } from '../p2p/signaling';
 import { useAuth } from './AuthContext';
 
 // 📝 Task Context - Your digital task manager with a sense of humor
+interface PeerSignal {
+  kind: SignalKind;
+  payload: string;
+}
+
+interface PeerSyncState {
+  role: SessionRole | null;
+  state: SessionState;
+  localSignal: PeerSignal | null;
+  expectedRemote: SignalKind | null;
+  lastError?: string;
+}
+
+interface LanSyncState {
+  enabled: boolean;
+  status: 'idle' | 'connecting' | 'connected' | 'error';
+  lastError?: string;
+  serverUrl: string | null;
+}
+
+interface PeerSyncApi {
+  status: PeerSyncState;
+  lan: LanSyncState;
+  startHosting: (options?: { enableLan?: boolean }) => void;
+  joinSession: (offer?: string, options?: { enableLan?: boolean }) => void;
+  submitRemoteSignal: (payload: string) => void;
+  endSession: () => void;
+  enableLan: () => void;
+  disableLan: () => void;
+  resetError: () => void;
+}
+
+const createDefaultPeerSyncState = (): PeerSyncState => ({
+  role: null,
+  state: 'idle',
+  localSignal: null,
+  expectedRemote: null,
+  lastError: undefined,
+});
+
+const createDefaultLanState = (serverUrl: string | null): LanSyncState => ({
+  enabled: false,
+  status: 'idle',
+  lastError: undefined,
+  serverUrl,
+});
+
 interface TaskContextType {
   tasks: Task[];
   isLoading: boolean;
@@ -24,6 +80,7 @@ interface TaskContextType {
   moveTaskToDate: (taskId: string, date: string) => void;
   reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
   syncNow: () => void;
+  peerSync: PeerSyncApi;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -41,75 +98,170 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   const { user, partner } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cachedPartnerId, setCachedPartnerId] = useState<string | undefined>(() => {
+    if (typeof window === 'undefined') return undefined;
+    try {
+      const stored = storage.get<any>(STORAGE_KEYS.PARTNER);
+      return stored?.id as string | undefined;
+    } catch {
+      return undefined;
+    }
+  });
+  const lanDefaultUrl = React.useMemo(() => getLanSignalUrl(), []);
   // Unique instance id to avoid processing our own broadcasts
   const [instanceId] = useState(() => `taskctx-${Math.random().toString(36).slice(2)}`);
   const bcRef = React.useRef<BroadcastChannel | null>(null);
   const serverSyncRef = React.useRef<ServerSync | null>(null);
+  const taskDocRef = React.useRef<TaskDoc | null>(null);
+  const lastDocOriginRef = React.useRef<unknown>(null);
+  const p2pSessionRef = React.useRef<WebRTCSession | null>(null);
+  const lanClientRef = React.useRef<LanSignalingClient | null>(null);
+  const [peerSyncStatus, setPeerSyncStatus] = useState<PeerSyncState>(() => createDefaultPeerSyncState());
+  const [lanState, setLanState] = useState<LanSyncState>(() => createDefaultLanState(lanDefaultUrl));
+  const [lanPreferredRole, setLanPreferredRole] = useState<SessionRole>('guest');
+  const lastLanOfferRef = React.useRef<string | null>(null);
+  const lastLanAnswerRef = React.useRef<string | null>(null);
+  const lastLanRemoteRef = React.useRef<PeerSignal | null>(null);
 
-  // Load tasks on app start - first try server (if configured), fallback to localStorage
-  useEffect(() => {
-    if (initialTasks) {
-      setTasks(initialTasks);
-      setIsLoading(false);
+  if (!taskDocRef.current) {
+    let seedTasks: Task[] = [];
+    if (initialTasks?.length) {
+      seedTasks = initialTasks;
+    } else if (typeof window !== 'undefined') {
+      seedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? [];
+    }
+    taskDocRef.current = new TaskDoc({ initialTasks: seedTasks });
+  }
+
+  React.useEffect(() => {
+    if (partner?.id) {
+      setCachedPartnerId(partner.id);
       return;
     }
-    const boot = async () => {
-  const baseUrl = getSyncBaseUrl();
-  // Derive room id using user and partner id (prefer live AuthContext partner; fallback to storage)
-  const partnerId = partner?.id || (storage.get<any>(STORAGE_KEYS.PARTNER)?.id as string | undefined);
-  const roomId = deriveRoomId(user?.id, partnerId);
-      if (baseUrl && roomId) {
-        // Initialize server sync
-        const ss = new ServerSync(baseUrl, roomId, instanceId);
-        serverSyncRef.current = ss;
-        // Establish websocket first to catch incoming right away
-        await ss.connect((remoteTasks) => {
-          // Only update if different from current
-          const current = JSON.stringify(tasks);
-          const incoming = JSON.stringify(remoteTasks);
-          if (current !== incoming) setTasks(remoteTasks);
-        });
-        // Fetch initial snapshot
-        const remote = await ss.fetchTasks();
-        if (remote.length > 0) {
-          setTasks(remote);
-          setIsLoading(false);
-          return;
-        }
-      }
-      // Fallback to local storage
-      const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
-      setTasks(savedTasks);
+    if (typeof window === 'undefined') {
+      setCachedPartnerId(undefined);
+      return;
+    }
+    try {
+      const stored = storage.get<any>(STORAGE_KEYS.PARTNER);
+      setCachedPartnerId(stored?.id as string | undefined);
+    } catch {
+      setCachedPartnerId(undefined);
+    }
+  }, [partner?.id]);
+
+  const partnerId = partner?.id ?? cachedPartnerId;
+  const roomId = React.useMemo(() => deriveRoomId(user?.id, partnerId), [user?.id, partnerId]);
+
+  useEffect(() => {
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+    const unsubscribe = taskDoc.subscribe(next => {
+      setTasks(next);
       setIsLoading(false);
+    });
+    return () => {
+      unsubscribe();
     };
-    void boot();
-  }, [initialTasks, user?.id, partner?.id]);
+  }, []);
+
+  useEffect(() => {
+    const doc = taskDocRef.current?.getDoc();
+    if (!doc) return;
+    const trackOrigin = (_update: Uint8Array, origin: unknown) => {
+      lastDocOriginRef.current = origin;
+    };
+    doc.on('update', trackOrigin);
+    return () => {
+      doc.off('update', trackOrigin);
+    };
+  }, []);
+
+  useEffect(() => {
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+
+    const baseUrl = getSyncBaseUrl();
+
+    if (serverSyncRef.current) {
+      serverSyncRef.current.close();
+      serverSyncRef.current = null;
+    }
+
+    if (!baseUrl || !roomId) {
+      return;
+    }
+
+    const ss = new ServerSync(baseUrl, roomId, instanceId);
+    serverSyncRef.current = ss;
+    let cancelled = false;
+
+    const handleRemoteTasks = (remoteTasks: Task[]) => {
+      if (cancelled) return;
+      const current = JSON.stringify(taskDoc.getTasks());
+      const incoming = JSON.stringify(remoteTasks);
+      if (current !== incoming) {
+        taskDoc.replaceAllFromExternal(remoteTasks);
+      }
+    };
+
+    const connect = async () => {
+      try {
+        await ss.connect(handleRemoteTasks);
+        const remoteSnapshot = await ss.fetchTasks();
+        if (!cancelled && remoteSnapshot.length > 0) {
+          taskDoc.replaceAllFromExternal(remoteSnapshot);
+        }
+      } catch (error) {
+        console.warn('[TaskProvider] server sync bootstrap failed', error);
+      }
+    };
+
+    void connect();
+
+    return () => {
+      cancelled = true;
+      ss.close();
+      if (serverSyncRef.current === ss) {
+        serverSyncRef.current = null;
+      }
+    };
+  }, [instanceId, roomId]);
 
   // Save tasks to localStorage whenever tasks change and push to server if connected
   useEffect(() => {
-    if (!isLoading) {
-      storage.set(STORAGE_KEYS.TASKS, tasks);
-      // Broadcast change to other tabs/windows
-      try {
-        if (!bcRef.current && typeof BroadcastChannel !== 'undefined') {
-          bcRef.current = new BroadcastChannel('tasks-sync');
-        }
-        bcRef.current?.postMessage({
-          type: 'tasks-updated',
-          sourceId: instanceId,
-          updatedAt: Date.now(),
-          tasks,
-        });
-      } catch {}
-      // Push to server (fire-and-forget)
-      try {
-        serverSyncRef.current?.pushTasks(tasks);
-      } catch {}
+    if (isLoading) {
+      return;
     }
-  }, [tasks, isLoading]);
+
+    storage.set(STORAGE_KEYS.TASKS, tasks);
+
+    // Broadcast change to other tabs/windows so passive listeners stay in sync
+    try {
+      if (!bcRef.current && typeof BroadcastChannel !== 'undefined') {
+        bcRef.current = new BroadcastChannel('tasks-sync');
+      }
+      bcRef.current?.postMessage({
+        type: 'tasks-updated',
+        sourceId: instanceId,
+        updatedAt: Date.now(),
+        tasks,
+      });
+    } catch {}
+
+    // Push to server unless the change originated remotely
+    try {
+      if (lastDocOriginRef.current !== TASK_DOC_REMOTE_ORIGIN) {
+        serverSyncRef.current?.pushTasks(tasks);
+      }
+    } catch {}
+
+    lastDocOriginRef.current = null;
+  }, [tasks, isLoading, instanceId]);
 
   // Handle external changes via BroadcastChannel and storage events
   useEffect(() => {
+    const taskDoc = taskDocRef.current;
     // BroadcastChannel listener
     let bc: BroadcastChannel | null = null;
     if (typeof BroadcastChannel !== 'undefined') {
@@ -118,27 +270,27 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         bc.onmessage = (ev: MessageEvent) => {
           const data = ev.data as { type?: string; sourceId?: string; tasks?: Task[] };
           if (!data || data.type !== 'tasks-updated') return;
-          if (data.sourceId === instanceId) return; // ignore our own
-          if (Array.isArray(data.tasks)) {
-            // Only update if content differs
-            const current = JSON.stringify(tasks);
+          if (data.sourceId === instanceId) return;
+          if (Array.isArray(data.tasks) && taskDoc) {
+            const current = JSON.stringify(taskDoc.getTasks());
             const incoming = JSON.stringify(data.tasks);
             if (current !== incoming) {
-              setTasks(data.tasks);
+              taskDoc.replaceAllFromExternal(data.tasks);
             }
           }
         };
       } catch {}
     }
 
-    // storage event (fires in other tabs)
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== STORAGE_KEYS.TASKS) return;
+      if (e.key !== STORAGE_KEYS.TASKS || !taskDoc) return;
       try {
         const next = e.newValue ? (JSON.parse(e.newValue) as Task[]) : [];
-        const current = JSON.stringify(tasks);
+        const current = JSON.stringify(taskDoc.getTasks());
         const incoming = JSON.stringify(next);
-        if (current !== incoming) setTasks(next);
+        if (current !== incoming) {
+          taskDoc.replaceAllFromExternal(next);
+        }
       } catch {}
     };
     window.addEventListener('storage', onStorage);
@@ -149,30 +301,328 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         try { bc.close(); } catch {}
       }
     };
-  }, [instanceId, tasks]);
+  }, [instanceId]);
 
-  const syncNow = async () => {
-    // If server sync is available, prefer it
-    if (serverSyncRef.current) {
-      const remote = await serverSyncRef.current.fetchTasks();
-      const current = JSON.stringify(tasks);
-      const incoming = JSON.stringify(remote);
-      if (current !== incoming) setTasks(remote);
+  const resetPeerSyncState = React.useCallback(() => {
+    setPeerSyncStatus(createDefaultPeerSyncState());
+  }, []);
+
+  const destroySession = React.useCallback(() => {
+    if (p2pSessionRef.current) {
+      try {
+        p2pSessionRef.current.close();
+      } catch {}
+    }
+    p2pSessionRef.current = null;
+    lastLanOfferRef.current = null;
+    lastLanAnswerRef.current = null;
+    lastLanRemoteRef.current = null;
+  }, []);
+
+  const createSession = React.useCallback((role: SessionRole): WebRTCSession => {
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) {
+      throw new Error('Task document is not ready');
+    }
+
+    destroySession();
+
+    const doc = taskDoc.getDoc();
+    const session = new WebRTCSession({ role, doc, metadata: { roomId } }, {
+      onStateChange: (state, detail) => {
+        setPeerSyncStatus(prev => {
+          if (state === 'closed') {
+            if (p2pSessionRef.current === session) {
+              p2pSessionRef.current = null;
+            }
+            lastLanOfferRef.current = null;
+            lastLanAnswerRef.current = null;
+            lastLanRemoteRef.current = null;
+            return createDefaultPeerSyncState();
+          }
+          if (state === 'error') {
+            return { ...prev, state, lastError: detail ?? prev.lastError };
+          }
+          return { ...prev, state };
+        });
+      },
+      onSignal: (payload, kind) => {
+        setPeerSyncStatus(prev => ({
+          ...prev,
+          localSignal: { kind, payload },
+          expectedRemote: kind === 'offer' ? 'answer' : prev.expectedRemote,
+        }));
+      },
+      onError: (error) => {
+        setPeerSyncStatus(prev => ({ ...prev, state: 'error', lastError: error.message }));
+      },
+    });
+
+    p2pSessionRef.current = session;
+    lastLanOfferRef.current = null;
+    lastLanAnswerRef.current = null;
+    lastLanRemoteRef.current = null;
+
+    setPeerSyncStatus({
+      role,
+      state: role === 'host' ? 'waiting-answer' : 'waiting-offer',
+      localSignal: null,
+      expectedRemote: role === 'host' ? 'answer' : null,
+      lastError: undefined,
+    });
+
+    return session;
+  }, [destroySession, roomId]);
+
+  const applyRemoteSignal = React.useCallback((payload: string, source: 'manual' | 'lan' = 'manual') => {
+    const trimmed = (payload || '').trim();
+    if (!trimmed) return;
+
+    const session = p2pSessionRef.current;
+    if (!session) {
+      setPeerSyncStatus(prev => ({ ...prev, lastError: 'No active session to receive the signal.' }));
       return;
     }
-    // Otherwise pull latest from local storage
-    const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) || [];
-    const current = JSON.stringify(tasks);
-    const incoming = JSON.stringify(savedTasks);
-    if (current !== incoming) setTasks(savedTasks);
+
+    try {
+      session.signal(trimmed);
+      setPeerSyncStatus(prev => ({
+        ...prev,
+        expectedRemote: null,
+        lastError: undefined,
+      }));
+      if (source === 'lan') {
+        lastLanRemoteRef.current = { kind: 'answer', payload: trimmed };
+      }
+    } catch (error) {
+      setPeerSyncStatus(prev => ({
+        ...prev,
+        state: 'error',
+        lastError: (error as Error).message,
+      }));
+    }
+  }, []);
+
+  const handleLanHostOffer = React.useCallback((offer: string) => {
+    const trimmed = (offer || '').trim();
+    if (!trimmed) return;
+    if (!lanState.enabled) return;
+    if (peerSyncStatus.role === 'host') return;
+    if (lastLanOfferRef.current === trimmed) return;
+    lastLanOfferRef.current = trimmed;
+
+    let session = p2pSessionRef.current;
+    if (!session || peerSyncStatus.role !== 'guest') {
+      try {
+        session = createSession('guest');
+        setLanPreferredRole('guest');
+      } catch (error) {
+        setPeerSyncStatus(prev => ({ ...prev, state: 'error', lastError: (error as Error).message }));
+        return;
+      }
+    }
+
+    try {
+      session.signal(trimmed);
+      setPeerSyncStatus(prev => ({ ...prev, state: 'connecting', lastError: undefined }));
+    } catch (error) {
+      setPeerSyncStatus(prev => ({ ...prev, state: 'error', lastError: (error as Error).message }));
+    }
+  }, [lanState.enabled, peerSyncStatus.role, createSession]);
+
+  const handleLanGuestAnswer = React.useCallback((answer: string) => {
+    const trimmed = (answer || '').trim();
+    if (!trimmed) return;
+    if (peerSyncStatus.role !== 'host') return;
+    if (peerSyncStatus.expectedRemote !== 'answer') return;
+    if (lastLanRemoteRef.current?.payload === trimmed) return;
+    applyRemoteSignal(trimmed, 'lan');
+  }, [peerSyncStatus.role, peerSyncStatus.expectedRemote, applyRemoteSignal]);
+
+  const lanEnabled = lanState.enabled;
+  const lanUrl = lanState.serverUrl ?? lanDefaultUrl ?? null;
+  const lanRole = peerSyncStatus.role ?? lanPreferredRole;
+
+  useEffect(() => {
+    if (!lanEnabled) {
+      if (lanClientRef.current) {
+        lanClientRef.current.disconnect();
+        lanClientRef.current = null;
+      }
+      setLanState(prev => ({ ...prev, status: 'idle' }));
+      return;
+    }
+
+    if (!roomId) {
+      setLanState(prev => ({ ...prev, status: 'error', lastError: 'Room id unavailable for LAN sync.' }));
+      return;
+    }
+
+    if (!lanUrl) {
+      setLanState(prev => ({ ...prev, status: 'error', lastError: 'LAN signaling URL not configured.' }));
+      return;
+    }
+
+    let active = true;
+    const client = new LanSignalingClient(lanUrl, {
+      onOpen: () => {
+        if (!active) return;
+        setLanState(prev => ({ ...prev, status: 'connected', lastError: undefined }));
+      },
+      onClose: () => {
+        if (!active) return;
+        setLanState(prev => ({ ...prev, status: 'idle' }));
+      },
+      onError: (error: Error) => {
+        if (!active) return;
+        setLanState(prev => ({ ...prev, status: 'error', lastError: error.message }));
+      },
+      onHostOffer: (offer: string) => {
+        if (!active) return;
+        handleLanHostOffer(offer);
+      },
+      onGuestAnswer: (answer: string) => {
+        if (!active) return;
+        handleLanGuestAnswer(answer);
+      },
+    });
+    lanClientRef.current = client;
+    setLanState(prev => ({ ...prev, status: 'connecting', lastError: undefined }));
+    client.connect(lanRole, roomId);
+
+    return () => {
+      active = false;
+      client.disconnect();
+      if (lanClientRef.current === client) {
+        lanClientRef.current = null;
+      }
+    };
+  }, [lanEnabled, lanUrl, lanRole, roomId, handleLanHostOffer, handleLanGuestAnswer]);
+
+  useEffect(() => {
+    if (!lanState.enabled) return;
+    const signal = peerSyncStatus.localSignal;
+    if (!signal) return;
+    const client = lanClientRef.current;
+    if (!client) return;
+
+    if (peerSyncStatus.role === 'host' && signal.kind === 'offer') {
+      if (lastLanOfferRef.current === signal.payload) return;
+      lastLanOfferRef.current = signal.payload;
+      client.sendOffer(signal.payload);
+    } else if (peerSyncStatus.role === 'guest' && signal.kind === 'answer') {
+      if (lastLanAnswerRef.current === signal.payload) return;
+      lastLanAnswerRef.current = signal.payload;
+      client.sendAnswer(signal.payload);
+    }
+  }, [peerSyncStatus.localSignal, peerSyncStatus.role, lanState.enabled]);
+
+  useEffect(() => {
+    if (lanState.enabled && !roomId) {
+      setLanState(prev => ({ ...prev, enabled: false, status: 'error', lastError: 'Room id unavailable for LAN sync.' }));
+      if (lanClientRef.current) {
+        lanClientRef.current.disconnect();
+        lanClientRef.current = null;
+      }
+    }
+  }, [lanState.enabled, roomId]);
+
+  const enableLan = React.useCallback(() => {
+    if (lanState.enabled) return;
+    if (!roomId) {
+      setLanState(prev => ({ ...prev, status: 'error', lastError: 'Room id unavailable for LAN sync.' }));
+      return;
+    }
+    setLanState(prev => ({ ...prev, enabled: true, lastError: undefined }));
+  }, [lanState.enabled, roomId]);
+
+  const disableLan = React.useCallback(() => {
+    if (lanClientRef.current) {
+      lanClientRef.current.disconnect();
+      lanClientRef.current = null;
+    }
+    setLanState(() => createDefaultLanState(lanDefaultUrl));
+  }, [lanDefaultUrl]);
+
+  const startHosting = React.useCallback((options?: { enableLan?: boolean }) => {
+    setLanPreferredRole('host');
+    try {
+      createSession('host');
+      if (options?.enableLan) {
+        enableLan();
+      }
+    } catch (error) {
+      setPeerSyncStatus(prev => ({ ...prev, state: 'error', lastError: (error as Error).message }));
+    }
+  }, [createSession, enableLan]);
+
+  const joinSession = React.useCallback((offer?: string, options?: { enableLan?: boolean }) => {
+    setLanPreferredRole('guest');
+    try {
+      const session = createSession('guest');
+      if (options?.enableLan) {
+        enableLan();
+      }
+      if (offer && offer.trim()) {
+        try {
+          session.signal(offer.trim());
+          setPeerSyncStatus(prev => ({ ...prev, state: 'connecting', lastError: undefined }));
+        } catch (error) {
+          setPeerSyncStatus(prev => ({ ...prev, state: 'error', lastError: (error as Error).message }));
+        }
+      }
+    } catch (error) {
+      setPeerSyncStatus(prev => ({ ...prev, state: 'error', lastError: (error as Error).message }));
+    }
+  }, [createSession, enableLan]);
+
+  const submitRemoteSignal = React.useCallback((payload: string) => {
+    applyRemoteSignal(payload, 'manual');
+  }, [applyRemoteSignal]);
+
+  const endSession = React.useCallback(() => {
+    destroySession();
+    resetPeerSyncState();
+    setLanPreferredRole('guest');
+  }, [destroySession, resetPeerSyncState]);
+
+  const resetPeerError = React.useCallback(() => {
+    setPeerSyncStatus(prev => ({ ...prev, lastError: undefined }));
+    setLanState(prev => ({ ...prev, lastError: undefined }));
+  }, []);
+
+  const syncNow = async () => {
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+
+    if (serverSyncRef.current) {
+      const remote = await serverSyncRef.current.fetchTasks();
+      const current = JSON.stringify(taskDoc.getTasks());
+      const incoming = JSON.stringify(remote);
+      if (current !== incoming) {
+        taskDoc.replaceAllFromExternal(remote);
+      }
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? [];
+      const current = JSON.stringify(taskDoc.getTasks());
+      const incoming = JSON.stringify(savedTasks);
+      if (current !== incoming) {
+        taskDoc.replaceAllFromExternal(savedTasks);
+      }
+    }
   };
 
   const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>): void => {
     if (!user) return;
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
 
     const now = new Date().toISOString();
-    // Determine next order within this priority group
-    const samePriority = tasks.filter(t => t.priority === taskData.priority && !t.deletedAt);
+    const currentTasks = taskDoc.getTasks();
+    const samePriority = currentTasks.filter(t => t.priority === taskData.priority && !t.deletedAt);
     const nextOrder = samePriority.length > 0 ? Math.max(...samePriority.map(t => t.order || 0)) + 1 : 1;
     const newTask: Task = {
       ...taskData,
@@ -183,56 +633,72 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       order: nextOrder,
     };
 
-    setTasks(prev => [...prev, newTask]);
+    taskDoc.upsert(newTask);
   };
   // Reorder tasks inside a priority bucket (e.g., all A* priorities) based on new ordered id list
   const reorderTasksWithinPriority = (priorityPrefix: string, orderedIds: string[]) => {
-    setTasks(prev => {
-      const updated = [...prev];
-      // Assign new order sequentially (1..n) in given order
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+
+    const now = new Date().toISOString();
+    taskDoc.runLocalTransaction(map => {
       orderedIds.forEach((id, index) => {
-        const idx = updated.findIndex(t => t.id === id);
-        if (idx !== -1) {
-          updated[idx] = { ...updated[idx], order: index + 1, updatedAt: new Date().toISOString() };
-        }
+        const task = map.get(id);
+        if (!task) return;
+        if (!task.priority.startsWith(priorityPrefix)) return;
+        map.set(id, { ...task, order: index + 1, updatedAt: now });
       });
-      return updated;
     });
   };
 
   const updateTask = (id: string, updates: Partial<Task>): void => {
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === id
-          ? { ...task, ...updates, updatedAt: new Date().toISOString() }
-          : task
-      )
-    );
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+    const now = new Date().toISOString();
+    taskDoc.update(id, current => {
+      if (!current) return current;
+      return { ...current, ...updates, updatedAt: now };
+    });
   };
 
   const softDeleteTask = (id: string): void => {
-    setTasks(prev => prev.map(task => task.id === id ? { ...task, deletedAt: new Date().toISOString() } : task));
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+    const now = new Date().toISOString();
+    taskDoc.update(id, current => {
+      if (!current) return current;
+      return { ...current, deletedAt: now };
+    });
   };
 
   const restoreTask = (id: string): void => {
-    setTasks(prev => prev.map(task => task.id === id ? { ...task, deletedAt: undefined } : task));
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+    taskDoc.update(id, current => {
+      if (!current) return current;
+      if (current.deletedAt === undefined) return current;
+      return { ...current, deletedAt: undefined };
+    });
   };
 
   const hardDeleteTask = (id: string): void => {
-    setTasks(prev => prev.filter(task => task.id !== id));
+    taskDocRef.current?.delete(id);
   };
 
   const toggleTaskComplete = (id: string): void => {
-    setTasks(prev => prev.map(task => {
-      if (task.id !== id) return task;
-      const completed = !task.completed;
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+    const now = new Date().toISOString();
+    taskDoc.update(id, current => {
+      if (!current) return current;
+      const completed = !current.completed;
       return {
-        ...task,
+        ...current,
         completed,
-        completedAt: completed ? new Date().toISOString() : undefined,
-        updatedAt: new Date().toISOString(),
+        completedAt: completed ? now : undefined,
+        updatedAt: now,
       };
-    }));
+    });
   };
 
   const filterTasks = (filter: TaskFilter): Task[] => {
@@ -335,6 +801,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   // Import tasks from AI-generated text using --- delimiter
   const importTasksFromText = (text: string): Task[] => {
     if (!user) return [];
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return [];
 
     const sections = text.split('---').map(section => section.trim()).filter(Boolean);
     const importedTasks: Task[] = [];
@@ -464,11 +932,25 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       });
     });
 
-    // Add imported tasks to the current task list
-    setTasks(prev => [...prev, ...importedTasks]);
+    // Add imported tasks to the current task list via the shared document
+    importedTasks.forEach(task => {
+      taskDoc.upsert(task);
+    });
 
     return importedTasks;
   };
+
+  const peerSyncApi: PeerSyncApi = React.useMemo(() => ({
+    status: peerSyncStatus,
+    lan: lanState,
+    startHosting,
+    joinSession,
+    submitRemoteSignal,
+    endSession,
+    enableLan,
+    disableLan,
+    resetError: resetPeerError,
+  }), [peerSyncStatus, lanState, startHosting, joinSession, submitRemoteSignal, endSession, enableLan, disableLan, resetPeerError]);
 
   const value: TaskContextType = {
     tasks,
@@ -488,6 +970,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     moveTaskToDate,
     reorderTasksWithinPriority,
     syncNow,
+    peerSync: peerSyncApi,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;

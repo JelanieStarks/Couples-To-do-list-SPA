@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   USER: 'couples-todo-user',
   PARTNER: 'couples-todo-partner',
   TASKS: 'couples-todo-tasks',
+  TASKS_YDOC: 'couples-todo-tasks-ydoc',
   SETTINGS: 'couples-todo-settings',
 } as const;
 

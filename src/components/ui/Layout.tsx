@@ -14,7 +14,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout } = useAuth();
   const { syncNow } = useTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [topNavActive, setTopNavActive] = useState<null | 'ai' | 'partner' | 'settings'>(null);
+  const [topNavActive, setTopNavActive] = useState<null | 'ai' | 'partner' | 'sync' | 'settings' | 'deleted'>(null);
 
   const mainRef = useRef<HTMLDivElement | null>(null);
   const scrollToMain = () => mainRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });

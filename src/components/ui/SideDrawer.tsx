@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
-import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDays, User2, Brain, Settings, ChevronDown } from 'lucide-react';
+import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDays, User2, Brain, Settings, ChevronDown, RadioTower } from 'lucide-react';
 import ExportTasks from '../tasks/ExportTasks';
 import { PartnerManager } from '../auth/PartnerManager';
+import { SyncPanel } from '../sync/SyncPanel';
 
 interface SideDrawerProps {
   open: boolean;
   onClose: () => void;
   // drawer: right-side panel; full: full-screen overlay
   variant?: 'drawer' | 'full';
-  onOpenTopCard?: (key: 'ai' | 'partner' | 'settings') => void;
+  onOpenTopCard?: (key: 'ai' | 'partner' | 'settings' | 'sync') => void;
   onGoToSection?: (key: 'dashboard' | 'planner') => void;
 }
 
@@ -181,6 +182,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                 { icon: CalendarDays, label: 'Weekly Planner', testId: 'nav-planner', action: () => onGoToSection?.('planner'), closeAfter: true },
                 { icon: Brain, label: 'AI Import', testId: 'nav-ai', action: () => onOpenTopCard?.('ai'), closeAfter: false },
                 { icon: User2, label: 'Partner', testId: 'nav-partner', action: () => onOpenTopCard?.('partner'), closeAfter: false },
+                { icon: RadioTower, label: 'Sync', testId: 'nav-sync', action: () => onOpenTopCard?.('sync'), closeAfter: false },
                 { icon: Settings, label: 'Settings', testId: 'nav-settings', action: () => onOpenTopCard?.('settings'), closeAfter: false },
               ].map((item, idx) => {
                 const Icon = item.icon;
@@ -215,6 +217,15 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
               <h3 className="text-sm font-semibold text-slate-200 mb-2">Partner & Colors</h3>
               <div className="bg-white rounded-lg">
                 <PartnerManager />
+              </div>
+            </div>
+          </section>
+
+          <section className={`${variant === 'full' ? 'px-3' : 'px-1'} mb-6`} data-testid="drawer-sync">
+            <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-2">
+              <h3 className="text-sm font-semibold text-slate-200 mb-2">Peer Sync</h3>
+              <div className="bg-white rounded-lg">
+                <SyncPanel />
               </div>
             </div>
           </section>

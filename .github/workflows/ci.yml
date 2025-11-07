@@ -25,6 +25,9 @@ jobs:
         run: npm run build
       - name: Test
         run: npm test -- --coverage
+      - name: Optional LAN peer sync conga line
+        run: npm run test:peer-sync
+        continue-on-error: true
       - name: Upload coverage
         if: success()
         uses: actions/upload-artifact@v4
