@@ -26,6 +26,17 @@ All notable changes to this project will be documented in this file.
 
 - Ensured release artifacts rebuild after UI tweaks to include latest planner changes.
 
+## [1.0.11] - 2025-11-07
+
+### Added / Changed
+
+- Converted drawer specs to exercise the new SideDrawer navigation flow.
+- Hardened SideDrawer scrolling guard for test runners without `scrollIntoView`.
+
+### Quality
+
+- Full suite passes under Vitest after navigation refactor.
+
 ## [1.0.8-beta] - 2025-10-12
 
 ### Added / Changed
