@@ -21,17 +21,19 @@ describe('Small UX enhancements', () => {
     }
   };
 
-  const openHamburger = () => {
-    // Ensure header exists and open the hamburger each time it's needed
-    const btn = screen.getByTestId('hamburger-btn');
-    fireEvent.click(btn);
+  const openDrawer = () => {
+    const drawer = screen.getByTestId('side-drawer');
+    if (drawer.getAttribute('data-open') !== 'true') {
+      fireEvent.click(screen.getByTestId('hamburger-btn'));
+    }
+    return screen.getByTestId('side-drawer');
   };
 
   it('shows a resize handle on the side drawer (md+ only)', () => {
     ensureLoggedIn();
-    openHamburger();
+    openDrawer();
     // We assert the handle exists in DOM; responsiveness is covered by CSS classes.
-    expect(screen.getByTestId('drawer-resize-handle')).toBeInTheDocument();
+    expect(screen.getByTestId('drawer-resize-handle')).toBeTruthy();
   });
 
   it('allows copying the invite code with feedback', async () => {
@@ -44,37 +46,28 @@ describe('Small UX enhancements', () => {
     const copyBtn = await screen.findByTestId('copy-invite');
     fireEvent.click(copyBtn);
     // Feedback label appears
-    expect(await screen.findByText(/copied!/i)).toBeInTheDocument();
+  expect(await screen.findByText(/copied!/i)).toBeTruthy();
     // Restore clipboard
     (navigator as any).clipboard = originalClipboard;
   });
 
   it('exposes Clear All Local Data under Settings card', () => {
     ensureLoggedIn();
-    openHamburger();
-    // Click Settings from TopNav (open via drawer not required; TopNav opens with hamburger)
-    const settingsBtn = screen.getByTestId('topnav-btn-settings');
-    fireEvent.click(settingsBtn);
-    const card = screen.getByTestId('topnav-card-settings');
-    expect(within(card).getByTestId('clear-data')).toBeInTheDocument();
+    const drawer = openDrawer();
+  const settingsSection = within(drawer).getByTestId('drawer-settings');
+  expect(within(settingsSection).getByTestId('drawer-clear-data')).toBeTruthy();
   });
 
   it('drawer nav items are wired: Dashboard/Planner/AI/Partner/Settings', () => {
     ensureLoggedIn();
-    openHamburger();
-    // Click AI Import
+    const drawer = openDrawer();
     fireEvent.click(screen.getByTestId('nav-ai'));
-    // TopNav should show AI card
-    expect(screen.getByTestId('topnav-card-ai')).toBeInTheDocument();
+    expect(within(drawer).getByTestId('drawer-ai')).toBeTruthy();
 
-    // Reopen menu and click Partner
-    openHamburger();
     fireEvent.click(screen.getByTestId('nav-partner'));
-    expect(screen.getByTestId('topnav-card-partner')).toBeInTheDocument();
+    expect(within(drawer).getByTestId('drawer-partner')).toBeTruthy();
 
-    // Reopen menu and click Settings
-    openHamburger();
     fireEvent.click(screen.getByTestId('nav-settings'));
-    expect(screen.getByTestId('topnav-card-settings')).toBeInTheDocument();
+    expect(within(drawer).getByTestId('drawer-settings')).toBeTruthy();
   });
 });

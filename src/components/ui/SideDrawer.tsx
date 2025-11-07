@@ -61,7 +61,10 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
 
   const scrollToSection = (key: DrawerSectionKey) => {
     const ref = sectionRefs[key];
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const el = ref.current;
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const [textScale, setTextScale] = useState<number>(() => {
