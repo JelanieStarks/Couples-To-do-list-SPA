@@ -1,3 +1,8 @@
+/**
+ * TodaysTasks
+ * Shows the daily task breakdown with urgent list, encouragement, and progress bar.
+ * Drag Priority A cards to reorder and click a task to spotlight it in the calendar.
+ */
 import React, { useCallback } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { TaskItem } from './TaskItem';
@@ -104,7 +109,7 @@ export const TodaysTasks: React.FC = () => {
   }, [priorityATasks, reorderTasksWithinPriority]);
 
   return (
-  <div className="panel-neon panel-neon-border">
+    <div className="neon-hype-panel rainbow-crunch-border">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
@@ -264,7 +269,7 @@ const SortableTaskRow: React.FC<SortableTaskRowProps> = ({ id, task, onTaskClick
           onMouseDown={(e) => e.stopPropagation()}
         >
           {/* Simple grip icon using dots */}
-          <span className="block h-3 w-3 grid grid-cols-2 gap-[2px]">
+          <span className="h-3 w-3 grid grid-cols-2 gap-[2px]">
             <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
             <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
             <span className="h-[3px] w-[3px] bg-slate-500 rounded" />

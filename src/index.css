@@ -153,7 +153,7 @@
 
 @layer components {
   .surface-card,
-  .panel-neon {
+  .neon-hype-panel {
     position: relative;
     border-radius: var(--radius-card);
     padding: 1.25rem;
@@ -174,11 +174,11 @@
     box-shadow: var(--shadow-glow-strong);
   }
 
-  .panel-neon-border {
+  .rainbow-crunch-border {
     position: relative;
   }
 
-  .panel-neon-border::after {
+  .rainbow-crunch-border::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -191,7 +191,7 @@
     opacity: 0.45;
   }
 
-  .day-square {
+  .track-day-box {
     display: flex;
     flex-direction: column;
     border-radius: var(--radius-card);
@@ -201,21 +201,21 @@
     overflow: hidden;
   }
 
-  .day-square:hover {
+  .track-day-box:hover {
     border-color: var(--color-border-strong);
     box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.4);
   }
 
-  .day-square.today {
+  .track-day-box.today {
     border-color: var(--color-neon-blue);
     box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.5), 0 0 22px rgba(99, 102, 241, 0.4);
   }
 
-  .day-square-past {
+  .yesterday-fade-box {
     opacity: 0.6;
   }
 
-  .day-square-header {
+  .day-label-strip {
     padding: 0.6rem 0.75rem;
     text-align: center;
     font-weight: 600;
@@ -227,17 +227,17 @@
     border-bottom: 1px solid rgba(148, 163, 184, 0.25);
   }
 
-  .day-tasks-scroll {
+  .task-lane-scroll {
     padding: 0.75rem;
     flex: 1;
     overflow-y: auto;
   }
 
-  .day-tasks-scroll > * + * {
+  .task-lane-scroll > * + * {
     margin-top: 0.65rem;
   }
 
-  .task-card-neon {
+  .mission-card {
     position: relative;
     border-radius: 0.95rem;
     padding: 0.9rem 0.95rem;
@@ -246,34 +246,34 @@
     transition: transform 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
   }
 
-  .task-card-neon:hover {
+  .mission-card:hover {
     border-color: var(--color-border-strong);
     box-shadow: var(--shadow-glow);
   }
 
-  .task-card-neon[data-priority^="A"] {
+  .mission-card[data-priority^="A"] {
     border-color: rgba(239, 68, 68, 0.55);
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.55);
   }
 
-  .task-card-neon[data-priority^="B"] {
+  .mission-card[data-priority^="B"] {
     border-color: rgba(245, 158, 11, 0.45);
   }
 
-  .task-card-neon[data-priority^="C"] {
+  .mission-card[data-priority^="C"] {
     border-color: rgba(234, 179, 8, 0.32);
   }
 
-  .task-card-neon[data-priority="D"] {
+  .mission-card[data-priority="D"] {
     border-color: rgba(34, 197, 94, 0.32);
   }
 
-  .task-card-neon.shared {
+  .mission-card.shared {
     background: linear-gradient(135deg, rgba(49, 46, 129, 0.85), rgba(76, 29, 149, 0.78), rgba(131, 24, 67, 0.8));
     border-color: rgba(244, 114, 182, 0.55);
   }
 
-  .task-accent {
+  .mission-glow-bar {
     position: absolute;
     inset: 0 auto 0 0;
     width: 4px;
@@ -283,7 +283,7 @@
     box-shadow: 0 0 12px rgba(236, 72, 153, 0.25);
   }
 
-  .btn-neon {
+  .neon-action-button {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -302,51 +302,51 @@
     transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 220ms ease, background 320ms ease, border-color 220ms ease;
   }
 
-  .btn-neon:hover {
+  .neon-action-button:hover {
     transform: translateY(-2px);
     border-color: rgba(129, 140, 248, 0.65);
     box-shadow: var(--shadow-glow-strong);
   }
 
-  .btn-neon:active {
+  .neon-action-button:active {
     transform: translateY(0);
   }
 
-  .btn-neon:focus-visible {
+  .neon-action-button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.85), 0 0 0 4px rgba(99, 102, 241, 0.25);
   }
 
-  .btn-neon[data-variant="soft"] {
+  .neon-action-button[data-variant="soft"] {
     background: rgba(30, 41, 59, 0.65);
     border-color: rgba(99, 102, 241, 0.35);
   }
 
-  .btn-neon[data-variant="primary"] {
+  .neon-action-button[data-variant="primary"] {
     background: linear-gradient(120deg, rgba(99, 102, 241, 0.95), rgba(168, 85, 247, 0.9));
   }
 
-  .btn-neon[data-variant="outline"] {
+  .neon-action-button[data-variant="outline"] {
     background: rgba(9, 9, 26, 0.7);
     border-color: rgba(99, 102, 241, 0.55);
   }
 
-  .btn-neon[data-state="danger"] {
+  .neon-action-button[data-state="danger"] {
     background: linear-gradient(115deg, rgba(124, 0, 0, 0.9), rgba(220, 38, 38, 0.85));
     border-color: rgba(248, 113, 113, 0.5);
   }
 
-  .btn-neon[data-size="sm"] {
+  .neon-action-button[data-size="sm"] {
     padding: 0.55rem 0.85rem;
     font-size: 0.68rem;
   }
 
-  .btn-neon[data-size="lg"] {
+  .neon-action-button[data-size="lg"] {
     padding: 1rem 1.6rem;
     font-size: 0.88rem;
   }
 
-  .icon-btn-neon {
+  .neon-icon-button {
     width: 2.15rem;
     height: 2.15rem;
     display: inline-flex;
@@ -359,26 +359,36 @@
     transition: background 220ms ease, border-color 220ms ease, color 220ms ease, box-shadow 220ms ease;
   }
 
-  .icon-btn-neon:hover {
+  .neon-icon-button:hover {
     background: rgba(51, 65, 85, 0.7);
     border-color: rgba(129, 140, 248, 0.6);
     color: #fff;
     box-shadow: var(--shadow-glow);
   }
 
-  .icon-btn-neon:focus-visible {
+  .neon-icon-button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.85), 0 0 0 4px rgba(99, 102, 241, 0.35);
   }
 
-  .neon-field {
+  .glow-ambient-orb {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    pointer-events: none;
+    box-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+    transition: box-shadow 0.3s ease-in-out;
+  }
+
+  .glow-field-stack {
     position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
   }
 
-  .neon-field label {
+  .glow-field-stack label {
     font-size: 0.72rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -386,11 +396,11 @@
     color: var(--color-text-subtle);
   }
 
-  .neon-field:focus-within label {
+  .glow-field-stack:focus-within label {
     color: rgba(196, 181, 253, 0.95);
   }
 
-  .neon-input,
+  .glow-form-input,
   .neon-textarea,
   .select-neon,
   .input-neon,
@@ -408,7 +418,7 @@
     transition: border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
   }
 
-  .neon-input:hover,
+  .glow-form-input:hover,
   .neon-textarea:hover,
   .select-neon:hover,
   .input-neon:hover,
@@ -419,7 +429,7 @@
     background: rgba(15, 23, 42, 0.72);
   }
 
-  .neon-input:focus,
+  .glow-form-input:focus,
   .neon-textarea:focus,
   .select-neon:focus,
   .input-neon:focus,
@@ -434,17 +444,21 @@
     resize: vertical;
   }
 
-  .neon-field .helper-text {
+  .glow-field-stack .helper-text {
     font-size: 0.72rem;
     color: rgba(148, 163, 184, 0.7);
   }
 
-  .neon-field[data-state="error"] .helper-text {
+  .glow-field-stack[data-state="error"] .helper-text {
     color: rgba(239, 68, 68, 0.8);
   }
 
-  .neon-field[data-state="error"] .neon-input,
-  .neon-field[data-state="error"] .neon-textarea {
+  .glow-field-stack[data-state="error"] .glow-form-input,
+  .glow-field-stack[data-state="error"] .neon-textarea,
+  .glow-field-stack[data-state="error"] .input-neon,
+  .glow-field-stack[data-state="error"] .select-neon,
+  .glow-field-stack[data-state="error"] .time-neon,
+  .glow-field-stack[data-state="error"] .date-neon {
     border-color: rgba(239, 68, 68, 0.7);
     box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.45), 0 0 22px rgba(239, 68, 68, 0.35);
   }

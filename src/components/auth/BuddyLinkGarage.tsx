@@ -1,39 +1,42 @@
+/**
+ * BuddyLinkGarage
+ * Pit-stop control room for invite codes, partner linking, and color picks.
+ * Lives inside AuthProvider land so partner state stays synced.
+ */
 import React, { useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { Users, Copy, Check, UserPlus, Unlink, Share } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { SyncPanel } from '../sync/SyncPanel';
 
-// 👫 Partner Management - Connection status and controls
-export const PartnerManager: React.FC = () => {
-  // Added updateUser which was used later but not previously destructured – without this the color buttons would explode harder than my motivation on a Monday morning.
+export const BuddyLinkGarage: React.FC = () => {
   const { user, partner, linkPartner, unlinkPartner, updateUser } = useAuth();
-  const [inviteCode, setInviteCode] = useState('');
-  const [isLinking, setIsLinking] = useState(false);
-  const [showLinkForm, setShowLinkForm] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [inviteCodeEntry, setInviteCodeEntry] = useState('');
+  const [isLinkingPartner, setIsLinkingPartner] = useState(false);
+  const [isLinkFormVisible, setIsLinkFormVisible] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
-  const handleCopyInviteCode = async () => {
+  const copyInviteToClipboard = async () => {
     if (!user?.inviteCode) return;
-    
     try {
       await navigator.clipboard.writeText(user.inviteCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy invite code:', error);
     }
   };
 
-  const handleLinkPartner = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteCode.trim()) return;
+  const linkPartnerByCode = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const code = inviteCodeEntry.trim();
+    if (!code) return;
 
-    setIsLinking(true);
+    setIsLinkingPartner(true);
     try {
-      const success = await linkPartner(inviteCode);
+      const success = await linkPartner(code);
       if (success) {
-        setInviteCode('');
-        setShowLinkForm(false);
+        setInviteCodeEntry('');
+        setIsLinkFormVisible(false);
       } else {
         alert('🤖 Oops! That invite code seems to be playing hide and seek. Double-check it and try again!');
       }
@@ -41,11 +44,11 @@ export const PartnerManager: React.FC = () => {
       console.error('Failed to link partner:', error);
       alert('🤖 Houston, we have a problem! Try again in a moment.');
     } finally {
-      setIsLinking(false);
+      setIsLinkingPartner(false);
     }
   };
 
-  const handleUnlinkPartner = () => {
+  const unlinkPartnerWithConfirm = () => {
     if (confirm('Are you sure you want to disconnect from your partner? This will stop sharing tasks between you.')) {
       unlinkPartner();
     }
@@ -59,14 +62,11 @@ export const PartnerManager: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Partner Connection</h2>
-          <p className="text-sm text-gray-500">
-            🤖 Because teamwork makes the dream work!
-          </p>
+          <p className="text-sm text-gray-500">🤖 Because teamwork makes the dream work!</p>
         </div>
       </div>
 
       {partner ? (
-        /* Connected State */
         <div className="space-y-4">
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
@@ -75,16 +75,12 @@ export const PartnerManager: React.FC = () => {
                   <Check className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-medium text-green-900">
-                    Connected with {partner.name}
-                  </p>
-                  <p className="text-sm text-green-700">
-                    🎉 You're now sharing tasks and conquering life together!
-                  </p>
+                  <p className="font-medium text-green-900">Connected with {partner.name}</p>
+                  <p className="text-sm text-green-700">🎉 You're now sharing tasks and conquering life together!</p>
                 </div>
               </div>
               <button
-                onClick={handleUnlinkPartner}
+                onClick={unlinkPartnerWithConfirm}
                 className="text-red-600 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
                 title="Disconnect partner"
               >
@@ -93,26 +89,19 @@ export const PartnerManager: React.FC = () => {
             </div>
           </div>
 
-          {/* Your Invite Code */}
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-1">
-                  Your invite code:
-                </p>
-                <p className="font-mono text-lg font-bold text-gray-900 bg-white px-3 py-1 rounded border">
-                  {user?.inviteCode}
-                </p>
+                <p className="text-sm font-medium text-gray-700 mb-1">Your invite code:</p>
+                <p className="font-mono text-lg font-bold text-gray-900 bg-white px-3 py-1 rounded border">{user?.inviteCode}</p>
               </div>
               <button
-                onClick={handleCopyInviteCode}
+                onClick={copyInviteToClipboard}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  copied 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  isCopied ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`}
               >
-                {copied ? (
+                {isCopied ? (
                   <>
                     <Check className="h-4 w-4" />
                     <span className="text-sm">Copied!</span>
@@ -125,15 +114,11 @@ export const PartnerManager: React.FC = () => {
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              💡 Share this code with friends so they can connect with you!
-            </p>
+            <p className="text-xs text-gray-500 mt-2">💡 Share this code with friends so they can connect with you!</p>
           </div>
         </div>
       ) : (
-        /* Not Connected State */
         <div className="space-y-6">
-          {/* Your Invite Code */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center space-x-2">
@@ -141,14 +126,12 @@ export const PartnerManager: React.FC = () => {
                 <h3 className="font-medium text-blue-900">Your Invite Code</h3>
               </div>
               <button
-                onClick={handleCopyInviteCode}
+                onClick={copyInviteToClipboard}
                 className={`flex items-center space-x-2 px-3 py-1 rounded-lg transition-colors ${
-                  copied 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                  isCopied ? 'bg-green-100 text-green-700' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
                 }`}
               >
-                {copied ? (
+                {isCopied ? (
                   <>
                     <Check className="h-4 w-4" />
                     <span className="text-sm">Copied!</span>
@@ -161,73 +144,59 @@ export const PartnerManager: React.FC = () => {
                 )}
               </button>
             </div>
-            <p className="font-mono text-xl font-bold text-blue-900 bg-white px-4 py-2 rounded border text-center">
-              {user?.inviteCode}
-            </p>
-            <p className="text-sm text-blue-700 mt-2">
-              📱 Share this code with your partner to start collaborating!
-            </p>
+            <p className="font-mono text-xl font-bold text-blue-900 bg-white px-4 py-2 rounded border text-center">{user?.inviteCode}</p>
+            <p className="text-sm text-blue-700 mt-2">📱 Share this code with your partner to start collaborating!</p>
           </div>
 
-          {/* Connect Form */}
           <div className="border-t pt-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-gray-900">Connect with Partner</h3>
               <button
-                onClick={() => setShowLinkForm(!showLinkForm)}
+                onClick={() => setIsLinkFormVisible(!isLinkFormVisible)}
                 className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 font-medium"
               >
                 <UserPlus className="h-4 w-4" />
-                <span>{showLinkForm ? 'Cancel' : 'Enter Code'}</span>
+                <span>{isLinkFormVisible ? 'Cancel' : 'Enter Code'}</span>
               </button>
             </div>
 
-            {showLinkForm && (
-              <form onSubmit={handleLinkPartner} className="animate-slide-up">
+            {isLinkFormVisible && (
+              <form onSubmit={linkPartnerByCode} className="animate-slide-up">
                 <div className="flex space-x-3">
                   <input
                     type="text"
                     placeholder="ABC123"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono uppercase"
                     maxLength={6}
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    value={inviteCodeEntry}
+                    onChange={(event) => setInviteCodeEntry(event.target.value.toUpperCase())}
                   />
                   <button
                     type="submit"
-                    disabled={isLinking || !inviteCode.trim()}
-                    className="btn-primary !py-2"
+                    disabled={isLinkingPartner || !inviteCodeEntry.trim()}
+                    className="neon-action-button !py-2"
                   >
-                    {isLinking ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    {isLinkingPartner ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                     ) : (
                       'Connect'
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  🤖 Enter your partner's 6-character invite code to link your accounts
-                </p>
+                <p className="text-xs text-gray-500 mt-2">🤖 Enter your partner's 6-character invite code to link your accounts</p>
               </form>
             )}
           </div>
         </div>
       )}
 
-      {/* Color Settings */}
       <div className="border-t pt-6 mt-6">
         <h3 className="font-medium text-gray-900 mb-4">🎨 Color Settings</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Your Color */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Your color (for "Me" tasks)
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Your color (for "Me" tasks)</label>
             <div className="flex items-center space-x-3">
-              <div 
-                className="w-8 h-8 rounded-lg border-2 border-gray-300"
-                style={{ backgroundColor: user?.color || '#ec4899' }}
-              />
+              <div className="w-8 h-8 rounded-lg border-2 border-gray-300" style={{ backgroundColor: user?.color || '#ec4899' }} />
               <div className="flex flex-wrap gap-2">
                 {['#ec4899', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4'].map((color) => (
                   <button
@@ -244,39 +213,24 @@ export const PartnerManager: React.FC = () => {
             </div>
           </div>
 
-          {/* Partner Color Display */}
           {partner && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Partner's color
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Partner's color</label>
               <div className="flex items-center space-x-3">
-                <div 
-                  className="w-8 h-8 rounded-lg border-2 border-gray-300"
-                  style={{ backgroundColor: partner.color || '#3b82f6' }}
-                />
-                <span className="text-sm text-gray-600">
-                  {partner.name}'s chosen color
-                </span>
+                <div className="w-8 h-8 rounded-lg border-2 border-gray-300" style={{ backgroundColor: partner.color || '#3b82f6' }} />
+                <span className="text-sm text-gray-600">{partner.name}'s chosen color</span>
               </div>
             </div>
           )}
 
-          {/* Gradient Preview for "Both" tasks */}
           {partner && (
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                "Both" tasks preview
-              </label>
-              <div 
+              <label className="block text-sm font-medium text-gray-700 mb-2">"Both" tasks preview</label>
+              <div
                 className="h-8 rounded-lg border-2 border-gray-200"
-                style={{ 
-                  background: `linear-gradient(to right, ${user?.color || '#ec4899'}, ${partner.color || '#3b82f6'})` 
-                }}
+                style={{ background: `linear-gradient(to right, ${user?.color || '#ec4899'}, ${partner.color || '#3b82f6'})` }}
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Tasks assigned to "Both" will use this gradient
-              </p>
+              <p className="text-xs text-gray-500 mt-1">Tasks assigned to "Both" will use this gradient</p>
             </div>
           )}
         </div>

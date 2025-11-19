@@ -1,3 +1,8 @@
+/**
+ * TaskFilterMenu
+ * Floating filter control that updates context filters and portals into a dialog shell.
+ * Supports search, priority, assignment, and hide-completed toggles with keyboard support.
+ */
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Filter, X } from 'lucide-react';
@@ -68,8 +73,8 @@ export const TaskFilterMenu: React.FC<TaskFilterMenuProps> = ({ className }) => 
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        onClick={() => setOpen(v => !v)}
-        className="btn-neon inline-flex items-center gap-2 px-3 py-2 text-xs"
+  onClick={() => setOpen(v => !v)}
+  className="neon-action-button inline-flex items-center gap-2 px-3 py-2 text-xs"
         data-testid="filter-button"
         data-variant={hasActiveFilters ? 'primary' : 'soft'}
         data-size="sm"
@@ -102,7 +107,7 @@ export const TaskFilterMenu: React.FC<TaskFilterMenuProps> = ({ className }) => 
               </div>
               <button
                 type="button"
-                className="icon-btn-neon"
+                className="neon-icon-button"
                 onClick={() => setOpen(false)}
                 aria-label="Close filters"
               >
@@ -116,7 +121,7 @@ export const TaskFilterMenu: React.FC<TaskFilterMenuProps> = ({ className }) => 
                 <input
                   id={`${menuId}-query`}
                   type="text"
-                  className="neon-input w-full"
+                  className="glow-form-input w-full"
                   placeholder="Search title or description..."
                   value={filter.query}
                   onChange={(e) => update({ query: e.target.value })}
@@ -129,7 +134,7 @@ export const TaskFilterMenu: React.FC<TaskFilterMenuProps> = ({ className }) => 
                   <label htmlFor={`${menuId}-priority`} className="block text-[11px] uppercase tracking-wide text-slate-400">Priority</label>
                   <select
                     id={`${menuId}-priority`}
-                    className="neon-input w-full"
+                    className="glow-form-input w-full"
                     value={filter.priorityGroup}
                     onChange={(e) => update({ priorityGroup: e.target.value as PriorityGroup })}
                     data-testid="task-filter-priority"
@@ -146,7 +151,7 @@ export const TaskFilterMenu: React.FC<TaskFilterMenuProps> = ({ className }) => 
                   <label htmlFor={`${menuId}-assn`} className="block text-[11px] uppercase tracking-wide text-slate-400">Assignment</label>
                   <select
                     id={`${menuId}-assn`}
-                    className="neon-input w-full"
+                    className="glow-form-input w-full"
                     value={filter.assignment}
                     onChange={(e) => update({ assignment: e.target.value as any })}
                     data-testid="task-filter-assignment"

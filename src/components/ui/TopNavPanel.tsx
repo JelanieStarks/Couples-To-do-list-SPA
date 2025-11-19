@@ -1,7 +1,12 @@
+/**
+ * TopNavPanel
+ * Slide-down control center that surfaces AI import, partner linking, sync, and settings cards.
+ * Acts as a quick-switcher for dashboard power tools.
+ */
 import React, { useEffect, useState } from 'react';
 import { Brain, User2, Settings, X, Trash2, RadioTower } from 'lucide-react';
 import { AIImport } from '../tasks/AIImport';
-import { PartnerManager } from '../auth/PartnerManager';
+import { BuddyLinkGarage } from '../auth/BuddyLinkGarage';
 import ExportTasks from '../tasks/ExportTasks';
 import DeletedTasks from '../tasks/DeletedTasks';
 import { STORAGE_KEYS, storage } from '../../utils';
@@ -70,10 +75,10 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
       aria-hidden={!open}
     >
       <div className="w-full max-w-[80vw] mx-auto px-4 sm:px-6">
-        <div className="mt-16 panel-neon panel-neon-border rounded-2xl overflow-hidden max-h-[80vh]">
+  <div className="mt-16 neon-hype-panel rainbow-crunch-border rounded-2xl overflow-hidden max-h-[80vh]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/60">
             <h3 className="text-sm font-semibold tracking-wider text-slate-200 uppercase">Quick Menu</h3>
-            <button onClick={onClose} className="icon-btn-neon" aria-label="Close quick menu"><X className="h-4 w-4" /></button>
+            <button onClick={onClose} className="neon-icon-button" aria-label="Close quick menu"><X className="h-4 w-4" /></button>
           </div>
           {/* Scrollable content area (keeps quick menu frame stationary) */}
           <div className="overflow-y-auto max-h-[70vh]">
@@ -88,7 +93,7 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                 ].map(({ icon: Icon, label, key }) => (
                   <li key={label}>
                     <button
-                      className="w-full btn-neon"
+                      className="w-full neon-action-button"
                       data-variant="soft"
                       onClick={() => setActive(key as any)}
                       data-testid={`topnav-btn-${key}`}
@@ -103,7 +108,7 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
             {/* Active content card */}
             {current && (
               <div className="px-3 pb-4">
-                <div className="panel-neon panel-neon-border mt-2" data-testid={`topnav-card-${current}`}>
+                <div className="neon-hype-panel rainbow-crunch-border mt-2" data-testid={`topnav-card-${current}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold tracking-wide text-slate-200 capitalize">
                       {current === 'ai' && 'AI Task Import'}
@@ -111,11 +116,11 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                       {current === 'sync' && 'Peer Sync'}
                       {current === 'settings' && 'Settings'}
                     </h4>
-                    <button className="icon-btn-neon" onClick={() => setActive(null)} aria-label="Close card">✕</button>
+                    <button className="neon-icon-button" onClick={() => setActive(null)} aria-label="Close card">✕</button>
                   </div>
                   <div className="space-y-3">
                     {current === 'ai' && (<AIImport />)}
-                    {current === 'partner' && (<PartnerManager />)}
+                    {current === 'partner' && (<BuddyLinkGarage />)}
                     {current === 'sync' && (<SyncPanel />)}
                     {current === 'settings' && (
                       <>
@@ -131,7 +136,7 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                               {[{label:'S',v:0.9},{label:'D',v:1},{label:'L',v:1.1},{label:'XL',v:1.2}].map(({label,v}) => (
                                 <button
                                   key={label}
-                                  className="btn-neon"
+                                  className="neon-action-button"
                                   data-size="sm"
                                   data-variant="soft"
                                   onClick={() => applyTextScale(v)}
@@ -165,7 +170,7 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                               <div className="text-[10px] text-slate-500">Current version: {pkg.version}</div>
                             </div>
                             <div className="btn-row">
-                              <button className="btn-neon" data-size="sm" onClick={doCheckUpdates} disabled={updateStatus.loading} data-testid="check-updates">
+                              <button className="neon-action-button" data-size="sm" onClick={doCheckUpdates} disabled={updateStatus.loading} data-testid="check-updates">
                                 {updateStatus.loading ? 'Checking…' : 'Check for Updates'}
                               </button>
                             </div>
@@ -183,13 +188,13 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                               )}
                               <div className="mt-1 flex flex-wrap gap-2">
                                 {updateStatus.windowsExeUrl && (
-                                  <a className="btn-neon" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">Download Windows (.exe)</a>
+                                  <a className="neon-action-button" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">Download Windows (.exe)</a>
                                 )}
                                 {updateStatus.androidApkUrl && (
-                                  <a className="btn-neon" data-variant="outline" data-size="sm" href={updateStatus.androidApkUrl} target="_blank" rel="noreferrer">Download Android (.apk)</a>
+                                  <a className="neon-action-button" data-variant="outline" data-size="sm" href={updateStatus.androidApkUrl} target="_blank" rel="noreferrer">Download Android (.apk)</a>
                                 )}
                                 {updateStatus.releaseUrl && !updateStatus.windowsExeUrl && !updateStatus.androidApkUrl && (
-                                  <a className="btn-neon" data-variant="soft" data-size="sm" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">View Release</a>
+                                  <a className="neon-action-button" data-variant="soft" data-size="sm" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">View Release</a>
                                 )}
                               </div>
                             </div>
@@ -198,7 +203,7 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
 
                         <div className="pt-3 border-t border-slate-700/60">
                           <button
-                            className="btn-neon"
+                            className="neon-action-button"
                             data-variant="outline"
                             data-size="sm"
                             onClick={() => {

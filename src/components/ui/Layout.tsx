@@ -51,7 +51,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Corner controls: hamburger fixed at top-left; user block mirrors at top-right */}
         <button
           onClick={toggleDrawer}
-          className="icon-btn-neon fixed z-[65]"
+          className="neon-icon-button fixed z-[65]"
           aria-label={drawerOpen ? 'Close menu' : 'Open menu'}
           data-testid="hamburger-btn"
           data-tag="hamburger"
@@ -95,7 +95,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <button
               onClick={logout}
-              className="icon-btn-neon"
+              className="neon-icon-button"
               title="Logout"
               data-tag="logout-button"
             >

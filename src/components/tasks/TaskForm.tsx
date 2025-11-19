@@ -1,3 +1,8 @@
+/**
+ * TaskForm
+ * Launchpad for spinning up new tasks with clear copy and neon styling.
+ * Shows a single call-to-action button that expands into the full form.
+ */
 import React, { useState } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -106,7 +111,7 @@ export const TaskForm: React.FC = () => {
 
   if (!isOpen) {
     return (
-      <button onClick={() => setIsOpen(true)} className="w-full btn-neon" data-size="lg">
+      <button onClick={() => setIsOpen(true)} className="w-full neon-action-button" data-size="lg">
         <Plus className="h-5 w-5" />
         <span className="flex flex-col items-start leading-tight">
           <span className="font-semibold tracking-wide">Add New Task</span>
@@ -117,30 +122,30 @@ export const TaskForm: React.FC = () => {
   }
 
   return (
-  <div className="panel-neon panel-neon-border animate-slide-up">
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center space-x-3">
-        <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
-          <Star className="h-6 w-6 text-indigo-400" />
+    <div className="neon-hype-panel rainbow-crunch-border animate-slide-up">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
+            <Star className="h-6 w-6 text-indigo-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-100 tracking-wide">Create New Task</h3>
+            <p className="text-xs text-slate-400 tracking-wide">🤖 Let's turn that idea into action!</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-lg font-semibold text-slate-100 tracking-wide">Create New Task</h3>
-          <p className="text-xs text-slate-400 tracking-wide">🤖 Let's turn that idea into action!</p>
-        </div>
+        <button onClick={() => setIsOpen(false)} className="neon-icon-button" aria-label="Close task form">✕</button>
       </div>
-      <button onClick={() => setIsOpen(false)} className="icon-btn-neon" aria-label="Close task form">✕</button>
-    </div>
 
-  <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* Task Title */}
-        <div className="neon-field">
+        <div className="glow-field-stack">
           <label htmlFor="title">What needs to be done? ✨</label>
-          <div className="neon-glow-ambient" />
+          <div className="glow-ambient-orb" />
           <input
             type="text"
             id="title"
             required
-            className="neon-input"
+            className="glow-form-input"
             placeholder="Buy groceries, save the world, etc..."
             value={formData.title}
             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
@@ -148,9 +153,9 @@ export const TaskForm: React.FC = () => {
         </div>
 
         {/* Description */}
-        <div className="neon-field">
+        <div className="glow-field-stack">
           <label htmlFor="description">Any additional details? 📝</label>
-          <div className="neon-glow-ambient" />
+          <div className="glow-ambient-orb" />
           <textarea
             id="description"
             rows={3}
@@ -173,7 +178,7 @@ export const TaskForm: React.FC = () => {
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, priority: opt.value }))}
                   aria-pressed={active}
-                  className={`btn-neon w-full text-left flex flex-col items-start gap-1 ${active ? '' : ''}`}
+                  className={`neon-action-button w-full text-left flex flex-col items-start gap-1 ${active ? '' : ''}`}
                   data-variant="soft"
                   data-size="sm"
                   title={`Set priority ${opt.label}`}
@@ -341,11 +346,11 @@ export const TaskForm: React.FC = () => {
 
         {/* Submit Button */}
         <div className="btn-row pt-3">
-          <button type="submit" disabled={!formData.title.trim()} className="btn-neon" data-size="sm">
+          <button type="submit" disabled={!formData.title.trim()} className="neon-action-button" data-size="sm">
             <Plus className="h-4 w-4" />
             <span>Create Task</span>
           </button>
-          <button type="button" onClick={() => setIsOpen(false)} className="btn-neon" data-variant="outline" data-size="sm">Cancel</button>
+          <button type="button" onClick={() => setIsOpen(false)} className="neon-action-button" data-variant="outline" data-size="sm">Cancel</button>
         </div>
       </form>
     </div>

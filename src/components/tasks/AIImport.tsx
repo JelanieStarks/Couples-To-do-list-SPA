@@ -1,6 +1,12 @@
+/**
+ * AIImport
+ * What: neon-styled panel that turns pasted text into tasks in seconds.
+ * How: render inside quick-action layouts like TopNavPanel to give users a paste-to-task superpower.
+ */
 import React, { useState } from 'react';
+import { Brain, Upload, Zap, Info } from 'lucide-react';
+
 import { useTask } from '../../contexts/TaskContext';
-import { Brain, Upload, FileText, Zap, Info } from 'lucide-react';
 
 // 🧠 AI Import Component - Turn raw text into organized tasks
 export const AIImport: React.FC = () => {
@@ -9,6 +15,8 @@ export const AIImport: React.FC = () => {
   const [importText, setImportText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [lastImportCount, setLastImportCount] = useState(0);
+  // Jarvis Note: personalize this copy whenever you want a fresh vibe.
+  const aiNudgeTagline = 'Yo! Paste text here, get organized tasks!';
 
   const handleImport = async () => {
     if (!importText.trim()) return;
@@ -18,8 +26,8 @@ export const AIImport: React.FC = () => {
       const importedTasks = importTasksFromText(importText);
       setLastImportCount(importedTasks.length);
       setImportText('');
-      
-      // Show success message for a moment
+
+      // Show success message for a moment before collapsing the panel
       setTimeout(() => {
         setIsOpen(false);
         setLastImportCount(0);
@@ -51,19 +59,20 @@ Priority D: Clean garage
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="w-full btn-neon" data-size="lg"
+        className="w-full neon-action-button"
+        data-size="lg"
       >
         <Brain className="h-5 w-5" />
         <span className="flex flex-col items-start leading-tight">
           <span className="font-semibold tracking-wide">AI Task Import</span>
-          <span className="text-[10px] opacity-80 normal-case font-normal">🤖 Paste text, get organized tasks!</span>
+          <span className="text-[10px] opacity-80 normal-case font-normal">{aiNudgeTagline}</span>
         </span>
       </button>
     );
   }
 
   return (
-    <div className="panel-neon panel-neon-border animate-slide-up">
+    <div className="neon-hype-panel rainbow-crunch-border animate-slide-up">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
@@ -76,7 +85,7 @@ Priority D: Clean garage
         </div>
         <button
           onClick={() => setIsOpen(false)}
-          className="icon-btn-neon"
+          className="neon-icon-button"
           aria-label="Close AI import panel"
         >
           ✕
@@ -145,7 +154,8 @@ Priority D: Clean garage
           <button
             onClick={handleImport}
             disabled={isImporting || !importText.trim()}
-            className="btn-neon" data-size="sm"
+            className="neon-action-button"
+            data-size="sm"
           >
             {isImporting ? (
               <>
@@ -162,7 +172,9 @@ Priority D: Clean garage
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="btn-neon" data-variant="outline" data-size="sm"
+            className="neon-action-button"
+            data-variant="outline"
+            data-size="sm"
           >
             Cancel
           </button>

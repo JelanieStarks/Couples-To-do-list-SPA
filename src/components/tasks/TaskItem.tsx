@@ -1,3 +1,8 @@
+/**
+ * TaskItem
+ * Renders a single task card with completion controls, edit form, and optional modal editor.
+ * Operates in compact and full modes so calendar and lists share the same component.
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
@@ -134,22 +139,22 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   const renderEditFields = () => (
     <div className="space-y-5">
-      <div className="neon-field">
+      <div className="glow-field-stack">
         <label htmlFor={`edit-title-${task.id}`}>Task title</label>
-        <div className="neon-glow-ambient" />
+        <div className="glow-ambient-orb" />
         <input
           id={`edit-title-${task.id}`}
           type="text"
           value={editData.title}
           onChange={(e) => setEditData(prev => ({ ...prev, title: e.target.value }))}
-          className="neon-input"
+          className="glow-form-input"
           placeholder="Task title..."
         />
       </div>
 
-      <div className="neon-field">
+      <div className="glow-field-stack">
         <label htmlFor={`edit-desc-${task.id}`}>Description</label>
-        <div className="neon-glow-ambient" />
+        <div className="glow-ambient-orb" />
         <textarea
           id={`edit-desc-${task.id}`}
           value={editData.description}
@@ -161,26 +166,26 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="neon-field">
+        <div className="glow-field-stack">
           <label htmlFor={`edit-date-${task.id}`}>Date</label>
-          <div className="neon-glow-ambient" />
+          <div className="glow-ambient-orb" />
           <input
             type="date"
             id={`edit-date-${task.id}`}
             value={editData.scheduledDate}
             onChange={(e) => setEditData(prev => ({ ...prev, scheduledDate: e.target.value }))}
-            className="neon-input"
+            className="glow-form-input"
           />
         </div>
-        <div className="neon-field">
+        <div className="glow-field-stack">
           <label htmlFor={`edit-time-${task.id}`}>Time</label>
-          <div className="neon-glow-ambient" />
+          <div className="glow-ambient-orb" />
           <input
             type="time"
             id={`edit-time-${task.id}`}
             value={editData.scheduledTime}
             onChange={(e) => setEditData(prev => ({ ...prev, scheduledTime: e.target.value }))}
-            className="neon-input"
+            className="glow-form-input"
           />
         </div>
       </div>
@@ -213,11 +218,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   if (!editInModal && isEditing) {
     return (
-      <div className={`panel-neon panel-neon-border p-4 space-y-5 ${isDragging ? 'opacity-50' : ''}`}>
+  <div className={`neon-hype-panel rainbow-crunch-border p-4 space-y-5 ${isDragging ? 'opacity-50' : ''}`}>
         {renderEditFields()}
         <div className="flex flex-wrap justify-end gap-2">
-          <button onClick={handleCancelEdit} className="btn-neon" data-variant="outline" data-size="sm">Cancel</button>
-          <button onClick={handleSaveEdit} className="btn-neon disabled:opacity-60 disabled:cursor-not-allowed" data-size="sm" disabled={!canSave}>Save</button>
+          <button onClick={handleCancelEdit} className="neon-action-button" data-variant="outline" data-size="sm">Cancel</button>
+          <button onClick={handleSaveEdit} className="neon-action-button disabled:opacity-60 disabled:cursor-not-allowed" data-size="sm" disabled={!canSave}>Save</button>
         </div>
       </div>
     );
@@ -229,20 +234,20 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
     ? createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-8">
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={handleCancelEdit} role="presentation" />
-          <div className="relative w-full max-w-2xl panel-neon panel-neon-border overflow-hidden shadow-2xl" role="dialog" aria-modal="true" aria-label="Edit task">
+          <div className="relative w-full max-w-2xl neon-hype-panel rainbow-crunch-border overflow-hidden shadow-2xl" role="dialog" aria-modal="true" aria-label="Edit task">
             <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-700/60 bg-slate-900/40">
               <div>
                 <h3 className="text-sm font-semibold tracking-[0.2em] uppercase text-slate-200">Edit Task</h3>
                 <p className="text-[11px] text-slate-400">Tweak the details, update the schedule, stay on track.</p>
               </div>
-              <button className="icon-btn-neon" onClick={handleCancelEdit} aria-label="Close edit modal">✕</button>
+              <button className="neon-icon-button" onClick={handleCancelEdit} aria-label="Close edit modal">✕</button>
             </div>
             <div className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-5">
               {renderEditFields()}
             </div>
             <div className="flex flex-wrap justify-end gap-3 px-6 py-4 border-t border-slate-700/60 bg-slate-900/40">
-              <button onClick={handleCancelEdit} className="btn-neon" data-variant="outline" data-size="sm">Cancel</button>
-              <button onClick={handleSaveEdit} className="btn-neon disabled:opacity-60 disabled:cursor-not-allowed" data-size="sm" disabled={!canSave}>Save Changes</button>
+              <button onClick={handleCancelEdit} className="neon-action-button" data-variant="outline" data-size="sm">Cancel</button>
+              <button onClick={handleSaveEdit} className="neon-action-button disabled:opacity-60 disabled:cursor-not-allowed" data-size="sm" disabled={!canSave}>Save Changes</button>
             </div>
           </div>
         </div>,
@@ -253,14 +258,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   return (
     <>
       <div 
-        className={`group task-card-neon ${task.assignment === 'both' ? 'shared' : ''} ${task.completed ? 'opacity-60' : ''} ${isDragging ? 'opacity-40 scale-[0.98]' : ''} ${isOverdue ? 'ring-1 ring-rose-400 border-rose-400' : ''}`}
+        className={`group mission-card ${task.assignment === 'both' ? 'shared' : ''} ${task.completed ? 'opacity-60' : ''} ${isDragging ? 'opacity-40 scale-[0.98]' : ''} ${isOverdue ? 'ring-1 ring-rose-400 border-rose-400' : ''}`}
         data-task-id={task.id}
         data-overdue={isOverdue ? 'true' : 'false'}
         data-priority={task.priority}
         onClick={() => onTaskClick?.(task.id)}
       >
         {/* Left accent bar to improve visibility */}
-        <span className="task-accent" style={{ background: task.priority.startsWith('A') ? '#ef4444' : task.priority.startsWith('B') ? '#f59e0b' : task.priority.startsWith('C') ? '#eab308' : '#22c55e' }} aria-hidden />
+  <span className="mission-glow-bar" style={{ background: task.priority.startsWith('A') ? '#ef4444' : task.priority.startsWith('B') ? '#f59e0b' : task.priority.startsWith('C') ? '#eab308' : '#22c55e' }} aria-hidden />
         <div className="flex items-start gap-3">
         <button
           onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}

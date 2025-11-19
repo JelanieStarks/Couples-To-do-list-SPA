@@ -31,6 +31,7 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { TurboWeekFullCalendarModal } from './TurboWeekFullCalendarModal';
 
 // 📅 Turbo Week Tracker - Drag-and-drop neon pit lane
 type ViewMode = 'classic' | 'row';
@@ -44,6 +45,7 @@ export const TurboWeekTracker: React.FC = () => {
     return (settings.calendarView as ViewMode) || 'classic';
   });
   const [expandedDay, setExpandedDay] = useState<null | { date: Date; dateStr: string; dayName: string; tasks: Task[] }>(null);
+  const [fullCalendarOpen, setFullCalendarOpen] = useState(false);
 
   // Persist view mode
   useEffect(() => {
@@ -144,6 +146,15 @@ export const TurboWeekTracker: React.FC = () => {
 
           <TaskFilterMenu />
 
+          <button
+            type="button"
+            onClick={() => setFullCalendarOpen(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-slate-800/70 border border-slate-600 text-slate-200 hover:text-white hover:border-indigo-400 hover:shadow-md transition"
+            data-testid="open-fullcalendar"
+          >
+            <CalendarIcon className="h-4 w-4" /> Mega Calendar
+          </button>
+
           {/* View toggle */}
           <div className="hidden sm:flex items-center ml-2">
             <div className="inline-flex rounded-full border border-slate-600 overflow-hidden" role="group" aria-label="Change calendar view">
@@ -240,6 +251,8 @@ export const TurboWeekTracker: React.FC = () => {
           onClose={closeExpandedDay}
         />
       )}
+
+      <TurboWeekFullCalendarModal open={fullCalendarOpen} onClose={() => setFullCalendarOpen(false)} />
 
       {/* Jarvis Tips */}
       <div className="mt-6 p-4 rounded-lg bg-slate-800/60 border border-slate-700 text-xs text-slate-300 leading-relaxed">

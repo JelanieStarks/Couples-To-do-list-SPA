@@ -1,14 +1,14 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, render, fireEvent } from '@testing-library/react';
-import { WeeklyCalendar } from '../../calendar/WeeklyCalendar';
+import { TurboWeekTracker } from '../../calendar/TurboWeekTracker';
 import { AuthProvider } from '../../../contexts/AuthContext';
 import { TaskProvider } from '../../../contexts/TaskContext';
 import { toLocalDateString } from '../../../utils';
 
 // 🧪 Hover should NOT open quick-add anymore; only click does
 
-describe('WeeklyCalendar quick-add is click-only', () => {
+describe('TurboWeekTracker quick-add is click-only', () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -19,7 +19,7 @@ describe('WeeklyCalendar quick-add is click-only', () => {
     render(
       <AuthProvider initialUser={user}>
         <TaskProvider>
-          <WeeklyCalendar />
+          <TurboWeekTracker />
         </TaskProvider>
       </AuthProvider>
     );

@@ -24,7 +24,7 @@ export const DeletedTasks: React.FC = () => {
         </div>
         <button
           type="button"
-          className="btn-neon"
+          className="neon-action-button"
           data-variant="outline"
           data-size="sm"
           onClick={emptyTrash}
@@ -48,7 +48,7 @@ export const DeletedTasks: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className="btn-neon"
+                  className="neon-action-button"
                   data-size="sm"
                   onClick={() => restoreTask(t.id)}
                   data-testid={`restore-${t.id}`}
@@ -57,7 +57,7 @@ export const DeletedTasks: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  className="btn-neon"
+                  className="neon-action-button"
                   data-variant="destructive"
                   data-size="sm"
                   onClick={() => hardDeleteTask(t.id)}

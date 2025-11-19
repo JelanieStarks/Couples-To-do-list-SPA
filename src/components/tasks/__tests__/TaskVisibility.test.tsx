@@ -35,7 +35,7 @@ describe('Task visibility styling', () => {
 
     const el = screen.getByText(/p a1/i).closest('[data-task-id]') as HTMLElement;
     expect(el).toHaveAttribute('data-priority', 'A1');
-    const accent = el.querySelector('.task-accent');
+  const accent = el.querySelector('.mission-glow-bar');
     expect(accent).toBeTruthy();
   });
 });

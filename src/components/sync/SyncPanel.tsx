@@ -1,3 +1,8 @@
+/**
+ * SyncPanel
+ * What: controls peer-to-peer sync sessions with QR codes, codes, and LAN options.
+ * How: drop inside quick-action cards to let couples host or join a session in seconds.
+ */
 import React, { useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import { Copy, Check, RadioTower, Power, Wifi, Link2, Loader2, RefreshCw } from 'lucide-react';
@@ -38,7 +43,7 @@ const useQrCode = (value: string | null) => {
     }
     let active = true;
     QRCode.toDataURL(value, { margin: 1, scale: 4, errorCorrectionLevel: 'M' })
-      .then((url) => {
+      .then((url: string) => {
         if (active) setDataUrl(url);
       })
       .catch(() => {
@@ -147,7 +152,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
   const showAnswerInput = status.role === 'host' && status.expectedRemote === 'answer';
   const showLocalSignal = !!localSignalValue;
 
-  const showLanHint = lan.enabled && lan.status === 'connected' && status.role !== 'connected';
+  const showLanHint = lan.enabled && lan.status === 'connected' && status.state !== 'connected';
 
   return (
     <div className={containerClass}>
@@ -181,8 +186,8 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
             {status.lastError && <div>{status.lastError}</div>}
             {lan.lastError && <div>{lan.lastError}</div>}
             <div className="mt-2 flex gap-2">
-              <button className="btn-neon" data-size="xs" onClick={resetError}>Clear notice</button>
-              <button className="btn-neon" data-size="xs" data-variant="outline" onClick={() => syncNow()}>Refresh tasks</button>
+              <button className="neon-action-button" data-size="xs" onClick={resetError}>Clear notice</button>
+              <button className="neon-action-button" data-size="xs" data-variant="outline" onClick={() => syncNow()}>Refresh tasks</button>
             </div>
           </div>
         </div>
@@ -192,7 +197,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-900">Host a session</h4>
-            <button className="btn-neon" data-size="sm" onClick={onStartHosting}>
+            <button className="neon-action-button" data-size="sm" onClick={onStartHosting}>
               <Power className="h-4 w-4" />
               {status.role === 'host' ? 'Restart Hosting' : 'Start Hosting'}
             </button>
@@ -208,11 +213,11 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
                 {localSignalValue}
               </div>
               <div className="flex items-center gap-2">
-                <button className="btn-neon" data-size="sm" onClick={handleCopySignal}>
+                <button className="neon-action-button" data-size="sm" onClick={handleCopySignal}>
                   <Copy className="h-4 w-4" /> {copied ? 'Copied!' : 'Copy code'}
                 </button>
                 {qrCode && (
-                  <a className="btn-neon" data-size="sm" data-variant="soft" href={qrCode} download="couples-sync-host.png">
+                  <a className="neon-action-button" data-size="sm" data-variant="soft" href={qrCode} download="couples-sync-host.png">
                     Download QR
                   </a>
                 )}
@@ -235,7 +240,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
                   placeholder="Paste answer code here"
                   className="flex-1 min-h-[80px] text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500"
                 />
-                <button className="btn-neon" data-size="sm" onClick={onSubmitAnswer} disabled={!answerInput.trim()}>
+                <button className="neon-action-button" data-size="sm" onClick={onSubmitAnswer} disabled={!answerInput.trim()}>
                   <RefreshCw className="h-4 w-4" /> Apply
                 </button>
               </div>
@@ -243,7 +248,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
           )}
 
           {status.role === 'host' && (
-            <button className="btn-neon" data-variant="outline" data-size="sm" onClick={endSession}>
+            <button className="neon-action-button" data-variant="outline" data-size="sm" onClick={endSession}>
               End Hosting
             </button>
           )}
@@ -252,7 +257,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-900">Join a session</h4>
-            <button className="btn-neon" data-size="sm" data-variant="soft" onClick={() => joinSession(undefined, { enableLan: lan.enabled })}>
+            <button className="neon-action-button" data-size="sm" data-variant="soft" onClick={() => joinSession(undefined, { enableLan: lan.enabled })}>
               <Loader2 className="h-4 w-4" /> Listen on LAN
             </button>
           </div>
@@ -269,7 +274,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
                 placeholder="Paste host code here"
                 className="flex-1 min-h-[80px] text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500"
               />
-              <button className="btn-neon" data-size="sm" onClick={onJoinWithCode} disabled={!hostCodeInput.trim()}>
+              <button className="neon-action-button" data-size="sm" onClick={onJoinWithCode} disabled={!hostCodeInput.trim()}>
                 Join
               </button>
             </div>
@@ -282,11 +287,11 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
                 {localSignalValue}
               </div>
               <div className="flex items-center gap-2">
-                <button className="btn-neon" data-size="sm" onClick={handleCopySignal}>
+                <button className="neon-action-button" data-size="sm" onClick={handleCopySignal}>
                   <Copy className="h-4 w-4" /> {copied ? 'Copied!' : 'Copy reply'}
                 </button>
                 {qrCode && (
-                  <a className="btn-neon" data-size="sm" data-variant="soft" href={qrCode} download="couples-sync-guest.png">
+                  <a className="neon-action-button" data-size="sm" data-variant="soft" href={qrCode} download="couples-sync-guest.png">
                     Download QR
                   </a>
                 )}
@@ -300,7 +305,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
           )}
 
           {status.role === 'guest' && (
-            <button className="btn-neon" data-variant="outline" data-size="sm" onClick={endSession}>
+            <button className="neon-action-button" data-variant="outline" data-size="sm" onClick={endSession}>
               Leave Session
             </button>
           )}
@@ -310,7 +315,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
       <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
         <div className="flex items-center gap-2">
           <button
-            className={`btn-neon ${lan.enabled ? '' : '!bg-gray-100 !text-gray-600 !border-gray-200'}`}
+            className={`neon-action-button ${lan.enabled ? '' : '!bg-gray-100 !text-gray-600 !border-gray-200'}`}
             data-size="sm"
             onClick={toggleLan}
             disabled={!lanAvailable}
@@ -319,7 +324,7 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
             {lan.enabled ? 'Disable LAN Auto' : 'Enable LAN Auto'}
           </button>
           {lanAvailable && (
-            <button className="btn-neon" data-size="sm" data-variant="soft" onClick={handleCopyLanUrl}>
+            <button className="neon-action-button" data-size="sm" data-variant="soft" onClick={handleCopyLanUrl}>
               <Copy className="h-4 w-4" />
               {lanCopied ? 'URL copied!' : 'Copy LAN URL'}
             </button>

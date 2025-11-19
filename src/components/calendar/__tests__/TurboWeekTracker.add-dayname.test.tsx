@@ -1,14 +1,14 @@
 import React from 'react';
-import { describe, it, beforeEach, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, fireEvent, render } from '@testing-library/react';
-import { WeeklyCalendar } from '../../calendar/WeeklyCalendar';
+import { TurboWeekTracker } from '../../calendar/TurboWeekTracker';
 import { AuthProvider } from '../../../contexts/AuthContext';
 import { TaskProvider } from '../../../contexts/TaskContext';
 import { toLocalDateString } from '../../../utils';
 
 // 🧪 Clicking weekday name opens quick-add and creates a task
 
-describe('WeeklyCalendar quick-add by weekday name click', () => {
+describe('TurboWeekTracker quick-add by weekday name click', () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -19,7 +19,7 @@ describe('WeeklyCalendar quick-add by weekday name click', () => {
     render(
       <AuthProvider initialUser={user}>
         <TaskProvider>
-          <WeeklyCalendar />
+          <TurboWeekTracker />
         </TaskProvider>
       </AuthProvider>
     );

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import React from 'react';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 import { TodaysTasks } from '../TodaysTasks';
-import { WeeklyCalendar } from '../../calendar/WeeklyCalendar';
+import { TurboWeekTracker } from '../../calendar/TurboWeekTracker';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { storage, STORAGE_KEYS, toLocalDateString } from '../../../utils';
@@ -53,9 +53,9 @@ describe('TaskFilterMenu', () => {
     expect(screen.queryByText('Plan trip')).not.toBeInTheDocument();
   });
 
-  it('applies filter in WeeklyCalendar day columns', async () => {
+  it('applies filter in TurboWeekTracker day columns', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<WeeklyCalendar />);
+    renderWithProviders(<TurboWeekTracker />);
 
     // Open filter and select priority A
   await user.click(screen.getByTestId('filter-button'));

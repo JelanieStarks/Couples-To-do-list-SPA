@@ -1,14 +1,14 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, fireEvent, render } from '@testing-library/react';
-import { WeeklyCalendar } from '../../calendar/WeeklyCalendar';
+import { TurboWeekTracker } from '../../calendar/TurboWeekTracker';
 import { AuthProvider } from '../../../contexts/AuthContext';
 import { TaskProvider } from '../../../contexts/TaskContext';
 import { toLocalDateString } from '../../../utils';
 
 // 🧪 Clicking a date number opens quick-add and creates a task on that date
 
-describe('WeeklyCalendar quick-add by date click', () => {
+describe('TurboWeekTracker quick-add by date click', () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -20,12 +20,12 @@ describe('WeeklyCalendar quick-add by date click', () => {
     const ui = (
       <AuthProvider initialUser={user}>
         <TaskProvider>
-          <WeeklyCalendar />
+          <TurboWeekTracker />
         </TaskProvider>
       </AuthProvider>
     );
     
-    const { container } = render(ui);
+  render(ui);
 
     const today = new Date();
     const dateStr = toLocalDateString(today);
@@ -41,8 +41,8 @@ describe('WeeklyCalendar quick-add by date click', () => {
 
     // Type and add
     fireEvent.change(input, { target: { value: 'Quick Task' } });
-  const addBtn = screen.getByTestId(`quick-add-submit-${dateStr}`);
-  fireEvent.click(addBtn);
+    const addBtn = screen.getByTestId(`quick-add-submit-${dateStr}`);
+    fireEvent.click(addBtn);
 
     // Task should now be rendered in the grid
     expect(await screen.findByText(/quick task/i)).toBeInTheDocument();

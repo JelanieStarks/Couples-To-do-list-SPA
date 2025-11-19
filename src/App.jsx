@@ -1,11 +1,11 @@
 import React from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TaskProvider } from './contexts/TaskContext';
-import { LoginPage } from './components/auth/LoginPage';
+import { DbzHeartLoginGate } from './components/auth/DbzHeartLoginGate';
 import { Layout } from './components/ui/Layout';
 import { TaskForm } from './components/tasks/TaskForm';
 import { TodaysTasks } from './components/tasks/TodaysTasks';
-import { WeeklyCalendar } from './components/calendar/WeeklyCalendar';
+import { TurboWeekTracker } from './components/calendar/TurboWeekTracker';
 // Feature components are now rendered inside TopNav cards, not directly here.
 
 // 🚀 Main App Component - Where the magic happens
@@ -23,7 +23,7 @@ function AppContent() {
       </div>
     );
   } else if (!isAuthenticated) {
-    content = <LoginPage />;
+    content = <DbzHeartLoginGate />;
   } else {
     content = (
       <div className="space-y-8">
@@ -43,8 +43,8 @@ function AppContent() {
           <TodaysTasks />
         </div>
 
-        {/* Weekly Planner */}
-        <WeeklyCalendar />
+        {/* Turbo Week Tracker */}
+        <TurboWeekTracker />
       </div>
     );
   }

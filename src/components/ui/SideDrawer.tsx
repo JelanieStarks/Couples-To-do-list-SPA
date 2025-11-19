@@ -1,15 +1,29 @@
+/**
+ * SideDrawer
+ * Slide-out hub for completed tasks, trash, partner linking, sync status, and advanced settings.
+ * Supports drawer and full-screen variants with the same neon treatment.
+ */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
 import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDays, User2, Brain, Settings, ChevronDown, RadioTower } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import ExportTasks from '../tasks/ExportTasks';
-import { PartnerManager } from '../auth/PartnerManager';
+import { BuddyLinkGarage } from '../auth/BuddyLinkGarage';
 import { SyncPanel } from '../sync/SyncPanel';
 import { AIImport } from '../tasks/AIImport';
 import { STORAGE_KEYS, storage } from '../../utils';
+import { emitSettingsEvent } from '../../utils/settings';
 import { checkForUpdates } from '../../utils/updates';
 import pkg from '../../../package.json';
+
+const readSettings = () => {
+  try {
+    return storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
+  } catch {
+    return {};
+  }
+};
 
 interface SideDrawerProps {
   open: boolean;
@@ -67,14 +81,21 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
     }
   };
 
+  const initialSettings = React.useMemo(() => readSettings(), []);
   const [textScale, setTextScale] = useState<number>(() => {
-    try {
-      const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
-      return typeof settings.textScale === 'number' ? settings.textScale : 1;
-    } catch {
-      return 1;
-    }
+    const saved = initialSettings.textScale;
+    return typeof saved === 'number' ? saved : 1;
   });
+  const [googleEmbedEnabled, setGoogleEmbedEnabled] = useState<boolean>(() => Boolean(initialSettings.googleCalendar?.enabled));
+  const [googleEmbedUrl, setGoogleEmbedUrl] = useState<string>(() => (initialSettings.googleCalendar?.embedUrl as string | undefined) || '');
+  const [googleSavedFlash, setGoogleSavedFlash] = useState<'idle' | 'saved'>('idle');
+  const googleSaveTimeoutRef = useRef<number | null>(null);
+
+  const persistSettings = useCallback((mutator: (prev: Record<string, any>) => Record<string, any>) => {
+    const next = mutator(readSettings());
+    storage.set(STORAGE_KEYS.SETTINGS, next);
+    emitSettingsEvent();
+  }, []);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -82,13 +103,54 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
     }
   }, [textScale]);
 
+  useEffect(() => {
+    return () => {
+      if (googleSaveTimeoutRef.current) {
+        window.clearTimeout(googleSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const applyTextScale = useCallback((v: number) => {
     setTextScale(v);
-    try {
-      const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
-      storage.set(STORAGE_KEYS.SETTINGS, { ...settings, textScale: v });
-    } catch {}
-  }, []);
+    persistSettings(prev => ({ ...prev, textScale: v }));
+  }, [persistSettings]);
+
+  const toggleGoogleEmbed = useCallback(() => {
+    setGoogleEmbedEnabled(prev => {
+      const next = !prev;
+      const trimmed = googleEmbedUrl.trim();
+      persistSettings(prevSettings => {
+        const currentUrl = (prevSettings.googleCalendar?.embedUrl as string | undefined) || trimmed || undefined;
+        return {
+          ...prevSettings,
+          googleCalendar: {
+            ...(prevSettings.googleCalendar || {}),
+            enabled: next,
+            embedUrl: currentUrl,
+          },
+        };
+      });
+      return next;
+    });
+    setGoogleSavedFlash('idle');
+  }, [persistSettings, googleEmbedUrl]);
+
+  const saveGoogleEmbedUrl = useCallback(() => {
+    const trimmed = googleEmbedUrl.trim();
+    setGoogleEmbedUrl(trimmed);
+    persistSettings(prev => ({
+      ...prev,
+      googleCalendar: {
+        ...(prev.googleCalendar || {}),
+        enabled: googleEmbedEnabled,
+        embedUrl: trimmed || undefined,
+      },
+    }));
+    setGoogleSavedFlash('saved');
+    if (googleSaveTimeoutRef.current) window.clearTimeout(googleSaveTimeoutRef.current);
+    googleSaveTimeoutRef.current = window.setTimeout(() => setGoogleSavedFlash('idle'), 1500);
+  }, [googleEmbedUrl, googleEmbedEnabled, persistSettings]);
 
   const [updateStatus, setUpdateStatus] = useState<{
     loading: boolean;
@@ -216,7 +278,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           'transform transition-transform duration-500 ease-[cubic-bezier(.18,.89,.32,1.05)] flex flex-col rounded-none shadow-2xl',
           variant === 'full'
             ? `${open ? 'translate-x-0' : '-translate-x-full'} fixed inset-0 w-screen h-screen bg-slate-900 text-slate-100`
-            : `${open ? 'translate-x-0' : '-translate-x-full'} absolute top-0 left-0 h-full w-full max-w-none md:max-w-[720px] lg:max-w-[880px] xl:max-w-[1040px] panel-neon panel-neon-border !border-slate-700/60 overflow-hidden`
+            : `${open ? 'translate-x-0' : '-translate-x-full'} absolute top-0 left-0 h-full w-full max-w-none md:max-w-[720px] lg:max-w-[880px] xl:max-w-[1040px] neon-hype-panel rainbow-crunch-border !border-slate-700/60 overflow-hidden`
         ].join(' ')}
         role="dialog"
         aria-modal="true"
@@ -251,7 +313,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
         )}
         <div className={`flex items-center justify-between mb-4 pb-2 border-b border-slate-700/60 ${variant === 'full' ? 'px-3' : 'px-1'}`} data-testid="drawer-header" data-tag="drawer-header">
           <h2 className="text-sm font-semibold tracking-wider text-slate-200 uppercase">Menu</h2>
-          <button className="icon-btn-neon" onClick={onClose} aria-label="Close drawer">✕</button>
+          <button className="neon-icon-button" onClick={onClose} aria-label="Close drawer">✕</button>
         </div>
 
         {/* Scrollable content area */}
@@ -307,7 +369,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
             <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-2">
               <h3 className="text-sm font-semibold text-slate-200 mb-2">Partner & Colors</h3>
               <div className="bg-white rounded-lg">
-                <PartnerManager />
+                <BuddyLinkGarage />
               </div>
             </div>
           </section>
@@ -326,7 +388,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
             <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-3">
               <h3 className="text-sm font-semibold text-slate-200 mb-3">Settings</h3>
               <div className="space-y-5">
-                <div className="panel-neon panel-neon-border p-4 space-y-4">
+                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
                       <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Text Size</div>
@@ -336,7 +398,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                       {[{ label: 'S', v: 0.9 }, { label: 'D', v: 1 }, { label: 'L', v: 1.1 }, { label: 'XL', v: 1.2 }].map(({ label, v }) => (
                         <button
                           key={label}
-                          className="btn-neon"
+                          className="neon-action-button"
                           data-size="sm"
                           data-variant="soft"
                           onClick={() => applyTextScale(v)}
@@ -362,7 +424,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                   </div>
                 </div>
 
-                <div className="panel-neon panel-neon-border p-4 space-y-3">
+                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-3">
                   <div className="flex items-center justify-between flex-wrap gap-3">
                     <div>
                       <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Updates</div>
@@ -370,7 +432,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                     </div>
                     <div className="btn-row">
                       <button
-                        className="btn-neon"
+                        className="neon-action-button"
                         data-size="sm"
                         onClick={doCheckUpdates}
                         disabled={updateStatus.loading}
@@ -394,18 +456,18 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {updateStatus.windowsExeUrl && (
-                          <a className="btn-neon" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">
+                          {updateStatus.windowsExeUrl && (
+                          <a className="neon-action-button" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">
                             Download Windows (.exe)
                           </a>
                         )}
-                        {updateStatus.androidApkUrl && (
-                          <a className="btn-neon" data-variant="outline" data-size="sm" href={updateStatus.androidApkUrl} target="_blank" rel="noreferrer">
+                          {updateStatus.androidApkUrl && (
+                          <a className="neon-action-button" data-variant="outline" data-size="sm" href={updateStatus.androidApkUrl} target="_blank" rel="noreferrer">
                             Download Android (.apk)
                           </a>
                         )}
-                        {updateStatus.releaseUrl && !updateStatus.windowsExeUrl && !updateStatus.androidApkUrl && (
-                          <a className="btn-neon" data-variant="soft" data-size="sm" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">
+                          {updateStatus.releaseUrl && !updateStatus.windowsExeUrl && !updateStatus.androidApkUrl && (
+                          <a className="neon-action-button" data-variant="soft" data-size="sm" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">
                             View Release
                           </a>
                         )}
@@ -414,11 +476,60 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                   )}
                 </div>
 
-                <div className="panel-neon panel-neon-border p-4 space-y-3">
+                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Google Calendar Embed</div>
+                      <div className="text-[10px] text-slate-500">Show your Google events next to the mega planner.</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="neon-action-button"
+                      data-size="sm"
+                      data-variant={googleEmbedEnabled ? undefined : 'outline'}
+                      onClick={toggleGoogleEmbed}
+                      data-testid="drawer-google-toggle"
+                    >
+                      {googleEmbedEnabled ? 'Disable' : 'Enable'}
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-400">Embed URL</label>
+                      <input
+                        type="url"
+                        className="glow-form-input mt-1"
+                        placeholder="https://calendar.google.com/calendar/embed?..."
+                        value={googleEmbedUrl}
+                        onChange={(e) => setGoogleEmbedUrl(e.target.value)}
+                        disabled={!googleEmbedEnabled}
+                        data-testid="drawer-google-url"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] text-slate-500">Grab the public embed link from Google Calendar → Settings › Integrate calendar.</p>
+                      <div className="flex items-center gap-2">
+                        {googleSavedFlash === 'saved' && <span className="text-[10px] text-emerald-300" data-testid="drawer-google-saved">Saved!</span>}
+                        <button
+                          type="button"
+                          className="neon-action-button"
+                          data-size="sm"
+                          onClick={saveGoogleEmbedUrl}
+                          disabled={!googleEmbedEnabled}
+                          data-testid="drawer-google-save"
+                        >
+                          Save Link
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-3">
                   <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Danger Zone</div>
                   <p className="text-[11px] text-slate-400">Clear all locally stored data, including partner links and tasks.</p>
                   <button
-                    className="btn-neon"
+                    className="neon-action-button"
                     data-variant="outline"
                     data-size="sm"
                     onClick={() => {
@@ -442,7 +553,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           <div className={`mb-6 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
             <button
               onClick={() => setShowCompleted(v => !v)}
-              className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
+              className="w-full flex items-center justify-between text-left mb-2 neon-action-button group" data-variant="soft" data-size="sm"
               aria-expanded={showCompleted}
               data-testid="toggle-completed"
             >
@@ -467,7 +578,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => toggleTaskComplete(task.id)}
-                          className="icon-btn-neon" aria-label="Mark incomplete"
+                          className="neon-icon-button" aria-label="Mark incomplete"
                           title="Mark incomplete"
                         >↺</button>
                       </div>
@@ -482,7 +593,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           <div className={`mb-2 ${variant === 'full' ? 'px-3' : 'px-1'}`}>
             <button
               onClick={() => setShowDeleted(v => !v)}
-              className="w-full flex items-center justify-between text-left mb-2 btn-neon group" data-variant="soft" data-size="sm"
+              className="w-full flex items-center justify-between text-left mb-2 neon-action-button group" data-variant="soft" data-size="sm"
               aria-expanded={showDeleted}
               data-testid="toggle-deleted"
             >
@@ -507,12 +618,12 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => restoreTask(task.id)}
-                          className="icon-btn-neon" aria-label="Restore task"
+                          className="neon-icon-button" aria-label="Restore task"
                           title="Restore"
                         ><RotateCcw className="h-4 w-4" /></button>
                         <button
                           onClick={() => { if (confirm('Permanently delete this task? This cannot be undone.')) hardDeleteTask(task.id); }}
-                          className="icon-btn-neon" aria-label="Permanently delete task" title="Delete forever"
+                          className="neon-icon-button" aria-label="Permanently delete task" title="Delete forever"
                         ><XCircle className="h-4 w-4 text-rose-400" /></button>
                       </div>
                     </div>
@@ -521,7 +632,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                 {deleted.length > 0 && (
                   <button
                     onClick={() => { if (confirm('Empty trash? This permanently deletes all trashed tasks.')) { deleted.forEach((t:any)=> hardDeleteTask(t.id)); } }}
-                    className="w-full mt-2 btn-neon" data-variant="outline" data-size="xs"
+                    className="w-full mt-2 neon-action-button" data-variant="outline" data-size="xs"
                     data-testid="empty-trash"
                   >🗑️ Empty Trash</button>
                 )}
