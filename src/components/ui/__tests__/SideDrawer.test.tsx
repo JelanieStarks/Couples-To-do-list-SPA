@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TaskProvider } from '../../../contexts/TaskContext';
 import { SideDrawer } from '../SideDrawer';
+import { STORAGE_KEYS } from '../../../utils';
 
 // Minimal AuthContext mock to satisfy useAuth
 const AuthContext = React.createContext<any>(null);
@@ -66,5 +67,16 @@ describe('SideDrawer', () => {
     setup(true);
     // Initially absent
     expect(screen.queryByTestId('empty-trash')).toBeNull();
+  });
+
+  it('keeps Google features optional by default', () => {
+    setup(true);
+    // Embed toggle defaults to off but present
+    const toggle = screen.getByTestId('drawer-google-toggle');
+    expect(toggle).toBeTruthy();
+    expect(toggle.textContent?.toLowerCase()).toContain('enable');
+    // Connect section shows stub status without requiring auth
+    const status = screen.getByTestId('drawer-google-status');
+    expect(status.textContent?.toLowerCase()).toContain('not connected');
   });
 });

@@ -262,11 +262,12 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
         data-task-id={task.id}
         data-overdue={isOverdue ? 'true' : 'false'}
         data-priority={task.priority}
+        data-compact={compact ? 'true' : 'false'}
         onClick={() => onTaskClick?.(task.id)}
       >
         {/* Left accent bar to improve visibility */}
   <span className="mission-glow-bar" style={{ background: task.priority.startsWith('A') ? '#ef4444' : task.priority.startsWith('B') ? '#f59e0b' : task.priority.startsWith('C') ? '#eab308' : '#22c55e' }} aria-hidden />
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 task-title-row">
         <button
           onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
           aria-label={task.completed ? 'Mark task incomplete' : 'Mark task complete'}
@@ -305,7 +306,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
           </div>
 
           {(!compact || forceActions) && (
-            <div className="flex flex-col gap-3 mt-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="task-meta-row flex flex-col gap-3 mt-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-400">
                 <div className="flex items-center space-x-1">
                   <span>{assignmentInfo.icon}</span>

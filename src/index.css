@@ -194,11 +194,52 @@
   .track-day-box {
     display: flex;
     flex-direction: column;
+    gap: 0.35rem;
     border-radius: var(--radius-card);
     background: var(--color-surface-800);
     border: 1px solid var(--color-border);
     transition: border-color 250ms ease, box-shadow 250ms ease;
     overflow: hidden;
+    padding: 0.3rem 0.35rem 0.6rem;
+  }
+
+  .turbo-week-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 0.15rem;
+  }
+
+  .turbo-week-cell {
+    height: 100%;
+  }
+
+  .turbo-week-cell .track-day-box {
+    height: 100%;
+  }
+
+  @media (min-width: 640px) {
+    .turbo-week-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 900px) {
+    .turbo-week-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .turbo-week-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .turbo-week-grid {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
   }
 
   .track-day-box:hover {
@@ -216,25 +257,90 @@
   }
 
   .day-label-strip {
-    padding: 0.6rem 0.75rem;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.7rem 0.8rem;
     font-weight: 600;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     color: var(--color-text);
-    letter-spacing: 0.06em;
-    background: rgba(15, 23, 42, 0.65);
+    background: linear-gradient(90deg, rgba(15,23,42,0.75), rgba(30,41,59,0.55));
     backdrop-filter: blur(12px);
     border-bottom: 1px solid rgba(148, 163, 184, 0.25);
   }
 
+  .day-name-button {
+    padding: 0;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .day-name-button:hover,
+  .day-name-button:focus-visible {
+    color: #a5b4fc;
+  }
+
+  .day-date-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: #cbd5e1;
+    background: rgba(148, 163, 184, 0.15);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+  }
+
+  .day-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #dbeafe;
+    font-weight: 600;
+  }
+
+  .day-count-badge.done {
+    background: rgba(52, 211, 153, 0.12);
+    border-color: rgba(52, 211, 153, 0.35);
+    color: #bbf7d0;
+  }
+
+  .day-quick-add {
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #e0e7ff;
+    background: linear-gradient(120deg, rgba(99,102,241,0.35), rgba(236,72,153,0.35));
+    border: 1px solid rgba(99, 102, 241, 0.45);
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+
+  .day-quick-add:hover,
+  .day-quick-add:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.25);
+  }
+
   .task-lane-scroll {
-    padding: 0.75rem;
+    padding: 0.55rem 0.8rem 0.8rem;
     flex: 1;
     overflow-y: auto;
   }
 
   .task-lane-scroll > * + * {
-    margin-top: 0.65rem;
+    margin-top: 0.5rem;
   }
 
   .mission-card {
@@ -249,6 +355,40 @@
   .mission-card:hover {
     border-color: var(--color-border-strong);
     box-shadow: var(--shadow-glow);
+  }
+
+  .mission-card[data-compact="true"] {
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.85rem;
+    background: rgba(15, 23, 42, 0.74);
+  }
+
+  .mission-card[data-compact="true"] h3 {
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  .mission-card[data-compact="true"] .task-title-row {
+    gap: 0.65rem;
+  }
+
+  .mission-card[data-compact="true"] .task-priority-badge {
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #e2e8f0;
+  }
+
+  .mission-card[data-compact="true"] .task-meta-row {
+    font-size: 0.72rem;
+    color: #cbd5e1;
+    gap: 0.5rem;
+  }
+
+  .mission-card[data-compact="true"] .task-meta-row svg {
+    height: 0.9rem;
+    width: 0.9rem;
   }
 
   .mission-card[data-priority^="A"] {

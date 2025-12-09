@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import inject from '@rollup/plugin-inject';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const resolve = (p) => path.resolve(__dirname, p);
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
@@ -13,7 +18,11 @@ export default defineConfig(({ command }) => ({
       events: 'events',
       process: 'process/browser',
       stream: 'stream-browserify',
-      util: 'util'
+      util: 'util',
+      // Stub FullCalendar CSS imports for Vitest/node resolution
+      '@fullcalendar/core/index.css': resolve('src/styles/fullcalendar-stubs.css'),
+      '@fullcalendar/daygrid/index.css': resolve('src/styles/fullcalendar-stubs.css'),
+      '@fullcalendar/timegrid/index.css': resolve('src/styles/fullcalendar-stubs.css'),
     }
   },
   define: {

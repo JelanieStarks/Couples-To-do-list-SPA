@@ -45,10 +45,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-  <div className="min-h-screen flex flex-col items-center bg-transparent">
-      {/* Fixed App Header (contains hamburger + app title + user block) */}
-      <header className="fixed top-0 left-0 right-0 z-[60] w-full flex justify-center" data-tag="app-header">
-        {/* Corner controls: hamburger fixed at top-left; user block mirrors at top-right */}
+  <div className="min-h-screen flex flex-col items-center bg-transparent pt-14 sm:pt-16">
+      {/* App Header (scrolls with content; only hamburger stays fixed) */}
+      <header className="w-full flex justify-center px-4 sm:px-6" data-tag="app-header">
+        {/* Corner control: hamburger fixed at top-left */}
         <button
           onClick={toggleDrawer}
           className="neon-icon-button fixed z-[65]"
@@ -62,49 +62,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         >
           <Menu className="h-5 w-5 sm:h-5 sm:w-5" />
         </button>
-        {/* Floating user block at top-right (mirrors hamburger placement) */}
-        <div
-          className="fixed z-[65] pointer-events-auto"
-          style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-            right: 'calc(env(safe-area-inset-right, 0px) + 12px)'
-          }}
-          data-tag="user-block-floating"
-        >
-          <div className="flex items-center space-x-3" data-tag="user-block">
-            <div className="text-right" data-tag="user-identifiers">
-              <p className="text-sm font-medium text-slate-100">{user?.name}</p>
-              <p className="text-[10px] text-slate-500 flex items-center gap-2">
-                Code: <span className="font-mono bg-slate-800 px-1 rounded border border-slate-600">{user?.inviteCode}</span>
-                <button
-                  type="button"
-                  onClick={copyInvite}
-                  className="px-2 py-[2px] rounded border border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white transition"
-                  title="Copy invite code"
-                  data-testid="copy-invite"
-                >Copy</button>
-                <button
-                  type="button"
-                  onClick={handleSync}
-                  className={`px-2 py-[2px] rounded border transition ${syncFlash === 'ok' ? 'border-emerald-500 text-emerald-300' : 'border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white'}`}
-                  title="Sync now"
-                  data-testid="sync-now"
-                >Sync</button>
-                {copied && <span className="text-emerald-400">Copied!</span>}
-              </p>
-            </div>
-            <button
-              onClick={logout}
-              className="neon-icon-button"
-              title="Logout"
-              data-tag="logout-button"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        <div className="w-full max-w-[80vw] px-4 sm:px-6">
-          <div className="flex justify-between items-center h-16">
+        <div className="w-full max-w-[80vw]">
+          <div className="flex justify-between items-start gap-3 sm:items-center h-auto sm:h-16 pt-2">
             {/* Left: App identity (hamburger moved to absolute rail) */}
             <div className="flex items-center space-x-3" data-tag="header-left">
               <div className="hidden sm:block">
@@ -127,14 +86,41 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </span>
                 </div>
               )}
-              <div className="hidden" data-tag="user-block" />
+              <div className="flex items-center space-x-3" data-tag="user-block-inline">
+                <div className="text-right" data-tag="user-identifiers">
+                  <p className="text-sm font-medium text-slate-100 leading-tight">{user?.name}</p>
+                  <p className="text-[10px] text-slate-500 flex items-center gap-2 flex-wrap">
+                    Code: <span className="font-mono bg-slate-800 px-1 rounded border border-slate-600">{user?.inviteCode}</span>
+                    <button
+                      type="button"
+                      onClick={copyInvite}
+                      className="px-2 py-[2px] rounded border border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white transition"
+                      title="Copy invite code"
+                      data-testid="copy-invite"
+                    >Copy</button>
+                    <button
+                      type="button"
+                      onClick={handleSync}
+                      className={`px-2 py-[2px] rounded border transition ${syncFlash === 'ok' ? 'border-emerald-500 text-emerald-300' : 'border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white'}`}
+                      title="Sync now"
+                      data-testid="sync-now"
+                    >Sync</button>
+                    {copied && <span className="text-emerald-400">Copied!</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={logout}
+                  className="neon-icon-button"
+                  title="Logout"
+                  data-tag="logout-button"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
-
-  {/* Spacer to offset fixed header height (16 = 64px) plus a tiny buffer for corner buttons on very small screens */}
-  <div className="h-16 sm:h-16 w-full" aria-hidden="true" style={{ paddingTop: '4px' }} />
 
       {/* Main Content */}
       <main ref={mainRef} className="w-full flex justify-center py-8 px-4 sm:px-6">

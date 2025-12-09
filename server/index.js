@@ -12,6 +12,10 @@ app.use(express.json({ limit: '1mb' }));
 
 // roomId -> { tasks: Task[], updatedAt: number }
 const rooms = new Map();
+// in-memory Google tokens keyed by userId (dev only)
+const googleTokens = new Map();
+
+const hasEnv = (key) => Boolean((globalThis?.process?.env || {})[key]);
 
 app.get('/v1/rooms/:roomId/tasks', (req, res) => {
   const { roomId } = req.params;
@@ -38,6 +42,53 @@ app.put('/v1/rooms/:roomId/tasks', (req, res) => {
     }
   }
   res.json({ ok: true });
+});
+
+// Google OAuth scaffolding (stubbed: no tokens stored). This keeps the client flow stable while real storage is wired.
+app.post('/v1/google/oauth/init', (_req, res) => {
+  const clientId = (globalThis?.process?.env || {}).GOOGLE_CLIENT_ID || 'STUB_GOOGLE_CLIENT_ID';
+  const redirectUri = (globalThis?.process?.env || {}).GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/callback';
+  const scope = 'https://www.googleapis.com/auth/calendar.events';
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    access_type: 'offline',
+    prompt: 'consent',
+    scope,
+    state: 'couples-google-stub',
+    code_challenge: 'stub-challenge',
+    code_challenge_method: 'S256',
+  });
+  res.json({
+    authUrl: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+    note: hasEnv('GOOGLE_CLIENT_ID') ? 'env detected, replace stub exchange' : 'stub endpoint — no external call performed',
+  });
+});
+
+app.post('/v1/google/oauth/callback', (req, res) => {
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ error: 'missing code' });
+  res.json({
+    ok: true,
+    accessToken: 'stub-access',
+    refreshToken: 'stub-refresh',
+    expiresAt: Date.now() + 3600_000,
+    note: 'Stub response — persist securely in a real implementation.',
+  });
+});
+
+app.post('/v1/google/sync', (req, res) => {
+  const { tasks, userId } = req.body || {};
+  if (!Array.isArray(tasks)) return res.status(400).json({ error: 'tasks must be array' });
+  // simulate remote events mirroring tasks
+  const events = tasks
+    .filter(t => t && t.scheduledDate)
+    .map(t => ({ id: t.id, summary: t.title, start: { date: t.scheduledDate }, end: { date: t.scheduledDate } }));
+  if (userId) {
+    googleTokens.set(userId, { lastSync: Date.now() });
+  }
+  res.json({ ok: true, events });
 });
 
 const server = http.createServer(app);

@@ -30,6 +30,8 @@ type CalendarSettings = {
   googleCalendar?: {
     enabled?: boolean;
     embedUrl?: string;
+    connectStatus?: 'disconnected' | 'ready' | 'error';
+    accountEmail?: string;
   };
 };
 
@@ -151,12 +153,17 @@ export const TurboWeekFullCalendarModal: React.FC<TurboWeekFullCalendarModalProp
             {googleConfig.enabled && (
               <span className="text-[11px] uppercase tracking-[0.14em] text-emerald-300">Google embed active</span>
             )}
+            <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
+              {googleConfig.connectStatus === 'ready'
+                ? `Google connected (stub${googleConfig.accountEmail ? `: ${googleConfig.accountEmail}` : ''})`
+                : 'Google not connected'}
+            </span>
             <button type="button" onClick={onClose} className="neon-icon-button" aria-label="Close calendar">✕</button>
           </div>
         </header>
 
         <div className="flex flex-1 flex-col lg:flex-row">
-          <div className="flex-1 border-b border-slate-800 bg-slate-900/40 lg:border-b-0 lg:border-r">
+          <div className="flex-1 border-b border-slate-800 bg-slate-900/40 lg:border-b-0 lg:border-r relative z-[1]">
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
@@ -181,7 +188,7 @@ export const TurboWeekFullCalendarModal: React.FC<TurboWeekFullCalendarModalProp
           </div>
 
           {googleConfig.enabled && (
-            <aside className="flex w-full max-w-full flex-col gap-4 overflow-y-auto bg-slate-900/30 p-4 lg:w-[420px]">
+            <aside className="flex w-full max-w-full flex-col gap-4 overflow-y-auto bg-slate-900/30 p-4 lg:w-[420px] relative z-[1]">
               <h3 className="text-sm font-semibold text-slate-100 tracking-wide">Google Calendar</h3>
               {googleConfig.embedUrl ? (
                 <iframe
@@ -201,7 +208,7 @@ export const TurboWeekFullCalendarModal: React.FC<TurboWeekFullCalendarModalProp
         </div>
 
         {(selectedTask || creatingDate) && (
-          <div className="absolute inset-x-0 bottom-0 border-t border-slate-800 bg-slate-950/95 p-6 shadow-2xl">
+          <div className="absolute inset-x-0 bottom-0 z-[5] border-t border-slate-800 bg-slate-950/96 p-6 shadow-[0_-12px_32px_rgba(0,0,0,0.45)] pointer-events-auto">
             {selectedTask && (
               <div className="mx-auto max-w-xl">
                 <TaskItem task={selectedTask} compact={false} forceActions editInModal showDate />

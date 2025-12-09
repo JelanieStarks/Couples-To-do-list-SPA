@@ -3,6 +3,7 @@ import type { Task, Priority, TaskFilter, Assignment } from '../types';
 import { storage, STORAGE_KEYS, generateId, isSameLocalDay, parseLocalDate, toLocalDateString } from '../utils';
 import { getSyncBaseUrl, deriveRoomId, getLanSignalUrl } from '../config';
 import { ServerSync } from '../sync/ServerSync';
+import { syncTasksWithGoogle } from '../sync/googleSync';
 import {
   TaskDoc,
   TASK_DOC_REMOTE_ORIGIN,
@@ -602,16 +603,24 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       if (current !== incoming) {
         taskDoc.replaceAllFromExternal(remote);
       }
-      return;
-    }
-
-    if (typeof window !== 'undefined') {
+    } else if (typeof window !== 'undefined') {
       const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? [];
       const current = JSON.stringify(taskDoc.getTasks());
       const incoming = JSON.stringify(savedTasks);
       if (current !== incoming) {
         taskDoc.replaceAllFromExternal(savedTasks);
       }
+    }
+
+    const settings = (typeof window !== 'undefined' ? storage.get<any>(STORAGE_KEYS.SETTINGS) : null) || {};
+    const googleSettings = settings.googleCalendar || {};
+    if (googleSettings.syncEnabled && googleSettings.connectStatus === 'ready') {
+      await syncTasksWithGoogle(taskDoc.getTasks(), {
+        syncEnabled: googleSettings.syncEnabled,
+        connectStatus: googleSettings.connectStatus,
+        accountEmail: googleSettings.accountEmail,
+        userId: user?.id,
+      });
     }
   };
 

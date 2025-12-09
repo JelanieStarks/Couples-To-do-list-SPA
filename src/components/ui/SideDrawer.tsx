@@ -16,6 +16,7 @@ import { STORAGE_KEYS, storage } from '../../utils';
 import { emitSettingsEvent } from '../../utils/settings';
 import { checkForUpdates } from '../../utils/updates';
 import pkg from '../../../package.json';
+import { startGoogleConnect } from '../../utils/googleAuth';
 
 const readSettings = () => {
   try {
@@ -89,6 +90,10 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
   const [googleEmbedEnabled, setGoogleEmbedEnabled] = useState<boolean>(() => Boolean(initialSettings.googleCalendar?.enabled));
   const [googleEmbedUrl, setGoogleEmbedUrl] = useState<string>(() => (initialSettings.googleCalendar?.embedUrl as string | undefined) || '');
   const [googleSavedFlash, setGoogleSavedFlash] = useState<'idle' | 'saved'>('idle');
+  const [googleConnectStatus, setGoogleConnectStatus] = useState<'disconnected' | 'ready' | 'error'>(() => (initialSettings.googleCalendar?.connectStatus as 'disconnected' | 'ready' | 'error') || 'disconnected');
+  const [googleAccountHint, setGoogleAccountHint] = useState<string>(() => (initialSettings.googleCalendar?.accountEmail as string | undefined) || '');
+  const [googleSyncEnabled, setGoogleSyncEnabled] = useState<boolean>(() => Boolean(initialSettings.googleCalendar?.syncEnabled));
+  const [googleBusy, setGoogleBusy] = useState(false);
   const googleSaveTimeoutRef = useRef<number | null>(null);
 
   const persistSettings = useCallback((mutator: (prev: Record<string, any>) => Record<string, any>) => {
@@ -135,6 +140,62 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
     });
     setGoogleSavedFlash('idle');
   }, [persistSettings, googleEmbedUrl]);
+
+  const markGoogleConnected = useCallback(() => {
+    const email = googleAccountHint.trim() || 'you@example.com';
+    setGoogleConnectStatus('ready');
+    setGoogleAccountHint(email);
+    persistSettings(prev => ({
+      ...prev,
+      googleCalendar: {
+        ...(prev.googleCalendar || {}),
+        connectStatus: 'ready',
+        accountEmail: email,
+        syncEnabled: googleSyncEnabled,
+      },
+    }));
+  }, [googleAccountHint, googleSyncEnabled, persistSettings]);
+
+  const markGoogleDisconnected = useCallback(() => {
+    setGoogleConnectStatus('disconnected');
+    persistSettings(prev => ({
+      ...prev,
+      googleCalendar: {
+        ...(prev.googleCalendar || {}),
+        connectStatus: 'disconnected',
+        accountEmail: prev.googleCalendar?.accountEmail,
+        syncEnabled: false,
+      },
+    }));
+    setGoogleSyncEnabled(false);
+  }, [persistSettings]);
+
+  const toggleGoogleSync = useCallback(() => {
+    setGoogleSyncEnabled(prev => {
+      const next = !prev;
+      persistSettings(prevSettings => ({
+        ...prevSettings,
+        googleCalendar: {
+          ...(prevSettings.googleCalendar || {}),
+          syncEnabled: next,
+        },
+      }));
+      return next;
+    });
+  }, [persistSettings]);
+
+  const handleGoogleConnect = useCallback(async () => {
+    try {
+      setGoogleBusy(true);
+      await startGoogleConnect();
+      markGoogleConnected();
+    } catch (err) {
+      console.warn('google connect failed (stub)', err);
+      setGoogleConnectStatus('error');
+    } finally {
+      setGoogleBusy(false);
+    }
+  }, [markGoogleConnected]);
 
   const saveGoogleEmbedUrl = useCallback(() => {
     const trimmed = googleEmbedUrl.trim();
@@ -474,6 +535,59 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                       </div>
                     </div>
                   )}
+                </div>
+
+                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Google Calendar Connect</div>
+                      <div className="text-[10px] text-slate-500">Scaffold for OAuth + sync. No live calls yet.</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] ${googleConnectStatus === 'ready' ? 'text-emerald-300' : 'text-slate-400'}`} data-testid="drawer-google-status">
+                        {googleConnectStatus === 'ready' ? 'Connected (stub)' : 'Not connected'}
+                      </span>
+                      <button
+                        type="button"
+                        className="neon-action-button"
+                        data-size="sm"
+                        data-variant={googleConnectStatus === 'ready' ? 'outline' : undefined}
+                        onClick={googleConnectStatus === 'ready' ? markGoogleDisconnected : handleGoogleConnect}
+                        disabled={googleBusy}
+                        data-testid="drawer-google-connect-toggle"
+                      >
+                        {googleConnectStatus === 'ready' ? 'Disconnect' : googleBusy ? 'Connecting…' : 'Connect Google'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-400">Account email (for display only)</label>
+                      <input
+                        type="email"
+                        className="glow-form-input mt-1"
+                        placeholder="couple@gmail.com"
+                        value={googleAccountHint}
+                        onChange={(e) => setGoogleAccountHint(e.target.value)}
+                        data-testid="drawer-google-account"
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-400">Sync tasks to Google</label>
+                      <button
+                        type="button"
+                        className="neon-action-button"
+                        data-size="sm"
+                        data-variant={googleSyncEnabled ? undefined : 'outline'}
+                        onClick={toggleGoogleSync}
+                        disabled={googleConnectStatus !== 'ready'}
+                        data-testid="drawer-google-sync-toggle"
+                      >
+                        {googleSyncEnabled ? 'Disable Sync' : 'Enable Sync'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500">Real OAuth flow will land here; this keeps UI stable while we wire the backend.</p>
+                  </div>
                 </div>
 
                 <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-4">

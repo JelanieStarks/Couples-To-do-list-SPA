@@ -39,22 +39,21 @@
 
 ## Phase 4 — Calendar & Task Plugin Recon
 
-Planned scouting report (will produce pros/cons + quickstart links before touching code):
-
-- Google Calendar API (free tier, OAuth complexity)
-- Microsoft Graph Calendar (powerful, similar auth lift)
-- Cal.com open-source calendar embed/integration
-- FullCalendar React (drag/drop heavy-lifting)
-- Todoist / Microsoft To Do APIs for task sync (check rate limits)
+- In-app calendar: TurboWeekTracker shipped (with Mega Calendar modal). Legacy WeeklyCalendar is now an alias.
+- Google Calendar: settings drawer shows stub “connect” status + embed toggle; FullCalendar modal reads embed flag.
+- Scaffolding added:
+  - Client stubs: `utils/googleAuth.ts`, `utils/googleCalendarSync.ts` (no network calls yet)
+  - Server stubs: `/v1/google/oauth/init` and `/v1/google/oauth/callback` return placeholder payloads
+- Next: wire real PKCE OAuth, store refresh tokens server-side, and push/pull tasks ↔ events via Google Calendar API.
 
 ## Status Tracker
 
-| Phase   | Status           | Notes                                                              |
-| ------- | ---------------- | ------------------------------------------------------------------ |
-| Phase 1 | ✅ Ready         | New names locked in                                                |
-| Phase 2 | ✅ Ready         | CSS rename roster finalized                                        |
-| Phase 3 | 🛠️ In progress   | Neon aliases shipped, calendar tests renamed, CSS pruned           |
-| Phase 4 | � Research ready | Plugin comparison published (see phase-4-calendar-sync-options.md) |
+| Phase   | Status         | Notes                                                             |
+| ------- | -------------- | ----------------------------------------------------------------- |
+| Phase 1 | ✅ Ready       | New names locked in                                               |
+| Phase 2 | ✅ Ready       | CSS rename roster finalized                                       |
+| Phase 3 | 🛠️ In progress | Neon aliases shipped, calendar tests renamed, CSS pruned          |
+| Phase 4 | 🛠️ Scaffolded  | Calendar UI live; Google OAuth/sync stubs added; need real tokens |
 
 ---
 

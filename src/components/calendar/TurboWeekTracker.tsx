@@ -3,12 +3,12 @@
  * Neon racing calendar that lets tasks drift between days without losing sync.
  * Render this inside TaskProvider so moveTaskToDate keeps humming.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
 import { TaskItem } from '../tasks/TaskItem';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { getWeekDates, formatDate, toLocalDateString, STORAGE_KEYS, storage } from '../../utils';
+import { getWeekDates, formatDate, toLocalDateString } from '../../utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { TaskFilterMenu } from '../tasks/TaskFilterMenu';
 import { applyTaskFilter, useTaskFilter } from '../../hooks/useTaskFilter';
@@ -33,25 +33,13 @@ import { useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { TurboWeekFullCalendarModal } from './TurboWeekFullCalendarModal';
 
-// 📅 Turbo Week Tracker - Drag-and-drop neon pit lane
-type ViewMode = 'classic' | 'row';
-
 export const TurboWeekTracker: React.FC = () => {
   const { getTasksByDate, moveTaskToDate, tasks } = useTask();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const { filter } = useTaskFilter();
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
-    return (settings.calendarView as ViewMode) || 'classic';
-  });
   const [expandedDay, setExpandedDay] = useState<null | { date: Date; dateStr: string; dayName: string; tasks: Task[] }>(null);
   const [fullCalendarOpen, setFullCalendarOpen] = useState(false);
-
-  // Persist view mode
-  useEffect(() => {
-    const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
-    storage.set(STORAGE_KEYS.SETTINGS, { ...settings, calendarView: viewMode });
-  }, [viewMode]);
+  const weekScrollerRef = useRef<HTMLDivElement | null>(null);
 
   const weekDates = getWeekDates(currentWeek);
   const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -91,13 +79,13 @@ export const TurboWeekTracker: React.FC = () => {
     setCurrentWeek(new Date());
   };
 
-  // Auto-scroll to today's column in row view on mount and when switching view
+  // Auto-scroll to today's column when horizontal overflow exists (mobile/compact widths)
   useEffect(() => {
-    if (viewMode !== 'row') return;
-    // Defer to next tick to ensure DOM is painted
     const id = window.setTimeout(() => {
-      const container = document.querySelector('[data-testid="calendar-row"]');
+      const container = weekScrollerRef.current;
       if (!container) return;
+      const hasOverflow = container.scrollWidth > container.clientWidth + 8;
+      if (!hasOverflow) return;
       const todayIdx = new Date().getDay(); // 0=Sun..6=Sat
       const col = container.querySelector(`[data-day-index="${todayIdx}"]`);
       if (col && 'scrollIntoView' in col) {
@@ -105,15 +93,15 @@ export const TurboWeekTracker: React.FC = () => {
       }
     }, 0);
     return () => clearTimeout(id);
-  }, [viewMode, currentWeek]);
+  }, [currentWeek]);
 
   const closeExpandedDay = useCallback(() => setExpandedDay(null), []);
 
   return (
   <div className="neon-hype-panel rainbow-crunch-border">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-  <div className="flex items-center space-x-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+  <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-slate-800 border border-slate-600">
             <CalendarIcon className="h-6 w-6 text-indigo-400" />
           </div>
@@ -124,7 +112,7 @@ export const TurboWeekTracker: React.FC = () => {
         </div>
 
         {/* Navigation */}
-  <div className="flex items-center space-x-3">
+  <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-start sm:justify-end w-full sm:w-auto">
           <button
             onClick={() => navigateWeek('prev')}
             className="p-2 rounded-lg bg-slate-800/70 border border-slate-600 text-slate-300 hover:text-white hover:border-indigo-400 hover:shadow-md transition"
@@ -155,27 +143,6 @@ export const TurboWeekTracker: React.FC = () => {
             <CalendarIcon className="h-4 w-4" /> Mega Calendar
           </button>
 
-          {/* View toggle */}
-          <div className="hidden sm:flex items-center ml-2">
-            <div className="inline-flex rounded-full border border-slate-600 overflow-hidden" role="group" aria-label="Change calendar view">
-              <button
-                type="button"
-                onClick={() => setViewMode('classic')}
-                className={`px-3 py-1 text-xs font-semibold transition-colors ${viewMode === 'classic' ? 'bg-indigo-600 text-white' : 'bg-slate-800/70 text-slate-300 hover:text-white'}`}
-                data-testid="calendar-view-classic"
-                aria-pressed={viewMode === 'classic'}
-                title="Classic grid view"
-              >Classic</button>
-              <button
-                type="button"
-                onClick={() => setViewMode('row')}
-                className={`px-3 py-1 text-xs font-semibold transition-colors ${viewMode === 'row' ? 'bg-indigo-600 text-white' : 'bg-slate-800/70 text-slate-300 hover:text-white'}`}
-                data-testid="calendar-view-row"
-                aria-pressed={viewMode === 'row'}
-                title="Horizontal row view"
-              >Row</button>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -190,59 +157,34 @@ export const TurboWeekTracker: React.FC = () => {
       </div>
 
       {/* Calendar Grid */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        {viewMode === 'classic' ? (
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-4" data-testid="calendar-classic">
-            {weekDates.map((date, index) => {
-              const dateStr = toLocalDateString(date);
-              const dayTasks = applyTaskFilter(getTasksByDate(dateStr), filter);
-              const isToday = toLocalDateString(date) === toLocalDateString(new Date());
-              const isPast = date < new Date() && !isToday;
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div
+          ref={weekScrollerRef}
+          className="turbo-week-grid"
+          data-testid="calendar-turbo"
+        >
+          {weekDates.map((date, index) => {
+            const dateStr = toLocalDateString(date);
+            const dayTasks = applyTaskFilter(getTasksByDate(dateStr), filter);
+            const isToday = toLocalDateString(date) === toLocalDateString(new Date());
+            const isPast = date < new Date() && !isToday;
 
-              return (
+            return (
+              <div key={dateStr} className="turbo-week-cell" data-day-index={(new Date(date)).getDay()}>
                 <DayPitStop
-                  key={dateStr}
                   date={date}
                   dateStr={dateStr}
                   dayName={dayNames[index]}
                   tasks={dayTasks}
                   isToday={isToday}
                   isPast={isPast}
-                  variant="classic"
+                  variant="turbo"
                   onExpandDay={(info) => setExpandedDay(info)}
                 />
-              );
-            })}
-          </div>
-        ) : (
-          <div className="week-row scroll-thin overflow-x-auto snap-x snap-mandatory flex gap-4 pb-2 -mx-2 px-2" data-testid="calendar-row">
-            {weekDates.map((date, index) => {
-              const dateStr = toLocalDateString(date);
-              const dayTasks = applyTaskFilter(getTasksByDate(dateStr), filter);
-              const isToday = toLocalDateString(date) === toLocalDateString(new Date());
-              const isPast = date < new Date() && !isToday;
-
-              return (
-                <div key={dateStr} className="min-w-[260px] md:min-w-[300px] snap-start" data-day-index={(new Date(date)).getDay()}>
-                  <DayPitStop
-                    date={date}
-                    dateStr={dateStr}
-                    dayName={dayNames[index]}
-                    tasks={dayTasks}
-                    isToday={isToday}
-                    isPast={isPast}
-                    variant="row"
-                    onExpandDay={(info) => setExpandedDay(info)}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            );
+          })}
+        </div>
       </DndContext>
 
       {expandedDay && (
@@ -276,17 +218,21 @@ interface DayPitStopProps {
   tasks: Task[];
   isToday: boolean;
   isPast: boolean;
-  variant?: ViewMode;
+  variant?: 'turbo';
   onExpandDay: (info: { date: Date; dateStr: string; dayName: string; tasks: Task[] }) => void;
 }
 
-const DayPitStop: React.FC<DayPitStopProps> = ({ date, dateStr, dayName, tasks, isToday, isPast, variant = 'classic', onExpandDay }) => {
+const DayPitStop: React.FC<DayPitStopProps> = ({ date, dateStr, dayName, tasks, isToday, isPast, variant = 'turbo', onExpandDay }) => {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${dateStr}` });
   const { createTask } = useTask();
   const { user } = useAuth();
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
   const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const completedCount = useMemo(() => tasks.filter(t => t.completed).length, [tasks]);
+  const openCount = tasks.length - completedCount;
+  const dateLabel = useMemo(() => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), [date]);
 
   const openQuickAdd = () => setAdding(true);
   const cancelQuickAdd = () => { setAdding(false); setTitle(''); };
@@ -317,25 +263,32 @@ const DayPitStop: React.FC<DayPitStopProps> = ({ date, dateStr, dayName, tasks, 
       data-variant={variant}
       data-testid={`day-col-${dateStr}`}
     >
-  <div className="day-label-strip">
-        <button
-          type="button"
-          className="text-left hover:text-indigo-300 transition"
-          onClick={openQuickAdd}
-          aria-label={`Add task to ${dayName}`}
-          data-testid={`dayname-btn-${dateStr}`}
-        >
-          {dayName}
-        </button>
-        <button
-          type="button"
-          className="text-[10px] font-normal opacity-70 hover:opacity-100 hover:text-indigo-300 transition"
-          onClick={openQuickAdd}
-          aria-label={`Add task on ${dayName} ${date.getDate()}`}
-          data-testid={`date-btn-${dateStr}`}
-        >
-          {date.getDate()}
-        </button>
+      <div className="day-label-strip">
+        <div className="flex items-baseline gap-2">
+          <button
+            type="button"
+            className="day-name-button"
+            onClick={openQuickAdd}
+            aria-label={`Add task to ${dayName}`}
+            data-testid={`dayname-btn-${dateStr}`}
+          >
+            {dayName}
+          </button>
+          <span className="day-date-pill" aria-hidden="true">{dateLabel}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 justify-end text-[11px]">
+          <span className="day-count-badge">{openCount} open</span>
+          <span className="day-count-badge done">{completedCount} done</span>
+          <button
+            type="button"
+            className="day-quick-add"
+            onClick={openQuickAdd}
+            aria-label={`Add task on ${dayName} ${date.getDate()}`}
+            data-testid={`date-btn-${dateStr}`}
+          >
+            + Task
+          </button>
+        </div>
       </div>
       {adding && (
         <div className="mb-2 p-2 rounded-md border border-slate-600 bg-slate-800/70" data-testid={`quick-add-${dateStr}`}>
@@ -356,7 +309,7 @@ const DayPitStop: React.FC<DayPitStopProps> = ({ date, dateStr, dayName, tasks, 
           </div>
         </div>
       )}
-  <div className="task-lane-scroll scroll-thin flex flex-col gap-3">
+  <div className="task-lane-scroll scroll-thin flex flex-col gap-2.5">
         {tasks
           .slice()
           .sort((a, b) => {

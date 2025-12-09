@@ -1,22 +1,30 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { screen } from '@testing-library/react';
 import { TurboWeekTracker } from '../../calendar/TurboWeekTracker';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 
-// 🧪 Row view renders with day markers so auto-scroll math stays sane
+// 🧪 Turbo layout auto-scrolls to today when horizontal overflow is present
 
-describe('TurboWeekTracker row view auto-scroll scaffold', () => {
+describe('TurboWeekTracker auto-scroll', () => {
   beforeEach(() => localStorage.clear());
 
-  it('renders row view container with day index markers', () => {
+  it('calls scrollIntoView for today when the grid overflows horizontally', async () => {
+    vi.useFakeTimers();
     renderWithProviders(<TurboWeekTracker />);
-    // Switch to row
-    fireEvent.click(screen.getByTestId('calendar-view-row'));
-    const container = screen.getByTestId('calendar-row');
-    expect(container).toBeInTheDocument();
-    // Ensure day index attributes exist for seven columns
-    const cols = container.querySelectorAll('[data-day-index]');
-    expect(cols.length).toBe(7);
+
+    const container = screen.getByTestId('calendar-turbo') as HTMLElement;
+    Object.defineProperty(container, 'scrollWidth', { value: 2000, configurable: true });
+    Object.defineProperty(container, 'clientWidth', { value: 320, configurable: true });
+
+    const todayIdx = new Date().getDay();
+    const todayCol = container.querySelector(`[data-day-index="${todayIdx}"]`) as HTMLElement;
+    const spy = vi.fn();
+    todayCol.scrollIntoView = spy;
+
+    vi.runAllTimers();
+
+    expect(spy).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
