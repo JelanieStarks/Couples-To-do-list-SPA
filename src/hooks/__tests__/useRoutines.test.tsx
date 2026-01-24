@@ -14,7 +14,13 @@ describe('useRoutines', () => {
   it('creates a default routine and saves updates', () => {
     let api: ReturnType<typeof useRoutines> | null = null;
     render(
-      <AuthProvider>
+      <AuthProvider initialUser={{
+        id: 'user-1',
+        name: 'Tester',
+        inviteCode: 'ABC123',
+        color: '#ec4899',
+        createdAt: new Date().toISOString(),
+      }}>
         <Harness onReady={(next) => { api = next; }} />
       </AuthProvider>
     );
@@ -22,6 +28,7 @@ describe('useRoutines', () => {
     expect(screen.getByTestId('routines-harness')).toBeInTheDocument();
     expect(api).toBeTruthy();
 
+    expect(api!.members.length).toBeGreaterThan(0);
     const member = api!.members[0];
     const routine = api!.getRoutine(member.id);
     expect(routine).toBeTruthy();

@@ -1,7 +1,7 @@
 {
   "name": "couples-todo-list-spa",
   "private": true,
-  "version": "1.0.12",
+  "version": "1.0.14",
   "type": "module",
   "main": "electron/main.js",
   "description": "Couples To-do: a simple shared to-do list with weekly planner, desktop builds via Electron.",
@@ -39,6 +39,7 @@
     "@rollup/plugin-inject": "^5.0.5",
     "@supabase/supabase-js": "^2.49.0",
     "buffer": "^6.0.3",
+    "electron-updater": "^6.3.9",
     "events": "^3.3.0",
     "lib0": "^0.2.97",
     "lucide-react": "^0.544.0",
@@ -97,6 +98,13 @@
     "directories": {
       "buildResources": "build"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JelanieStarks",
+        "repo": "Couples-To-do-list-SPA"
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "allowElevation": true,

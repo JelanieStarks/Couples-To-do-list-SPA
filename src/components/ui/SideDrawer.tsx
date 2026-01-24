@@ -223,13 +223,95 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
     isNewer?: boolean;
   }>({ loading: false });
 
+  const [windowsUpdateState, setWindowsUpdateState] = useState<{ state: 'idle' | 'checking' | 'downloading' | 'downloaded' | 'error'; percent?: number; message?: string }>({ state: 'idle' });
+  const [apkUpdateState, setApkUpdateState] = useState<{ state: 'idle' | 'downloading' | 'downloaded' | 'error'; percent?: number; message?: string }>({ state: 'idle' });
+
+  const appUpdates = typeof window !== 'undefined' ? window.appUpdates : undefined;
+  const isElectron = Boolean(appUpdates);
+
+  useEffect(() => {
+    if (!appUpdates) return;
+    appUpdates.onStatus((payload) => {
+      if (payload.state === 'available') {
+        setWindowsUpdateState(prev => ({ ...prev, state: 'idle' }));
+      }
+      if (payload.state === 'downloaded') {
+        setWindowsUpdateState(prev => ({ ...prev, state: 'downloaded' }));
+      }
+      if (payload.state === 'error') {
+        setWindowsUpdateState({ state: 'error', message: payload.message });
+      }
+    });
+    appUpdates.onProgress((payload) => {
+      setWindowsUpdateState(prev => ({ ...prev, state: 'downloading', percent: payload.percent }));
+    });
+    return () => {
+      appUpdates.clearListeners();
+    };
+  }, [appUpdates]);
+
   const doCheckUpdates = useCallback(async () => {
     try {
       setUpdateStatus({ loading: true });
+      if (appUpdates) {
+        setWindowsUpdateState({ state: 'checking' });
+        await appUpdates.check();
+      }
       const info = await checkForUpdates(pkg.version);
       setUpdateStatus({ loading: false, ...info });
     } catch (e: any) {
       setUpdateStatus({ loading: false, error: e?.message || 'Failed to check updates' });
+    }
+  }, [appUpdates]);
+
+  const downloadWindowsUpdate = useCallback(async () => {
+    if (!appUpdates) return;
+    setWindowsUpdateState({ state: 'downloading', percent: 0 });
+    const result = await appUpdates.download();
+    if (!result?.ok) {
+      setWindowsUpdateState({ state: 'error', message: result?.message || 'Failed to download update' });
+    }
+  }, [appUpdates]);
+
+  const installWindowsUpdate = useCallback(async () => {
+    if (!appUpdates) return;
+    await appUpdates.install();
+  }, [appUpdates]);
+
+  const downloadApkWithProgress = useCallback(async (url: string) => {
+    try {
+      setApkUpdateState({ state: 'downloading', percent: 0 });
+      const response = await fetch(url);
+      if (!response.ok || !response.body) {
+        window.location.href = url;
+        setApkUpdateState({ state: 'downloaded' });
+        return;
+      }
+      const reader = response.body.getReader();
+      const contentLength = Number(response.headers.get('content-length') || 0);
+      let received = 0;
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          received += value.length;
+          if (contentLength) {
+            setApkUpdateState({ state: 'downloading', percent: Math.round((received / contentLength) * 100) });
+          }
+        }
+      }
+      const blob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'couples-todo-latest.apk';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setApkUpdateState({ state: 'downloaded' });
+    } catch (error: any) {
+      setApkUpdateState({ state: 'error', message: error?.message || 'Failed to download APK' });
     }
   }, []);
 
@@ -517,22 +599,56 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                          {updateStatus.windowsExeUrl && (
-                          <a className="neon-action-button" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">
-                            Download Windows (.exe)
-                          </a>
+                        {updateStatus.windowsExeUrl && (
+                          isElectron ? (
+                            <button
+                              className="neon-action-button"
+                              data-size="sm"
+                              onClick={windowsUpdateState.state === 'downloaded' ? installWindowsUpdate : downloadWindowsUpdate}
+                              disabled={windowsUpdateState.state === 'checking' || windowsUpdateState.state === 'downloading'}
+                              data-testid="drawer-windows-update"
+                            >
+                              {windowsUpdateState.state === 'downloaded' ? 'Install Update' : 'Download & Install'}
+                            </button>
+                          ) : (
+                            <a className="neon-action-button" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">
+                              Download Windows (.exe)
+                            </a>
+                          )
                         )}
-                          {updateStatus.androidApkUrl && (
-                          <a className="neon-action-button" data-variant="outline" data-size="sm" href={updateStatus.androidApkUrl} target="_blank" rel="noreferrer">
-                            Download Android (.apk)
-                          </a>
+                        {updateStatus.androidApkUrl && (
+                          <button
+                            className="neon-action-button"
+                            data-variant="outline"
+                            data-size="sm"
+                            onClick={() => downloadApkWithProgress(updateStatus.androidApkUrl!)}
+                            disabled={apkUpdateState.state === 'downloading'}
+                            data-testid="drawer-android-update"
+                          >
+                            {apkUpdateState.state === 'downloaded' ? 'APK Ready' : 'Download APK'}
+                          </button>
                         )}
-                          {updateStatus.releaseUrl && !updateStatus.windowsExeUrl && !updateStatus.androidApkUrl && (
+                        {updateStatus.releaseUrl && !updateStatus.windowsExeUrl && !updateStatus.androidApkUrl && (
                           <a className="neon-action-button" data-variant="soft" data-size="sm" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">
                             View Release
                           </a>
                         )}
                       </div>
+                      {(windowsUpdateState.state === 'downloading' || apkUpdateState.state === 'downloading') && (
+                        <div className="text-[10px] text-slate-400">
+                          {windowsUpdateState.state === 'downloading' && (
+                            <span>Windows update: {Math.round(windowsUpdateState.percent || 0)}%</span>
+                          )}
+                          {apkUpdateState.state === 'downloading' && (
+                            <span className="ml-2">APK download: {Math.round(apkUpdateState.percent || 0)}%</span>
+                          )}
+                        </div>
+                      )}
+                      {(windowsUpdateState.state === 'error' || apkUpdateState.state === 'error') && (
+                        <div className="text-[10px] text-rose-300">
+                          {windowsUpdateState.message || apkUpdateState.message}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

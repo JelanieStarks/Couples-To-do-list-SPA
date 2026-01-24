@@ -92,6 +92,7 @@ export const RoutineBlock: React.FC = () => {
         className="flex items-center gap-3 mb-3 cursor-pointer"
         onClick={openEditor}
         role="button"
+        aria-label="Routine header"
         tabIndex={0}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') openEditor();

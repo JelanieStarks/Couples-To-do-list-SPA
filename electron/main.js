@@ -1,5 +1,6 @@
 // Electron main process entry (ESM)
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,6 +14,20 @@ if (!gotTheLock) {
 }
 
 let mainWindow;
+
+autoUpdater.autoDownload = false;
+
+const sendUpdateStatus = (payload) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updates:status', payload);
+  }
+};
+
+const sendUpdateProgress = (payload) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updates:progress', payload);
+  }
+};
 
 const createWindow = async () => {
   mainWindow = new BrowserWindow({
@@ -50,6 +65,58 @@ const createWindow = async () => {
     await mainWindow.loadFile(indexHtml);
   }
 };
+
+autoUpdater.on('update-available', (info) => {
+  sendUpdateStatus({ state: 'available', version: info?.version });
+});
+
+autoUpdater.on('update-not-available', () => {
+  sendUpdateStatus({ state: 'none' });
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  sendUpdateProgress({
+    percent: progress.percent,
+    transferred: progress.transferred,
+    total: progress.total,
+    bytesPerSecond: progress.bytesPerSecond,
+  });
+});
+
+autoUpdater.on('update-downloaded', () => {
+  sendUpdateStatus({ state: 'downloaded' });
+});
+
+autoUpdater.on('error', (error) => {
+  sendUpdateStatus({ state: 'error', message: error?.message || 'Update error' });
+});
+
+ipcMain.handle('updates:check', async () => {
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error?.message || 'Failed to check updates' };
+  }
+});
+
+ipcMain.handle('updates:download', async () => {
+  try {
+    await autoUpdater.downloadUpdate();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error?.message || 'Failed to download update' };
+  }
+});
+
+ipcMain.handle('updates:install', async () => {
+  try {
+    autoUpdater.quitAndInstall();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, message: error?.message || 'Failed to install update' };
+  }
+});
 
 app.on('second-instance', () => {
   if (mainWindow) {
