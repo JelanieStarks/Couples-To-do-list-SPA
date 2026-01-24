@@ -10,8 +10,8 @@ interface LayoutProps {
 
 // 🏠 Main Layout - Your digital home base with style
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const { user, partner, logout } = useAuth();
-  const { syncNow } = useTask();
+  const { user, partner, logout, magicLinkNotice } = useAuth();
+  const { syncNow, peerSync } = useTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const mainRef = useRef<HTMLDivElement | null>(null);
@@ -44,8 +44,28 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     setTimeout(() => setSyncFlash('idle'), 1000);
   };
 
+  const hasPartnerLink = Boolean(partner);
+  const isPeerConnected = peerSync.status.state === 'connected';
+  const showConnectionStatus = hasPartnerLink || isPeerConnected;
+  const connectionLabel = isPeerConnected ? 'Partner connected' : 'Partner linked';
+
   return (
   <div className="min-h-screen flex flex-col items-center bg-transparent pt-14 sm:pt-16">
+      <div
+        className="fixed top-3 right-3 z-[70] flex flex-col gap-2 items-end"
+        style={{ top: 'calc(env(safe-area-inset-top, 0px) + 8px)', right: 'calc(env(safe-area-inset-right, 0px) + 12px)' }}
+      >
+        {magicLinkNotice && (
+          <div className="px-3 py-2 rounded-full bg-slate-900 text-slate-100 text-[11px] border border-slate-700 shadow-lg">
+            {magicLinkNotice.message}
+          </div>
+        )}
+        {showConnectionStatus && (
+          <div className="px-3 py-2 rounded-full bg-slate-900 text-slate-100 text-[11px] border border-slate-700 shadow-lg">
+            {connectionLabel}
+          </div>
+        )}
+      </div>
       {/* App Header (scrolls with content; only hamburger stays fixed) */}
       <header className="w-full flex justify-center px-4 sm:px-6" data-tag="app-header">
         {/* Corner control: hamburger fixed at top-left */}

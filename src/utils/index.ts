@@ -5,6 +5,10 @@ export const STORAGE_KEYS = {
   TASKS: 'couples-todo-tasks',
   TASKS_YDOC: 'couples-todo-tasks-ydoc',
   SETTINGS: 'couples-todo-settings',
+  SUPABASE_SESSION: 'couples-todo-supabase-session',
+  SUPABASE_TRUSTED: 'couples-todo-supabase-trusted',
+  SUPABASE_OFFLINE_TOKEN: 'couples-todo-supabase-offline-token',
+  ROUTINES: 'couples-todo-routines',
 } as const;
 
 export const storage = {

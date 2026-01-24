@@ -58,8 +58,8 @@ describe('Task sync between tabs', () => {
     expect(screen.getByTestId('count').textContent).toBe('1');
   });
 
-  it('manual syncNow pulls latest from storage', () => {
-  renderWithProviders(<Probe />);
+  it('manual syncNow pulls latest from storage', async () => {
+    renderWithProviders(<Probe />);
 
     const external = [{ id: 't2', title: 'Extern', priority: 'C1', assignment: 'both', color: '#000', completed: false, createdBy: 'p', createdAt: '2024-01-01', updatedAt: '2024-01-01' }];
     setTasks(external);
@@ -68,7 +68,7 @@ describe('Task sync between tabs', () => {
     expect(screen.getByTestId('count').textContent).toBe('0');
 
     // Trigger manual sync
-    act(() => {
+    await act(async () => {
       screen.getByTestId('sync').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 

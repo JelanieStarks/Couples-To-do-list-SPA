@@ -4,6 +4,7 @@ import { TaskProvider } from './contexts/TaskContext';
 import { DbzHeartLoginGate } from './components/auth/DbzHeartLoginGate';
 import { Layout } from './components/ui/Layout';
 import { TaskForm } from './components/tasks/TaskForm';
+import { RoutineBlock } from './components/tasks/RoutineBlock';
 import { TodaysTasks } from './components/tasks/TodaysTasks';
 import { TurboWeekTracker } from './components/calendar/TurboWeekTracker';
 // Feature components are now rendered inside TopNav cards, not directly here.
@@ -37,9 +38,14 @@ function AppContent() {
           </p>
         </div>
 
-        {/* Dashboard: Task form + Today's Tasks */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Quick add row */}
+        <div className="max-w-3xl mx-auto">
           <TaskForm />
+        </div>
+
+        {/* Dashboard: Routine + Today's Tasks */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-6">
+          <RoutineBlock />
           <TodaysTasks />
         </div>
 

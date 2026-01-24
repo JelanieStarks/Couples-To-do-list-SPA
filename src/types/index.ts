@@ -61,3 +61,21 @@ export interface AppSettings {
   jarvisMode: boolean; // Toggle for helpful AI-style comments
   adhdFriendly: boolean; // Extra visual cues and animations
 }
+
+export interface RoutineBlock {
+  id: string;
+  title: string;
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  notes?: string;
+  tasks?: string[];
+}
+
+export interface Routine {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  blocks: RoutineBlock[];
+  createdAt: string;
+  updatedAt: string;
+}

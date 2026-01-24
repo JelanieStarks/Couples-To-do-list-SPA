@@ -60,7 +60,7 @@ const useQrCode = (value: string | null) => {
 const chipClass = 'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium';
 
 export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
-  const { peerSync, syncNow } = useTask();
+  const { peerSync, syncNow, supabaseStatus } = useTask();
   const {
     status,
     lan,
@@ -72,6 +72,15 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
     disableLan,
     resetError,
   } = peerSync;
+
+const formatTime = (value?: string) => {
+  if (!value) return '—';
+  try {
+    return new Date(value).toLocaleTimeString();
+  } catch {
+    return '—';
+  }
+};
 
   const [hostCodeInput, setHostCodeInput] = useState('');
   const [answerInput, setAnswerInput] = useState('');
@@ -341,6 +350,22 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
           </div>
         )}
       </footer>
+
+      <div className="mt-4 rounded-lg border border-slate-700/60 bg-slate-900/70 px-3 py-2 text-[11px] text-slate-200">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="uppercase tracking-wide text-slate-400">Supabase</span>
+          <span className="px-2 py-[1px] rounded-full border border-slate-600 text-slate-200">
+            {supabaseStatus.enabled && supabaseStatus.hasClient ? 'Enabled' : 'Off'}
+          </span>
+          {supabaseStatus.roomId && (
+            <span className="text-slate-400">Room: {supabaseStatus.roomId}</span>
+          )}
+        </div>
+        <div className="mt-1 flex flex-wrap gap-3 text-slate-400">
+          <span>Last push: {formatTime(supabaseStatus.lastDbUpsertAt)}</span>
+          <span>Last realtime: {formatTime(supabaseStatus.lastRealtimeAt)}</span>
+        </div>
+      </div>
     </div>
   );
 };

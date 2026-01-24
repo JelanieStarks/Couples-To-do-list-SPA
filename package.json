@@ -37,6 +37,7 @@
     "@fullcalendar/react": "^6.1.19",
     "@fullcalendar/timegrid": "^6.1.19",
     "@rollup/plugin-inject": "^5.0.5",
+    "@supabase/supabase-js": "^2.49.0",
     "buffer": "^6.0.3",
     "events": "^3.3.0",
     "lib0": "^0.2.97",

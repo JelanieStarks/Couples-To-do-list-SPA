@@ -5,9 +5,13 @@ import { TaskProvider, useTask } from '../TaskContext';
 
 // Minimal mock AuthContext to satisfy useAuth inside TaskProvider
 const AuthContext = React.createContext<any>(null);
+let requestMagicLinkForSyncMock: ReturnType<typeof vi.fn>;
 const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   return (
-    <AuthContext.Provider value={{ user: { id: 'user-1', name: 'Tester', inviteCode: 'ABC123', color: '#ff00aa' } }}>
+    <AuthContext.Provider value={{
+      user: { id: 'user-1', name: 'Tester', inviteCode: 'ABC123', color: '#ff00aa' },
+      requestMagicLinkForSync: requestMagicLinkForSyncMock,
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -29,6 +33,7 @@ describe('TaskContext core behaviors', () => {
   let ctx: any;
   beforeEach(() => {
     ctx = null;
+    requestMagicLinkForSyncMock = vi.fn().mockResolvedValue(false);
     // Clear localStorage to isolate tests
     localStorage.clear();
     render(
@@ -108,5 +113,12 @@ describe('TaskContext core behaviors', () => {
     act(() => ctx.toggleTaskComplete(id2));
     const completed = ctx.getCompletedTasks();
     expect(completed[0].id).toBe(id2);
+  });
+
+  it('syncNow triggers magic link refresh attempt', async () => {
+    await act(async () => {
+      await ctx.syncNow();
+    });
+    expect(requestMagicLinkForSyncMock).toHaveBeenCalled();
   });
 });

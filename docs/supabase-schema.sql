@@ -1,0 +1,6 @@
+-- DEPRECATED
+-- Supabase SQL moved to /supabase for better organization.
+-- Use the following files instead:
+--   /supabase/schema.sql
+--   /supabase/rls_policies.sql
+--   /supabase/triggers.sql

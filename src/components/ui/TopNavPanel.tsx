@@ -40,6 +40,12 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
     } catch { return 1; }
   });
 
+  const [trustedDevice, setTrustedDevice] = useState<boolean>(() => {
+    try {
+      return Boolean(storage.get<any>(STORAGE_KEYS.SUPABASE_TRUSTED));
+    } catch { return false; }
+  });
+
   const applyTextScale = (v: number) => {
     setTextScale(v);
     document.documentElement.style.setProperty('--font-scale', String(v));
@@ -47,6 +53,24 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
       const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
       storage.set(STORAGE_KEYS.SETTINGS, { ...settings, textScale: v });
     } catch {}
+  };
+
+  const toggleTrustedDevice = (next: boolean) => {
+    setTrustedDevice(next);
+    if (next) {
+      storage.set(STORAGE_KEYS.SUPABASE_TRUSTED, true);
+      const user = storage.get<any>(STORAGE_KEYS.USER);
+      if (user?.email) {
+        storage.set(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN, {
+          email: user.email,
+          issuedAt: new Date().toISOString(),
+        });
+      }
+    } else {
+      storage.remove(STORAGE_KEYS.SUPABASE_TRUSTED);
+      storage.remove(STORAGE_KEYS.SUPABASE_SESSION);
+      storage.remove(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN);
+    }
   };
 
   // Update check state
@@ -125,6 +149,21 @@ export const TopNavPanel: React.FC<TopNavPanelProps> = ({ open, onClose, active,
                     {current === 'settings' && (
                       <>
                         <ExportTasks />
+                        <div className="pt-3 border-t border-slate-700/60 flex items-start justify-between">
+                          <div>
+                            <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Trust This Device</div>
+                            <div className="text-[10px] text-slate-500 max-w-[320px]">Allow offline use until next manual sync. Sync will request a new magic link when you’re online.</div>
+                          </div>
+                          <label className="flex items-center gap-2 text-slate-200 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={trustedDevice}
+                              onChange={(e) => toggleTrustedDevice(e.target.checked)}
+                              data-testid="trust-device-toggle"
+                            />
+                            <span className="text-xs text-slate-300">Keep me signed in</span>
+                          </label>
+                        </div>
                         {/* Text Size Controls */}
                         <div className="pt-3 border-t border-slate-700/60">
                           <div className="flex items-center justify-between">

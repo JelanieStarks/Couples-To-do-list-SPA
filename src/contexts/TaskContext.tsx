@@ -4,6 +4,7 @@ import { storage, STORAGE_KEYS, generateId, isSameLocalDay, parseLocalDate, toLo
 import { getSyncBaseUrl, deriveRoomId, getLanSignalUrl } from '../config';
 import { ServerSync } from '../sync/ServerSync';
 import { syncTasksWithGoogle } from '../sync/googleSync';
+import { SupabaseSync } from '../sync/supabaseSync';
 import {
   TaskDoc,
   TASK_DOC_REMOTE_ORIGIN,
@@ -14,6 +15,8 @@ import {
 } from '../p2p';
 import { LanSignalingClient } from '../p2p/signaling';
 import { useAuth } from './AuthContext';
+import { getSupabaseClient, isSupabaseSyncEnabled } from '../utils/supabaseClient';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // 📝 Task Context - Your digital task manager with a sense of humor
 interface PeerSignal {
@@ -46,6 +49,15 @@ interface PeerSyncApi {
   enableLan: () => void;
   disableLan: () => void;
   resetError: () => void;
+}
+
+interface SupabaseStatus {
+  enabled: boolean;
+  hasClient: boolean;
+  roomId: string | null;
+  lastDbUpsertAt?: string;
+  lastRealtimeAt?: string;
+  lastError?: string;
 }
 
 const createDefaultPeerSyncState = (): PeerSyncState => ({
@@ -82,6 +94,7 @@ interface TaskContextType {
   reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
   syncNow: () => void;
   peerSync: PeerSyncApi;
+  supabaseStatus: SupabaseStatus;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -96,7 +109,7 @@ export const useTask = () => {
 
 // Added optional initialTasks for deterministic tests (prevents flaky async seeding in tests)
 export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: Task[] }> = ({ children, initialTasks }) => {
-  const { user, partner } = useAuth();
+  const { user, partner, requestMagicLinkForSync } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cachedPartnerId, setCachedPartnerId] = useState<string | undefined>(() => {
@@ -123,6 +136,19 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   const lastLanOfferRef = React.useRef<string | null>(null);
   const lastLanAnswerRef = React.useRef<string | null>(null);
   const lastLanRemoteRef = React.useRef<PeerSignal | null>(null);
+  const lastSnapshotsRef = React.useRef<{ server: string; storage: string; broadcast: string; supabase: string }>({ server: '', storage: '', broadcast: '', supabase: '' });
+  const supabase = React.useMemo(() => getSupabaseClient(), []);
+  const supabaseSyncEnabled = React.useMemo(() => isSupabaseSyncEnabled(), []);
+  const supabaseChannelRef = React.useRef<RealtimeChannel | null>(null);
+  const supabaseReadyRef = React.useRef(false);
+  const lastSupabaseFingerprintRef = React.useRef<string>('');
+  const supabaseDbSyncRef = React.useRef<SupabaseSync | null>(null);
+  const lastSupabaseDbFingerprintRef = React.useRef<string>('');
+  const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatus>(() => ({
+    enabled: supabaseSyncEnabled,
+    hasClient: Boolean(supabase),
+    roomId: null,
+  }));
 
   if (!taskDocRef.current) {
     let seedTasks: Task[] = [];
@@ -153,6 +179,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
   const partnerId = partner?.id ?? cachedPartnerId;
   const roomId = React.useMemo(() => deriveRoomId(user?.id, partnerId), [user?.id, partnerId]);
+
+  useEffect(() => {
+    setSupabaseStatus(prev => ({
+      ...prev,
+      enabled: supabaseSyncEnabled,
+      hasClient: Boolean(supabase),
+      roomId: roomId ?? null,
+    }));
+  }, [supabaseSyncEnabled, supabase, roomId]);
 
   useEffect(() => {
     const taskDoc = taskDocRef.current;
@@ -199,11 +234,10 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
     const handleRemoteTasks = (remoteTasks: Task[]) => {
       if (cancelled) return;
-      const current = JSON.stringify(taskDoc.getTasks());
-      const incoming = JSON.stringify(remoteTasks);
-      if (current !== incoming) {
-        taskDoc.replaceAllFromExternal(remoteTasks);
-      }
+      const incoming = fingerprintTasks(remoteTasks);
+      if (incoming === lastSnapshotsRef.current.server) return;
+      taskDoc.replaceAllFromExternal(remoteTasks);
+      lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
     };
 
     const connect = async () => {
@@ -211,7 +245,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         await ss.connect(handleRemoteTasks);
         const remoteSnapshot = await ss.fetchTasks();
         if (!cancelled && remoteSnapshot.length > 0) {
-          taskDoc.replaceAllFromExternal(remoteSnapshot);
+          const incoming = fingerprintTasks(remoteSnapshot);
+          if (incoming !== lastSnapshotsRef.current.server) {
+            taskDoc.replaceAllFromExternal(remoteSnapshot);
+            lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
+          }
         }
       } catch (error) {
         console.warn('[TaskProvider] server sync bootstrap failed', error);
@@ -229,6 +267,89 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     };
   }, [instanceId, roomId]);
 
+  // Supabase realtime broadcast channel (flagged)
+  useEffect(() => {
+    if (!supabaseSyncEnabled || !supabase || !roomId) return;
+    const channel = supabase.channel(`tasks-${roomId}`);
+    supabaseChannelRef.current = channel;
+    let active = true;
+
+    channel.on('broadcast', { event: 'tasks-sync' }, payload => {
+      if (!active) return;
+      const data = payload?.payload as { tasks?: Task[]; fingerprint?: string };
+      if (!data || !Array.isArray(data.tasks)) return;
+      const incomingFp = data.fingerprint || fingerprintTasks(data.tasks);
+      if (incomingFp === lastSupabaseFingerprintRef.current) return;
+      const taskDoc = taskDocRef.current;
+      if (!taskDoc) return;
+      const currentFp = fingerprintTasks(taskDoc.getTasks());
+      if (incomingFp === currentFp) return;
+      taskDoc.replaceAllFromExternal(data.tasks);
+      lastSupabaseFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
+      lastSnapshotsRef.current.supabase = lastSupabaseFingerprintRef.current;
+      setSupabaseStatus(prev => ({ ...prev, lastRealtimeAt: new Date().toISOString() }));
+    });
+
+    channel.subscribe(status => {
+      if (status === 'SUBSCRIBED') {
+        supabaseReadyRef.current = true;
+        setSupabaseStatus(prev => ({ ...prev, lastError: undefined }));
+      }
+    });
+
+    return () => {
+      active = false;
+      supabaseReadyRef.current = false;
+      channel.unsubscribe();
+      if (supabaseChannelRef.current === channel) {
+        supabaseChannelRef.current = null;
+      }
+    };
+  }, [supabaseSyncEnabled, supabase, roomId]);
+
+  // Supabase DB sync (flagged)
+  useEffect(() => {
+    if (!supabaseSyncEnabled || !supabase || !roomId) return;
+    const taskDoc = taskDocRef.current;
+    if (!taskDoc) return;
+    const sync = new SupabaseSync(roomId);
+    supabaseDbSyncRef.current = sync;
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const remote = await sync.fetchTasks();
+      if (cancelled) return;
+      if (!remote.length) return;
+      const fp = fingerprintTasks(remote);
+      if (fp !== lastSupabaseDbFingerprintRef.current) {
+        taskDoc.replaceAllFromExternal(remote);
+        lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
+        lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
+      }
+    };
+
+    void hydrate();
+
+    const unsubscribe = sync.subscribe(remoteTasks => {
+      if (cancelled) return;
+      const fp = fingerprintTasks(remoteTasks);
+      if (fp === lastSupabaseDbFingerprintRef.current) return;
+      const taskDocNow = taskDocRef.current;
+      if (!taskDocNow) return;
+      taskDocNow.replaceAllFromExternal(remoteTasks);
+      lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDocNow.getTasks());
+      lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      if (supabaseDbSyncRef.current === sync) {
+        supabaseDbSyncRef.current = null;
+      }
+    };
+  }, [supabaseSyncEnabled, supabase, roomId]);
+
   // Save tasks to localStorage whenever tasks change and push to server if connected
   useEffect(() => {
     if (isLoading) {
@@ -236,6 +357,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     }
 
     storage.set(STORAGE_KEYS.TASKS, tasks);
+    lastSnapshotsRef.current.storage = fingerprintTasks(tasks);
 
     // Broadcast change to other tabs/windows so passive listeners stay in sync
     try {
@@ -257,6 +379,40 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       }
     } catch {}
 
+    // Supabase DB upsert (flagged)
+    try {
+      if (supabaseSyncEnabled && supabaseDbSyncRef.current && lastDocOriginRef.current !== TASK_DOC_REMOTE_ORIGIN) {
+        const fp = fingerprintTasks(tasks);
+        if (fp !== lastSupabaseDbFingerprintRef.current) {
+          lastSupabaseDbFingerprintRef.current = fp;
+          lastSnapshotsRef.current.supabase = fp;
+          setSupabaseStatus(prev => ({ ...prev, lastDbUpsertAt: new Date().toISOString(), lastError: undefined }));
+          void supabaseDbSyncRef.current.upsertTasks(tasks);
+        }
+      }
+    } catch {}
+
+    // Supabase realtime broadcast (flagged)
+    try {
+      if (
+        supabaseSyncEnabled &&
+        supabaseReadyRef.current &&
+        supabaseChannelRef.current &&
+        lastDocOriginRef.current !== TASK_DOC_REMOTE_ORIGIN
+      ) {
+        const fp = fingerprintTasks(tasks);
+        if (fp !== lastSupabaseFingerprintRef.current) {
+          lastSupabaseFingerprintRef.current = fp;
+          lastSnapshotsRef.current.supabase = fp;
+          void supabaseChannelRef.current.send({
+            type: 'broadcast',
+            event: 'tasks-sync',
+            payload: { tasks, fingerprint: fp },
+          });
+        }
+      }
+    } catch {}
+
     lastDocOriginRef.current = null;
   }, [tasks, isLoading, instanceId]);
 
@@ -273,10 +429,10 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
           if (!data || data.type !== 'tasks-updated') return;
           if (data.sourceId === instanceId) return;
           if (Array.isArray(data.tasks) && taskDoc) {
-            const current = JSON.stringify(taskDoc.getTasks());
-            const incoming = JSON.stringify(data.tasks);
-            if (current !== incoming) {
+            const incoming = fingerprintTasks(data.tasks);
+            if (incoming !== lastSnapshotsRef.current.broadcast) {
               taskDoc.replaceAllFromExternal(data.tasks);
+              lastSnapshotsRef.current.broadcast = fingerprintTasks(taskDoc.getTasks());
             }
           }
         };
@@ -287,10 +443,10 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       if (e.key !== STORAGE_KEYS.TASKS || !taskDoc) return;
       try {
         const next = e.newValue ? (JSON.parse(e.newValue) as Task[]) : [];
-        const current = JSON.stringify(taskDoc.getTasks());
-        const incoming = JSON.stringify(next);
-        if (current !== incoming) {
+        const incoming = fingerprintTasks(next);
+        if (incoming !== lastSnapshotsRef.current.storage) {
           taskDoc.replaceAllFromExternal(next);
+          lastSnapshotsRef.current.storage = fingerprintTasks(taskDoc.getTasks());
         }
       } catch {}
     };
@@ -596,19 +752,21 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const taskDoc = taskDocRef.current;
     if (!taskDoc) return;
 
+    await requestMagicLinkForSync();
+
     if (serverSyncRef.current) {
       const remote = await serverSyncRef.current.fetchTasks();
-      const current = JSON.stringify(taskDoc.getTasks());
-      const incoming = JSON.stringify(remote);
-      if (current !== incoming) {
+      const incoming = fingerprintTasks(remote);
+      if (incoming !== lastSnapshotsRef.current.server) {
         taskDoc.replaceAllFromExternal(remote);
+        lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
       }
     } else if (typeof window !== 'undefined') {
       const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? [];
-      const current = JSON.stringify(taskDoc.getTasks());
-      const incoming = JSON.stringify(savedTasks);
-      if (current !== incoming) {
+      const incoming = fingerprintTasks(savedTasks);
+      if (incoming !== lastSnapshotsRef.current.storage) {
         taskDoc.replaceAllFromExternal(savedTasks);
+        lastSnapshotsRef.current.storage = fingerprintTasks(taskDoc.getTasks());
       }
     }
 
@@ -630,9 +788,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     if (!taskDoc) return;
 
     const now = new Date().toISOString();
-    const currentTasks = taskDoc.getTasks();
-    const samePriority = currentTasks.filter(t => t.priority === taskData.priority && !t.deletedAt);
-    const nextOrder = samePriority.length > 0 ? Math.max(...samePriority.map(t => t.order || 0)) + 1 : 1;
+    const nextOrder = taskDoc.getNextOrderForPriority(taskData.priority);
     const newTask: Task = {
       ...taskData,
       id: generateId(),
@@ -726,82 +882,24 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     });
   };
 
-  const getTasksByDate = (date: string): Task[] => {
-    // date is expected as YYYY-MM-DD
-    const target = parseLocalDate(date);
-    return tasks.filter(task => {
-      if (task.deletedAt) return false;
-      // Establish the start date for the task (local day)
-      const startDateStr = task.scheduledDate
-        ? task.scheduledDate
-        : toLocalDateString(new Date(task.createdAt));
-      const start = parseLocalDate(startDateStr);
+  const tasksByDateCache = React.useMemo(() => {
+    const cache = new Map<string, Task[]>();
+    return (date: string) => {
+      if (cache.has(date)) return cache.get(date)!;
+      const result = buildTasksByDate(tasks, date);
+      cache.set(date, result);
+      return result;
+    };
+  }, [tasks]);
 
-      // If repeating daily, include the task on any day >= start date
-      if (task.repeat === 'daily') {
-        return toLocalDateString(target) >= toLocalDateString(start);
-      }
+  const todaysTasksMemo = React.useMemo(() => buildTodaysTasks(tasks), [tasks]);
+  const completedTasksMemo = React.useMemo(() => buildCompletedTasks(tasks), [tasks]);
+  const deletedTasksMemo = React.useMemo(() => buildDeletedTasks(tasks), [tasks]);
 
-      // Otherwise, only include if same local day
-      return isSameLocalDay(start, target);
-    });
-  };
-
-  const getTodaysTasks = (): Task[] => {
-    const today = new Date();
-    return tasks
-      .filter(task => {
-        if (task.deletedAt) return false;
-        // Repeating tasks appear today if today >= start date
-        if (task.repeat === 'daily') {
-          const startDateStr = task.scheduledDate ? task.scheduledDate : toLocalDateString(new Date(task.createdAt));
-          return toLocalDateString(today) >= startDateStr;
-        }
-        // Prefer scheduledDate (YYYY-MM-DD). If absent, use createdAt's local day so unscheduled tasks appear today.
-        const taskDateStr = task.scheduledDate ? task.scheduledDate : toLocalDateString(new Date(task.createdAt));
-        return isSameLocalDay(parseLocalDate(taskDateStr), today);
-      })
-      .sort((a, b) => {
-        // Sort by priority (A1 > A2 > A3 > B1 > B2 > B3 > C1 > C2 > C3 > D), then by custom order (ascending), then by creation time
-        const priorityOrder = {
-          A1: 10, A2: 9, A3: 8,
-          B1: 7, B2: 6, B3: 5,
-          C1: 4, C2: 3, C3: 2,
-          D: 1
-        };
-        const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
-        if (priorityDiff !== 0) return priorityDiff;
-        if (a.order && b.order && a.order !== b.order) return a.order - b.order;
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      });
-  };
-
-  const getCompletedTasks = (): Task[] => {
-    // Sort primarily by completedAt descending. If identical (can happen when toggled rapidly in same ms)
-    // fall back to updatedAt descending, then creation order (later index first) to ensure deterministic ordering.
-    return tasks
-      .filter(t => t.completed && !t.deletedAt)
-      .sort((a, b) => {
-        const aCompleted = a.completedAt ? new Date(a.completedAt).getTime() : 0;
-        const bCompleted = b.completedAt ? new Date(b.completedAt).getTime() : 0;
-        if (bCompleted !== aCompleted) return bCompleted - aCompleted;
-        const aUpdated = new Date(a.updatedAt).getTime();
-        const bUpdated = new Date(b.updatedAt).getTime();
-        if (bUpdated !== aUpdated) return bUpdated - aUpdated;
-        // Fallback: reverse original order so the task toggled later (higher index) comes first
-        const aIndex = tasks.findIndex(t => t.id === a.id);
-        const bIndex = tasks.findIndex(t => t.id === b.id);
-        return bIndex - aIndex;
-      });
-  };
-
-  const getDeletedTasks = (): Task[] => {
-    return tasks.filter(t => t.deletedAt).sort((a, b) => {
-      const ad = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
-      const bd = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
-      return bd - ad; // newest deleted first
-    });
-  };
+  const getTasksByDate = React.useCallback((date: string): Task[] => tasksByDateCache(date), [tasksByDateCache]);
+  const getTodaysTasks = React.useCallback((): Task[] => todaysTasksMemo, [todaysTasksMemo]);
+  const getCompletedTasks = React.useCallback((): Task[] => completedTasksMemo, [completedTasksMemo]);
+  const getDeletedTasks = React.useCallback((): Task[] => deletedTasksMemo, [deletedTasksMemo]);
 
   const moveTaskToDate = (taskId: string, date: string): void => {
     updateTask(taskId, { scheduledDate: date });
@@ -980,9 +1078,81 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     reorderTasksWithinPriority,
     syncNow,
     peerSync: peerSyncApi,
+    supabaseStatus,
   };
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
+};
+
+// Pure helpers for memoized selectors
+const buildTasksByDate = (tasks: Task[], date: string): Task[] => {
+  const target = parseLocalDate(date);
+  return tasks.filter(task => {
+    if (task.deletedAt) return false;
+    const startDateStr = task.scheduledDate ? task.scheduledDate : toLocalDateString(new Date(task.createdAt));
+    const start = parseLocalDate(startDateStr);
+    if (task.repeat === 'daily') {
+      return toLocalDateString(target) >= toLocalDateString(start);
+    }
+    return isSameLocalDay(start, target);
+  });
+};
+
+const buildTodaysTasks = (tasks: Task[]): Task[] => {
+  const today = new Date();
+  return tasks
+    .filter(task => {
+      if (task.deletedAt) return false;
+      if (task.repeat === 'daily') {
+        const startDateStr = task.scheduledDate ? task.scheduledDate : toLocalDateString(new Date(task.createdAt));
+        return toLocalDateString(today) >= startDateStr;
+      }
+      const taskDateStr = task.scheduledDate ? task.scheduledDate : toLocalDateString(new Date(task.createdAt));
+      return isSameLocalDay(parseLocalDate(taskDateStr), today);
+    })
+    .sort((a, b) => {
+      const priorityOrder = { A1: 10, A2: 9, A3: 8, B1: 7, B2: 6, B3: 5, C1: 4, C2: 3, C3: 2, D: 1 } as const;
+      const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+      if (a.order && b.order && a.order !== b.order) return a.order - b.order;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+};
+
+const buildCompletedTasks = (tasks: Task[]): Task[] => {
+  return tasks
+    .filter(t => t.completed && !t.deletedAt)
+    .sort((a, b) => {
+      const aCompleted = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const bCompleted = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      if (bCompleted !== aCompleted) return bCompleted - aCompleted;
+      const aUpdated = new Date(a.updatedAt).getTime();
+      const bUpdated = new Date(b.updatedAt).getTime();
+      if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+      const aIndex = tasks.findIndex(t => t.id === a.id);
+      const bIndex = tasks.findIndex(t => t.id === b.id);
+      return bIndex - aIndex;
+    });
+};
+
+const buildDeletedTasks = (tasks: Task[]): Task[] => {
+  return tasks
+    .filter(t => t.deletedAt)
+    .sort((a, b) => {
+      const ad = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
+      const bd = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
+      return bd - ad;
+    });
+};
+
+const fingerprintTasks = (tasks: Task[]): string => {
+  if (!tasks.length) return 'len:0';
+  const sorted = [...tasks].sort((a, b) => a.id.localeCompare(b.id));
+  let hash = `len:${sorted.length};`;
+  for (const t of sorted) {
+    hash += `${t.id}|${t.updatedAt}|${t.completed ? 1 : 0}|${t.deletedAt ?? ''}|${t.order ?? ''};`;
+  }
+  return hash;
 };
 
 // Helper function to get default colors for priorities

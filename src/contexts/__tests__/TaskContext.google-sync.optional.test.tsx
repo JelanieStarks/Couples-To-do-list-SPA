@@ -10,7 +10,10 @@ import { STORAGE_KEYS } from '../../utils';
 // Minimal AuthContext mock
 const AuthContext = React.createContext<any>(null);
 const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => (
-  <AuthContext.Provider value={{ user: { id: 'user-1', name: 'Tester', inviteCode: 'CODE', color: '#ff00aa' } }}>
+  <AuthContext.Provider value={{
+    user: { id: 'user-1', name: 'Tester', inviteCode: 'CODE', color: '#ff00aa' },
+    requestMagicLinkForSync: vi.fn().mockResolvedValue(false),
+  }}>
     {children}
   </AuthContext.Provider>
 );

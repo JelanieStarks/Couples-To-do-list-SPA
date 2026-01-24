@@ -56,6 +56,39 @@ A delightful React + Tailwind CSS single-page application designed specifically 
 
 ## 🚀 Getting Started
 
+### 🧠 EZ Mode (5 steps)
+
+1. **Grab the code**
+    ```bash
+    git clone https://github.com/JelanieStarks/Couples-To-do-list-SPA.git
+    cd Couples-To-do-list-SPA
+    ```
+2. **Install stuff**
+    ```bash
+    npm install
+    ```
+3. **(Optional) Supabase sync**
+    - Make a new Supabase project
+    - Run SQL in this order:
+      - [supabase/schema.sql](supabase/schema.sql)
+      - [supabase/rls_policies.sql](supabase/rls_policies.sql)
+      - [supabase/triggers.sql](supabase/triggers.sql)
+    - Copy `.env.local.example` → `.env.local` and set:
+      ```
+      VITE_SUPABASE_URL=your-project-url
+      VITE_SUPABASE_ANON_KEY=your-anon-key
+      VITE_ENABLE_SUPABASE_AUTH=true
+      VITE_ENABLE_SUPABASE_SYNC=true
+      ```
+    - In the app’s Settings card, flip **"Trust This Device"** on if you want Supabase auth to stay signed in
+4. **Run it**
+    ```bash
+    npm run dev -- --host
+    ```
+    - Visit the shown URL (usually http://localhost:5173 or the LAN URL Vite prints)
+5. **Invite your partner**
+    - Pick your name, copy the invite code, send it, and start adding tasks
+
 ### Prerequisites
 
 ### Installation

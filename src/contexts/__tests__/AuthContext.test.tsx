@@ -1,7 +1,14 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../AuthContext';
+import { STORAGE_KEYS } from '../../utils';
+import { getSupabaseClient, isSupabaseAuthEnabled } from '../../utils/supabaseClient';
+
+vi.mock('../../utils/supabaseClient', () => ({
+  getSupabaseClient: vi.fn(),
+  isSupabaseAuthEnabled: vi.fn(),
+}));
 
 const Harness: React.FC<{onReady:(api:any)=>void}> = ({ onReady }) => {
   const api = useAuth();
@@ -9,17 +16,35 @@ const Harness: React.FC<{onReady:(api:any)=>void}> = ({ onReady }) => {
   return <div data-testid="auth-harness">ready</div>;
 };
 
+const renderWithAuth = (onReady: (api: any) => void) => {
+  const utils = render(
+    <AuthProvider>
+      <Harness onReady={onReady} />
+    </AuthProvider>
+  );
+  expect(screen.getByTestId('auth-harness')).toBeInTheDocument();
+  return utils;
+};
+
 describe('AuthContext', () => {
   let ctx: any;
+  let renderUtils: ReturnType<typeof renderWithAuth> | null = null;
+  const mockSupabase = {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      signInWithOtp: vi.fn().mockResolvedValue({}),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+    },
+  };
+
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
+    vi.useRealTimers();
+    (getSupabaseClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    (isSupabaseAuthEnabled as unknown as ReturnType<typeof vi.fn>).mockReturnValue(false);
     ctx = null;
-    render(
-      <AuthProvider>
-        <Harness onReady={(api)=> ctx = api} />
-      </AuthProvider>
-    );
-    expect(screen.getByTestId('auth-harness')).toBeInTheDocument();
+    renderUtils = renderWithAuth((api) => { ctx = api; });
   });
 
   it('logs in user and sets invite code', async () => {
@@ -63,13 +88,38 @@ describe('AuthContext', () => {
     await act(async () => { await ctx.login('Persist'); });
     const storedInvite = ctx.user.inviteCode;
     // Re-mount
-    render(
-      <AuthProvider>
-        <Harness onReady={(api)=> ctx = api} />
-      </AuthProvider>
-    );
+    renderUtils?.unmount();
+    renderWithAuth((api) => { ctx = api; });
     // allow effect flush
     expect(ctx.user).toBeTruthy();
     expect(ctx.user.inviteCode).toBe(storedInvite);
+  });
+
+  it('sends magic link on sync request and shows notice', async () => {
+    vi.useFakeTimers();
+    (getSupabaseClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockSupabase);
+    (isSupabaseAuthEnabled as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    renderUtils?.unmount();
+    renderWithAuth((api) => { ctx = api; });
+
+    await act(async () => {
+      await ctx.login('Alice', 'alice@example.com');
+    });
+
+    localStorage.setItem(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN, JSON.stringify({ email: 'alice@example.com' }));
+
+    await act(async () => {
+      await ctx.requestMagicLinkForSync();
+    });
+
+    expect(mockSupabase.auth.signInWithOtp).toHaveBeenCalled();
+    expect(ctx.magicLinkNotice?.message).toBe('Magic link sent');
+
+    act(() => {
+      vi.advanceTimersByTime(8000);
+    });
+
+    expect(ctx.magicLinkNotice).toBeNull();
+    vi.useRealTimers();
   });
 });
