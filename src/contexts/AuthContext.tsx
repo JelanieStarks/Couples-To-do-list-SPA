@@ -1,289 +1,303 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import type { User, AuthState } from '../types';
 import { storage, STORAGE_KEYS, generateId, generateInviteCode } from '../utils';
 import { getSupabaseClient, isSupabaseAuthEnabled } from '../utils/supabaseClient';
-import type { Session } from '@supabase/supabase-js';
+import {
+  joinHousehold,
+  leaveHousehold,
+  loadAccountSnapshot,
+  updateProfile,
+} from '../data/accountRepository';
 
-// 🔐 Authentication Context - Your digital bouncer, but friendlier
+type AuthMode = 'supabase' | 'demo';
+
+interface AuthNotice {
+  message: string;
+  sentAt: string;
+}
+
 interface AuthContextType extends AuthState {
+  authMode: AuthMode;
+  authError: string | null;
+  authNotice: AuthNotice | null;
   login: (name: string, email?: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   linkPartner: (inviteCode: string) => Promise<boolean>;
   unlinkPartner: () => void;
   updateUser: (updates: Partial<User>) => void;
+  clearAuthFeedback: () => void;
   requestMagicLinkForSync: () => Promise<boolean>;
-  magicLinkNotice: MagicLinkNotice | null;
-}
-
-interface MagicLinkNotice {
-  message: string;
-  sentAt: string;
+  magicLinkNotice: AuthNotice | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
-// Added optional initialUser/initialPartner for deterministic tests (so we don't have to "login" in every unit test).
-export const AuthProvider: React.FC<{ children: React.ReactNode; initialUser?: User; initialPartner?: User }> = ({ children, initialUser, initialPartner }) => {
+const readDemoState = (): AuthState => {
+  const user = storage.get<User>(STORAGE_KEYS.USER);
+  const partner = storage.get<User>(STORAGE_KEYS.PARTNER);
+  return { user, partner, isAuthenticated: Boolean(user), isLoading: false };
+};
+
+const persistSnapshot = (user: User, partner: User | null) => {
+  storage.set(STORAGE_KEYS.USER, user);
+  if (partner) storage.set(STORAGE_KEYS.PARTNER, partner);
+  else storage.remove(STORAGE_KEYS.PARTNER);
+};
+
+const clearAccountCache = () => {
+  storage.remove(STORAGE_KEYS.USER);
+  storage.remove(STORAGE_KEYS.PARTNER);
+  storage.remove(STORAGE_KEYS.TASKS);
+  storage.remove(STORAGE_KEYS.TASKS_YDOC);
+  storage.remove(STORAGE_KEYS.ROUTINES);
+  storage.remove(STORAGE_KEYS.SUPABASE_SESSION);
+  storage.remove(STORAGE_KEYS.SUPABASE_TRUSTED);
+  storage.remove(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN);
+};
+
+export const AuthProvider: React.FC<{
+  children: React.ReactNode;
+  initialUser?: User;
+  initialPartner?: User;
+}> = ({ children, initialUser, initialPartner }) => {
+  const supabase = useMemo(() => getSupabaseClient(), []);
+  const authMode: AuthMode = useMemo(
+    () => (isSupabaseAuthEnabled() && supabase ? 'supabase' : 'demo'),
+    [supabase],
+  );
+
   const [authState, setAuthState] = useState<AuthState>(() => {
     if (initialUser) {
       return {
         user: initialUser,
-        partner: initialPartner || null,
+        partner: initialPartner ?? null,
         isAuthenticated: true,
         isLoading: false,
       };
     }
-    const savedUser = storage.get<User>(STORAGE_KEYS.USER);
-    const savedPartner = storage.get<User>(STORAGE_KEYS.PARTNER);
-    return {
-      user: savedUser,
-      partner: savedPartner,
-      isAuthenticated: !!savedUser,
-      isLoading: false,
-    };
+    return authMode === 'demo'
+      ? readDemoState()
+      : { user: null, partner: null, isAuthenticated: false, isLoading: true };
   });
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<AuthNotice | null>(null);
 
-  const supabase = useMemo(() => getSupabaseClient(), []);
-  const supabaseAuthEnabled = useMemo(() => isSupabaseAuthEnabled(), []);
-  const [magicLinkNotice, setMagicLinkNotice] = useState<MagicLinkNotice | null>(null);
-  const magicLinkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearAuthFeedback = useCallback(() => {
+    setAuthError(null);
+    setAuthNotice(null);
+  }, []);
 
-  const setOfflineToken = (email?: string) => {
-    if (!email) return;
-    storage.set(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN, {
-      email,
-      issuedAt: new Date().toISOString(),
-    });
-  };
+  const hydrateSession = useCallback(async (session: Session | null) => {
+    if (!supabase || authMode !== 'supabase') return;
+    if (!session) {
+      setAuthState({ user: null, partner: null, isAuthenticated: false, isLoading: false });
+      return;
+    }
 
-  const requestMagicLinkForSync = async (): Promise<boolean> => {
-    if (!supabaseAuthEnabled || !supabase) return false;
-    if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
-    const offlineToken = storage.get<{ email?: string }>(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN);
-    const email = offlineToken?.email || authState.user?.email;
-    if (!email) return false;
-    const { data } = await supabase.auth.getSession();
-    if (data.session) return false;
+    setAuthState(previous => ({ ...previous, isLoading: true }));
     try {
-      await supabase.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+      const snapshot = await loadAccountSnapshot(supabase, session.user);
+      persistSnapshot(snapshot.user, snapshot.partner);
+      storage.set(STORAGE_KEYS.SUPABASE_SESSION, session);
+      setAuthState({
+        ...snapshot,
+        isAuthenticated: true,
+        isLoading: false,
       });
-      storage.remove(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN);
-      setMagicLinkNotice({ message: 'Magic link sent', sentAt: new Date().toISOString() });
-      if (magicLinkTimeoutRef.current) {
-        clearTimeout(magicLinkTimeoutRef.current);
-      }
-      magicLinkTimeoutRef.current = setTimeout(() => {
-        setMagicLinkNotice(null);
-        magicLinkTimeoutRef.current = null;
-      }, 8000);
-      return true;
+      setAuthError(null);
     } catch (error) {
-      console.warn('Supabase magic link request failed', error);
-      return false;
+      setAuthError((error as Error).message);
+      setAuthState({ user: null, partner: null, isAuthenticated: false, isLoading: false });
     }
-  };
+  }, [authMode, supabase]);
 
-  // Load user data on app start - Jarvis remembers everything (unless tests already gave us a user)
   useEffect(() => {
-    if (initialUser) return; // Test scenario: skip localStorage boot.
+    if (initialUser || authMode === 'demo' || !supabase) return;
+    let active = true;
 
-    // If Supabase is enabled, hydrate from Supabase session first, then fall back to local storage.
-    if (supabaseAuthEnabled && supabase) {
-      let active = true;
-      const hydrateFromSession = (session: Session | null) => {
-        if (!active) return;
-        if (!session) {
-          const savedUser = storage.get<User>(STORAGE_KEYS.USER);
-          const savedPartner = storage.get<User>(STORAGE_KEYS.PARTNER);
-          setAuthState({ user: savedUser, partner: savedPartner, isAuthenticated: !!savedUser, isLoading: false });
-          return;
-        }
-        const savedUser = storage.get<User>(STORAGE_KEYS.USER);
-        const baseUser: User = savedUser ?? {
-          id: session.user.id,
-          name: session.user.user_metadata?.name || session.user.email || 'You',
-          email: session.user.email ?? undefined,
-          inviteCode: generateInviteCode(),
-          color: '#ec4899',
-          createdAt: new Date().toISOString(),
-        };
-        const nextUser: User = {
-          ...baseUser,
-          id: session.user.id,
-          email: session.user.email ?? baseUser.email,
-        };
-        storage.set(STORAGE_KEYS.USER, nextUser);
-        storage.set(STORAGE_KEYS.SUPABASE_SESSION, session);
-        if (storage.get<boolean>(STORAGE_KEYS.SUPABASE_TRUSTED)) {
-          setOfflineToken(nextUser.email);
-        }
-        setAuthState({ user: nextUser, partner: storage.get<User>(STORAGE_KEYS.PARTNER), isAuthenticated: true, isLoading: false });
-      };
-
-      supabase.auth.getSession().then(({ data }) => {
-        hydrateFromSession(data.session);
-      });
-
-      const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-        hydrateFromSession(session);
-      });
-
-      return () => {
-        active = false;
-        listener?.subscription.unsubscribe();
-      };
-    }
-
-    const savedUser = storage.get<User>(STORAGE_KEYS.USER);
-    const savedPartner = storage.get<User>(STORAGE_KEYS.PARTNER);
-    setAuthState({
-      user: savedUser,
-      partner: savedPartner,
-      isAuthenticated: !!savedUser,
-      isLoading: false,
-    });
-  }, [initialUser, supabaseAuthEnabled, supabase]);
-
-  const login = async (name: string, email?: string): Promise<void> => {
-    const trimmedName = name.trim();
-    const trimmedEmail = email?.trim();
-    const now = new Date().toISOString();
-
-    // Supabase magic link if enabled and email provided
-    if (supabaseAuthEnabled && supabase && trimmedEmail) {
-      try {
-        await supabase.auth.signInWithOtp({
-          email: trimmedEmail,
-          options: {
-            emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-            data: { name: trimmedName },
-          },
-        });
-      } catch (error) {
-        console.warn('Supabase magic link failed, falling back to local session', error);
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        setAuthError(error.message);
+        setAuthState({ user: null, partner: null, isAuthenticated: false, isLoading: false });
+        return;
       }
-    }
+      void hydrateSession(data.session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) void hydrateSession(session);
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [authMode, hydrateSession, initialUser, supabase]);
+
+  const login = async (name: string, email?: string) => {
+    if (authMode !== 'demo') throw new Error('Use email and password to sign in.');
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error('Please enter your name.');
 
     const existing = storage.get<User>(STORAGE_KEYS.USER);
+    const now = new Date().toISOString();
     const user: User = {
       id: existing?.id ?? generateId(),
       name: trimmedName,
-      email: trimmedEmail || existing?.email,
+      email: email?.trim() || existing?.email,
       inviteCode: existing?.inviteCode ?? generateInviteCode(),
       color: existing?.color ?? '#ec4899',
       createdAt: existing?.createdAt ?? now,
     };
-
-    storage.set(STORAGE_KEYS.USER, user);
-    
-    setAuthState(prev => ({
-      ...prev,
-      user,
-      isAuthenticated: true,
-    }));
+    persistSnapshot(user, storage.get<User>(STORAGE_KEYS.PARTNER));
+    setAuthState(previous => ({ ...previous, user, isAuthenticated: true, isLoading: false }));
   };
 
-  const logout = (): void => {
-    if (supabaseAuthEnabled && supabase) {
-      void supabase.auth.signOut();
-      storage.remove(STORAGE_KEYS.SUPABASE_SESSION);
-      storage.remove(STORAGE_KEYS.SUPABASE_TRUSTED);
-      storage.remove(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN);
+  const signIn = async (email: string, password: string) => {
+    if (!supabase || authMode !== 'supabase') throw new Error('Supabase is not configured yet.');
+    clearAuthFeedback();
+    setAuthState(previous => ({ ...previous, isLoading: true }));
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    if (error) {
+      setAuthState(previous => ({ ...previous, isLoading: false }));
+      setAuthError(error.message);
+      throw error;
     }
-    storage.remove(STORAGE_KEYS.USER);
-    storage.remove(STORAGE_KEYS.PARTNER);
-    
-    setAuthState({
-      user: null,
-      partner: null,
-      isAuthenticated: false,
-      isLoading: false,
+    await hydrateSession(data.session);
+  };
+
+  const signUp = async (name: string, email: string, password: string) => {
+    if (!supabase || authMode !== 'supabase') throw new Error('Supabase is not configured yet.');
+    clearAuthFeedback();
+    setAuthState(previous => ({ ...previous, isLoading: true }));
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { display_name: name.trim() } },
+    });
+    if (error) {
+      setAuthState(previous => ({ ...previous, isLoading: false }));
+      setAuthError(error.message);
+      throw error;
+    }
+    if (data.session) {
+      await hydrateSession(data.session);
+      return;
+    }
+    setAuthState({ user: null, partner: null, isAuthenticated: false, isLoading: false });
+    setAuthNotice({
+      message: 'Account created. Check your email to confirm it, then sign in.',
+      sentAt: new Date().toISOString(),
     });
   };
 
+  const logout = () => {
+    if (supabase && authMode === 'supabase') void supabase.auth.signOut();
+    clearAccountCache();
+    clearAuthFeedback();
+    setAuthState({ user: null, partner: null, isAuthenticated: false, isLoading: false });
+  };
+
   const linkPartner = async (inviteCode: string): Promise<boolean> => {
-    // In a real app, this would make an API call to find the partner
-    // For now, we'll simulate finding a partner locally
-    const trimmedCode = inviteCode.trim().toUpperCase();
-    
-    if (!trimmedCode || trimmedCode.length !== 6) {
+    clearAuthFeedback();
+    const code = inviteCode.trim().toUpperCase();
+    const requiredLength = authMode === 'supabase' ? 8 : 6;
+    if (code.length !== requiredLength) {
+      setAuthError(`Invite codes are ${requiredLength} characters.`);
       return false;
     }
 
-    // Create a mock partner for demonstration
+    if (supabase && authMode === 'supabase') {
+      try {
+        await joinHousehold(supabase, code);
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) throw error ?? new Error('Your session expired. Please sign in again.');
+        await hydrateSession(data.session);
+        setAuthNotice({ message: 'You and your partner are connected!', sentAt: new Date().toISOString() });
+        return true;
+      } catch (error) {
+        setAuthError((error as Error).message);
+        return false;
+      }
+    }
+
+    if (!authState.user) return false;
     const partner: User = {
       id: generateId(),
-      name: 'Your Amazing Partner', // In real life, this would come from the API
-      inviteCode: trimmedCode,
-      color: '#3b82f6', // Default blue color for "Partner"
+      name: 'Demo Partner',
+      inviteCode: code,
+      color: '#3b82f6',
       createdAt: new Date().toISOString(),
     };
-
-    // Update current user with partner ID
-    if (authState.user) {
-      const updatedUser = { ...authState.user, partnerId: partner.id };
-      storage.set(STORAGE_KEYS.USER, updatedUser);
-      storage.set(STORAGE_KEYS.PARTNER, partner);
-
-      setAuthState(prev => ({
-        ...prev,
-        user: updatedUser,
-        partner,
-      }));
-
-      return true;
-    }
-
-    return false;
+    const user = { ...authState.user, partnerId: partner.id };
+    persistSnapshot(user, partner);
+    setAuthState(previous => ({ ...previous, user, partner }));
+    return true;
   };
 
-  const unlinkPartner = (): void => {
-    if (authState.user) {
-      const updatedUser = { ...authState.user };
-      delete updatedUser.partnerId;
-      
-      storage.set(STORAGE_KEYS.USER, updatedUser);
-      storage.remove(STORAGE_KEYS.PARTNER);
+  const unlinkPartner = () => {
+    if (!authState.user) return;
+    if (supabase && authMode === 'supabase') {
+      void (async () => {
+        try {
+          await leaveHousehold(supabase);
+          const { data, error } = await supabase.auth.getSession();
+          if (error || !data.session) throw error ?? new Error('Your session expired.');
+          await hydrateSession(data.session);
+          setAuthNotice({ message: 'Partner connection removed.', sentAt: new Date().toISOString() });
+        } catch (error) {
+          setAuthError((error as Error).message);
+        }
+      })();
+      return;
+    }
 
-      setAuthState(prev => ({
-        ...prev,
-        user: updatedUser,
-        partner: null,
-      }));
+    const user = { ...authState.user };
+    delete user.partnerId;
+    persistSnapshot(user, null);
+    setAuthState(previous => ({ ...previous, user, partner: null }));
+  };
+
+  const updateUser = (updates: Partial<User>) => {
+    if (!authState.user) return;
+    const user = { ...authState.user, ...updates };
+    persistSnapshot(user, authState.partner);
+    setAuthState(previous => ({ ...previous, user }));
+    if (supabase && authMode === 'supabase') {
+      void updateProfile(supabase, user.id, updates).catch(error => setAuthError(error.message));
     }
   };
 
-  const updateUser = (updates: Partial<User>): void => {
-    if (authState.user) {
-      const updatedUser = { ...authState.user, ...updates };
-      storage.set(STORAGE_KEYS.USER, updatedUser);
-      
-      setAuthState(prev => ({
-        ...prev,
-        user: updatedUser,
-      }));
-    }
-  };
+  const requestMagicLinkForSync = async () => false;
 
   const value: AuthContextType = {
     ...authState,
+    authMode,
+    authError,
+    authNotice,
     login,
+    signIn,
+    signUp,
     logout,
     linkPartner,
     unlinkPartner,
     updateUser,
+    clearAuthFeedback,
     requestMagicLinkForSync,
-    magicLinkNotice,
+    magicLinkNotice: authNotice,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

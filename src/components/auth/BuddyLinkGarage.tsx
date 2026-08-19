@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { SyncPanel } from '../sync/SyncPanel';
 
 export const BuddyLinkGarage: React.FC = () => {
-  const { user, partner, linkPartner, unlinkPartner, updateUser } = useAuth();
+  const { user, partner, authMode, authError, authNotice, linkPartner, unlinkPartner, updateUser } = useAuth();
   const [inviteCodeEntry, setInviteCodeEntry] = useState('');
   const [isLinkingPartner, setIsLinkingPartner] = useState(false);
   const [isLinkFormVisible, setIsLinkFormVisible] = useState(false);
@@ -114,7 +114,7 @@ export const BuddyLinkGarage: React.FC = () => {
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">💡 Share this code with friends so they can connect with you!</p>
+            <p className="text-xs text-gray-500 mt-2">💡 Share this code only with the partner joining your household.</p>
           </div>
         </div>
       ) : (
@@ -165,9 +165,9 @@ export const BuddyLinkGarage: React.FC = () => {
                 <div className="flex space-x-3">
                   <input
                     type="text"
-                    placeholder="ABC123"
+                    placeholder={authMode === 'supabase' ? 'ABCD2345' : 'ABC123'}
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono uppercase"
-                    maxLength={6}
+                    maxLength={authMode === 'supabase' ? 8 : 6}
                     value={inviteCodeEntry}
                     onChange={(event) => setInviteCodeEntry(event.target.value.toUpperCase())}
                   />
@@ -183,7 +183,11 @@ export const BuddyLinkGarage: React.FC = () => {
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">🤖 Enter your partner's 6-character invite code to link your accounts</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  Enter your partner&apos;s {authMode === 'supabase' ? '8' : '6'}-character invite code to link your accounts.
+                </p>
+                {authError && <p role="alert" className="text-xs text-red-600 mt-2">{authError}</p>}
+                {authNotice && <p role="status" className="text-xs text-green-700 mt-2">{authNotice.message}</p>}
               </form>
             )}
           </div>

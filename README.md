@@ -30,6 +30,9 @@ npm run dev
 Add the URL and public anon key from a Supabase project to `.env.local`.
 Never put the Supabase service-role key in this app.
 
+For the complete account setup and two-browser test, follow
+[docs/SUPABASE-SETUP.md](docs/SUPABASE-SETUP.md).
+
 Apply the MVP database migration in the Supabase SQL editor:
 
 ```text
@@ -77,6 +80,7 @@ until the beta is ready.
 
 ## Current refactor status
 
-The secure database and installable-app foundation are in place. The next
-milestone replaces the legacy local/mock login and multi-protocol sync code with
-Supabase Auth and one household-scoped Realtime data path.
+The secure database, account login, household linking, and installable-app
+foundation are in place. Without Supabase environment values, the app clearly
+uses local demo mode. The next milestone replaces the legacy multi-protocol task
+sync code with one household-scoped Supabase Realtime data path.

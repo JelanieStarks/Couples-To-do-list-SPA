@@ -208,6 +208,50 @@ begin
 end;
 $$;
 
+create or replace function public.leave_household()
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  current_household uuid;
+  new_household uuid;
+  member_count integer;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select household_id into current_household
+  from public.household_members
+  where user_id = auth.uid();
+
+  if current_household is null then
+    raise exception 'Household membership not found';
+  end if;
+
+  select count(*) into member_count
+  from public.household_members
+  where household_id = current_household;
+
+  if member_count < 2 then
+    return current_household;
+  end if;
+
+  delete from public.household_members where user_id = auth.uid();
+
+  insert into public.households(name, invite_code, created_by)
+  values ('Our Home', public.generate_household_invite_code(), auth.uid())
+  returning id into new_household;
+
+  insert into public.household_members(household_id, user_id)
+  values (new_household, auth.uid());
+
+  return new_household;
+end;
+$$;
+
 create or replace function public.touch_updated_at()
 returns trigger
 language plpgsql
@@ -280,8 +324,10 @@ create policy "members delete meetings" on public.life_meetings
 for delete using (public.is_household_member(household_id));
 
 revoke all on function public.join_household_by_code(text) from public;
+revoke all on function public.leave_household() from public;
 revoke all on function public.is_household_member(uuid) from public;
 grant execute on function public.join_household_by_code(text) to authenticated;
+grant execute on function public.leave_household() to authenticated;
 grant execute on function public.is_household_member(uuid) to authenticated;
 
 do $$

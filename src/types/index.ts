@@ -4,6 +4,8 @@ export interface User {
   name: string;
   email?: string;
   partnerId?: string;
+  householdId?: string;
+  householdName?: string;
   inviteCode: string;
   color: string; // User's chosen color
   createdAt: string;
