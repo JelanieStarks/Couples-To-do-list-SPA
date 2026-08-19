@@ -56,7 +56,7 @@ export const RoutineBlock: React.FC = () => {
   const saveBlocks = () => {
     if (!activeMember) return;
     const result = saveRoutine(activeMember, draftBlocks);
-    if (!result.ok) {
+    if ('error' in result) {
       setDraftError(result.error);
       return;
     }

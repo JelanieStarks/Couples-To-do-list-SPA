@@ -1,446 +1,82 @@
-# Couples To-Do List SPA 💕
+# Couples To-Do
 
-> Status: Beta v1.0
+A shared planner, task list, and life-meeting app for two partners.
 
-![Couples To-Do App](https://github.com/user-attachments/assets/43c3eb02-ae2b-45f3-af15-c45a411838c0)
+The project is being simplified into one React application backed by Supabase,
+with an installable web app and Android package built from the same codebase.
+See [docs/MVP-ARCHITECTURE.md](docs/MVP-ARCHITECTURE.md) for the agreed product
+scope and release gates.
 
-A delightful React + Tailwind CSS single-page application designed specifically for couples to organize their lives together with style, humor, and ADHD-friendly features. Powered by Jarvis-level AI assistance! 🤖
+## MVP
 
-## ✨ Features
+- Private email/password accounts
+- One two-person household joined with an invite code
+- Shared tasks with ownership, assignment, priority, date, and time
+- Today view and weekly planner
+- Guided life meetings that create follow-up tasks
+- Installable PWA for web, Android, and iPhone beta use
+- Capacitor Android wrapper; native iOS wrapper prepared for later builds
 
-### 🔐 Smart Authentication
+## Local development
 
-- **LocalStorage-based login** - No servers, no hassle
-- **Invite code system** - Share 6-character codes to connect with your partner
-- **Partner linking** - Sync tasks and collaborate seamlessly
-
-### 📝 Intelligent Task Management
-
-- **Full CRUD operations** - Create, edit, delete, and complete tasks
-- **Priority system** - A (urgent), B (important), C (nice-to-have), D (someday)
-- **Color coding** - 10 beautiful colors to organize your thoughts
-- **Smart descriptions** - Add detailed notes to any task
-
-### 🧠 AI-Powered Import
-
-- **Text parsing** - Import tasks from any text format
-- **Multiple formats supported**:
-  - `[A] Task title: description`
-  - `Priority B: Task name`
-  - `Task (Priority: C)`
-  - Bullet points and numbered lists
-- **Section separation** - Use `---` to organize different categories
-- **Bulk import** - Turn meeting notes into organized tasks instantly
-
-### 📅 Weekly Calendar
-
-- **Drag & drop scheduling** - Move tasks between days effortlessly
-- **Today's focus** - Highlighted current day with priority sorting
-- **Weekly overview** - Monday through Sunday columns
-- **Visual task management** - See your week at a glance
-
-### 💖 Partner Collaboration
-
-- **Task sharing** - Share any task with your partner
-- **Gradient styling** - Shared tasks get beautiful gradient backgrounds
-- **Creator tracking** - See who created each task
-- **Partner status** - Know when you're connected
-
-### 🎨 ADHD-Friendly Design
-
-- **Clear visual hierarchy** - Easy to scan and understand
-- **Gentle animations** - Smooth transitions without overwhelm
-- **Color-coded priorities** - Red (A) to Green (D) system
-- **Jarvis commentary** - Helpful and humorous guidance
-- **Progress tracking** - Visual completion percentages
-
-## 🚀 Getting Started
-
-### 🧠 EZ Mode (5 steps)
-
-1. **Grab the code**
-    ```bash
-    git clone https://github.com/JelanieStarks/Couples-To-do-list-SPA.git
-    cd Couples-To-do-list-SPA
-    ```
-2. **Install stuff**
-    ```bash
-    npm install
-    ```
-3. **(Optional) Supabase sync**
-    - Make a new Supabase project
-    - Run SQL in this order:
-      - [supabase/schema.sql](supabase/schema.sql)
-      - [supabase/rls_policies.sql](supabase/rls_policies.sql)
-      - [supabase/triggers.sql](supabase/triggers.sql)
-    - Copy `.env.local.example` → `.env.local` and set:
-      ```
-      VITE_SUPABASE_URL=your-project-url
-      VITE_SUPABASE_ANON_KEY=your-anon-key
-      VITE_ENABLE_SUPABASE_AUTH=true
-      VITE_ENABLE_SUPABASE_SYNC=true
-      ```
-    - In the app’s Settings card, flip **"Trust This Device"** on if you want Supabase auth to stay signed in
-4. **Run it**
-    ```bash
-    npm run dev -- --host
-    ```
-    - Visit the shown URL (usually http://localhost:5173 or the LAN URL Vite prints)
-5. **Invite your partner**
-    - Pick your name, copy the invite code, send it, and start adding tasks
-
-### Prerequisites
-
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/JelanieStarks/Couples-To-do-list-SPA.git
-   cd Couples-To-do-list-SPA
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Start the development server**
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser**
-   Navigate to `http://localhost:5173`
-
-## Desktop app (.exe/.AppImage/.dmg)
-
-This repo includes an Electron scaffold to package the Vite React app as a desktop application.
-
-Primary download (Windows):
-
-- Get the latest Windows installer (.exe) from the Releases page.
-  - If a new tag is pushed (vX.Y.Z), CI builds the .exe automatically on a Windows runner and attaches it to the Release.
-  - You can also trigger it manually under Actions -> "Build Windows Installer".
-
-Linux and macOS builds:
-
-- Linux AppImage is published as part of selected releases.
-- macOS dmg can be built locally on macOS or wired up similarly in CI.
-
-Scripts:
-
-- Dev (web only): `npm run dev`
-- Dev (desktop shell around dev server): `npm run dev:desktop`
-- Build web assets: `npm run build:web`
-- Package Windows (.exe via NSIS): `npm run build:desktop:win`
-- Package Linux (AppImage): `npm run build:desktop:linux`
-
-Notes:
-
-- Cross-compiling Windows installers from Linux requires Wine. On Ubuntu:
-  - `sudo apt-get update && sudo apt-get install -y wine64` (optional if building Windows on Windows CI)
-  - In headless containers, Wine may not be able to run GUI-dependent tools. Prefer the provided GitHub Actions workflow (Windows runner) for reliable .exe builds.
-- Place platform icons in `build/`:
-  - `build/icon.ico` (Windows), `build/icon.icns` (macOS), `build/icon.png` (Linux)
-- Electron loads `dist/index.html` in production. Vite is configured with `base: './'` for file:// compatibility.
-- To run Electron against the dev server, use `npm run dev:desktop` which sets `VITE_DEV_SERVER_URL`.
-
-Troubleshooting:
-
-- If packaging on Linux for Windows fails due to missing tooling, either install Wine (including wine32/i386) or build the Windows target on a Windows runner (recommended).
-- If the app shows a blank screen in Electron production build, ensure `npm run build:web` completed and `dist/` exists.
-
-### Production Build
+Requirements: Node.js 22 or newer and npm.
 
 ```bash
+npm ci
+cp .env.local.example .env.local
+npm run dev
+```
+
+Add the URL and public anon key from a Supabase project to `.env.local`.
+Never put the Supabase service-role key in this app.
+
+Apply the MVP database migration in the Supabase SQL editor:
+
+```text
+supabase/migrations/202608190001_mvp_foundation.sql
+```
+
+The migration creates household-scoped profiles, memberships, tasks, life
+meetings, partner invite handling, and row-level security policies.
+
+## Quality checks
+
+```bash
+npm run lint
+npm run typecheck
+npm test
 npm run build
+```
+
+## Web and mobile builds
+
+The production web build is an installable PWA:
+
+```bash
+npm run build:web
 npm run preview
 ```
 
-## 🎯 How to Use
-
-### First Time Setup
-
-1. **Enter your name** (and optionally email)
-2. **Share your invite code** with your partner
-3. **Connect using their code** if they already signed up
-4. **Start creating tasks!**
-
-### Creating Tasks
-
-![Task Creation](https://github.com/user-attachments/assets/241b99b4-0605-4b1f-ba2b-db351cd0ad15)
-
-1. Click **"Add New Task"**
-2. Fill in the title and description
-3. Choose priority (A = urgent, D = someday)
-4. Pick a color that makes you happy
-5. Set a date (optional)
-6. Create and watch it appear!
-
-### AI Import Magic
-
-![AI Import](https://github.com/user-attachments/assets/82828cfd-e5d0-4f0a-8da3-62342bc6295d)
-
-Copy and paste text from anywhere:
-
-```
---- Work Tasks ---
-[A] Finish quarterly report: Due Friday at 5 PM
-[B] Schedule team meeting
-Priority C: Update documentation
-
---- Personal ---
-- Plan date night with partner
-- Clean garage (Priority: D)
-- Read new book chapter
-```
-
-Jarvis will automatically parse it into organized tasks with proper priorities!
-
-### Calendar Management
-
-- **Drag tasks** between days to reschedule
-- **Today's column** is highlighted in blue
-- **Priority A tasks** get special "URGENT" treatment
-- **Progress tracking** shows completion percentages
-
-## 🛠 Tech Stack
-
-- **React 19** - Latest React with concurrent features
-- **TypeScript** - Full type safety
-- **Tailwind CSS** - Utility-first styling with custom theme
-- **Vite** - Lightning fast build tool
-- **@dnd-kit** - Smooth drag and drop
-- **Lucide React** - Beautiful icons
-- **LocalStorage** - Persistent data without servers
-
-## 🎨 Design Philosophy
-
-### ADHD-Friendly Principles
-
-- **Clear visual hierarchy** - Important things stand out
-- **Gentle animations** - Smooth without being distracting
-- **Color coding** - Visual shortcuts to information
-- **Progress feedback** - Celebrate completions
-- **Humor integration** - Jarvis keeps things light
-
-### Couples-Focused Features
-
-- **Shared responsibility** - Both partners can manage tasks
-- **Visual distinction** - Shared tasks have gradient backgrounds
-- **Individual ownership** - Clear attribution of who created what
-- **Collaborative planning** - Weekly view for joint scheduling
-
-## 🤖 Meet Jarvis
-
-Your AI-powered productivity assistant provides:
-
-- **Helpful commentary** on Priority A tasks
-- **Parsing intelligence** for AI imports
-- **ADHD-friendly tips** in the floating help bubble
-- **Productivity wisdom** with Iron Man references
-- **Gentle encouragement** throughout the app
-
-## 📱 Responsive Design
-
-Works beautifully on:
-
-- **Desktop** - Full featured experience
-- **Tablet** - Optimized layout
-- **Mobile** - Touch-friendly interface
-
-## 🔒 Privacy & Data
-
-- **No servers** - Everything stored locally
-- **No tracking** - Your data stays on your device
-- **No accounts** - Just names and invite codes
-- **Partner connection** - Simulated locally (in real app, would use secure API)
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
+Create and build Android locally:
 
 ```bash
-npm install -g vercel
-vercel
+npm run cap:add:android
+npm run build:android
 ```
 
-### Netlify
+Prepare the iOS wrapper on macOS with Xcode installed:
 
 ```bash
-npm run build
-# Upload dist/ folder to Netlify
+npm run cap:add:ios
+npm run cap:sync:ios
 ```
 
-### GitHub Pages
+GitHub Actions builds the web app, runs quality checks, and can produce a debug
+Android APK. Store signing and paid store accounts are intentionally deferred
+until the beta is ready.
 
-```bash
-npm run build
-# Deploy dist/ folder to gh-pages branch
-```
+## Current refactor status
 
-## 🧪 Development
-
-### Project Structure
-
-```
-src/
-├── components/
-│   ├── auth/           # Login and partner management
-│   ├── tasks/          # Task CRUD and AI import
-│   ├── calendar/       # Weekly planner
-│   └── ui/            # Layout and reusable components
-├── contexts/          # React Context for state management
-├── types/             # TypeScript interfaces
-├── utils/             # Helper functions and utilities
-└── App.jsx           # Main application component
-```
-
-### Key Commands
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run lan:signal` - Start the local WebSocket signaling bridge
-
-## � Testing
-
-The project uses **Vitest** + **@testing-library/react** with a lightweight setup oriented around clarity and behavior-driven assertions.
-
-### Running Tests
-
-```bash
-npm test          # One-off run
-npm run test:watch  # Watch mode while developing
-```
-
-### What Is Covered (Currently)
-
-- Core Task lifecycle (create, complete, soft delete, restore, hard delete)
-- Timestamp ordering for completed tasks (newest first)
-
-### Coming Soon (Good First Issues)
-
-- Parsing edge cases for AI import
-- Date-based filtering and scheduling behaviors
-- Drag + drop interaction state tests (dnd-kit harness)
-
-### Coverage
-
-Coverage reporting is enabled. After a run you'll see summary output (LCOV is generated for CI tooling).
-
-### Testing Philosophy
-
-1. **Readable over clever** – Straightforward expectations using jest-dom matchers.
-2. **Behavior over implementation** – Focus on what the context returns, not internal state details.
-3. **Small & Focused** – Each test isolates one feature path.
-4. **Deterministic** – Avoid relying on timers or real network.
-
-### File Locations
-
-```
-src/contexts/__tests__/TaskContext.test.tsx
-vitest.setup.ts
-```
-
-### Adding New Tests
-
-1. Create a file near the code under `__tests__` or co-locate as `*.test.tsx`.
-2. Use `render` from `@testing-library/react` for component tests.
-3. Import shared matchers automatically via `vitest.setup.ts`.
-
-### Example Snippet
-
-```ts
-import { describe, it, expect } from 'vitest';
-
-describe('math', () => {
-  it('adds', () => {
-    expect(1 + 1).toBe(2);
-  });
-});
-```
-
-If you add new context APIs, ensure:
-
-- Edge cases (empty input) are tested
-- State mutations update timestamps where expected
-- Items hidden by filters stay hidden
-
-> Tip: For complex async UI flows, prefer `findBy*` queries and avoid arbitrary `setTimeout` usage.
-
-## �🤝 Contributing
-
-We'd love your help making this app even better!
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
-4. **Push to the branch** (`git push origin feature/amazing-feature`)
-5. **Open a Pull Request**
-
-### Ideas for Contributions
-
-- **Real-time sync** - Replace LocalStorage with backend
-- **Mobile app** - React Native version
-- **Themes** - Dark mode and custom themes
-- **Integrations** - Calendar sync, email reminders
-- **AI enhancements** - Better parsing, smart suggestions
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Iron Man/Jarvis** - Inspiration for the AI assistant personality
-- **ADHD community** - Insights for accessibility features
-- **Couples everywhere** - Who manage life together every day
-- **Open source community** - For the amazing tools that made this possible
-
----
-
-**Built with ❤️ for couples who want to conquer life together, one task at a time!**
-
-_"Sir, I've analyzed your productivity patterns. Remember: Priority A tasks are like arc reactor maintenance - critical for survival. Everything else is just Iron Man suit upgrades."_ - Jarvis 🤖
-
-## 🔭 Future Features / Known Gaps
-
-The app is fully functional for local-first use, but a few items mentioned in the README/UI are intentionally simplified or simulated for this beta. Here's what’s on the roadmap:
-
-- Real-time sync and backend API
-
-  - Current partner linking and invite codes work locally (simulated). A real backend for multi-device sync and auth is planned.
-
-- Drag & Drop testing harness
-
-  - Calendar drag & drop works in the UI via dnd-kit, but automated tests don’t simulate pointer drag yet. We plan to add a lightweight testing harness or switch to a library that supports synthetic drag testing.
-
-- More AI import formats
-
-  - We support multiple line formats today. Planned: due dates with natural language (e.g., “tomorrow at 5”), recurring tasks, and section labeling that maps directly to tags.
-
-- Export formats
-
-  - JSON export exists (copyable/download via UI). CSV export is planned. ICS calendar export is under consideration.
-
-- Deeper progress tracking
-
-  - We show completion visuals and ordering by completedAt. Future iterations may include per-day progress metrics and streaks.
-
-- Accessibility polish
-
-  - Drawer focus trapping is basic. We’ll add more robust focus management, ARIA roles/labels coverage, and keyboard-resize affordances.
-
-- Mobile gestures
-
-  - Side-drawer resizing is desktop-only. On mobile, we’ll consider swipe gestures to open/close and tune hit targets.
-
-- Theming
-  - Neon/glass theme is default. Future: opt-in themes (e.g., high-contrast, minimal, warm) and a theme switcher.
-
-If you’re excited about any of the above, contributions are welcome!
+The secure database and installable-app foundation are in place. The next
+milestone replaces the legacy local/mock login and multi-protocol sync code with
+Supabase Auth and one household-scoped Realtime data path.

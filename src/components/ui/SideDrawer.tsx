@@ -302,7 +302,8 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           }
         }
       }
-      const blob = new Blob(chunks, { type: 'application/vnd.android.package-archive' });
+      const blobParts = chunks.map(chunk => chunk.slice().buffer as ArrayBuffer);
+      const blob = new Blob(blobParts, { type: 'application/vnd.android.package-archive' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = 'couples-todo-latest.apk';

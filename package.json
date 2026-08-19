@@ -3,20 +3,17 @@
   "private": true,
   "version": "1.0.14",
   "type": "module",
-  "main": "electron/main.js",
-  "description": "Couples To-do: a simple shared to-do list with weekly planner, desktop builds via Electron.",
+  "description": "A shared planner, task list, and life-meeting app for couples.",
   "author": "Couples To-do Team",
   "scripts": {
     "dev": "vite",
-    "dev:desktop": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
     "server": "node ./server/index.js",
     "dev:server": "cross-env PORT=4455 node ./server/index.js",
     "lan:signal": "node ./server/signalingServer.js",
     "dev:lan:signal": "cross-env LAN_SIGNAL_PORT=4457 node ./server/signalingServer.js",
     "build": "vite build",
     "build:web": "vite build",
-    "build:desktop:win": "npm run build:web && electron-builder -w",
-    "build:desktop:linux": "npm run build:web && electron-builder -l",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
@@ -24,11 +21,14 @@
     "test:coverage": "vitest run --coverage",
     "test:peer-sync": "cross-env RUN_PEER_SYNC=true vitest run src/p2p/__tests__/lanSignaling.test.ts",
     "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
     "cap:sync": "cap sync",
+    "cap:sync:ios": "vite build && cap sync ios",
     "build:android": "vite build && cap sync android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
-    "@capacitor/core": "^6.1.2",
+    "@capacitor/core": "8.5.0",
+    "@capacitor/ios": "8.5.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -39,7 +39,6 @@
     "@rollup/plugin-inject": "^5.0.5",
     "@supabase/supabase-js": "^2.49.0",
     "buffer": "^6.0.3",
-    "electron-updater": "^6.3.9",
     "events": "^3.3.0",
     "lib0": "^0.2.97",
     "lucide-react": "^0.544.0",
@@ -53,8 +52,8 @@
     "yjs": "^13.6.18"
   },
   "devDependencies": {
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/cli": "^6.1.2",
+    "@capacitor/android": "8.5.0",
+    "@capacitor/cli": "8.5.0",
     "@eslint/js": "^9.36.0",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/postcss": "^4.1.13",
@@ -68,11 +67,8 @@
     "@vitejs/plugin-react": "^5.0.3",
     "@vitest/coverage-v8": "^2.1.4",
     "autoprefixer": "^10.4.21",
-    "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "cross-env": "^7.0.3",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -85,55 +81,5 @@
     "vite": "^7.1.7",
     "vitest": "^2.1.4",
     "ws": "^8.18.0"
-  },
-  "build": {
-    "appId": "com.couples.todo.spa",
-    "productName": "Couples To-do",
-    "icon": "src/assets/HeartICON.png",
-    "files": [
-      "dist/**",
-      "electron/**",
-      "package.json"
-    ],
-    "directories": {
-      "buildResources": "build"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "JelanieStarks",
-        "repo": "Couples-To-do-list-SPA"
-      }
-    ],
-    "nsis": {
-      "oneClick": false,
-      "allowElevation": true,
-      "perMachine": true,
-      "allowToChangeInstallationDirectory": true,
-      "include": "build/installer.nsh"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    },
-    "linux": {
-      "icon": "src/assets/HeartICON.png",
-      "target": [
-        "AppImage"
-      ],
-      "category": "Utility"
-    },
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "category": "public.app-category.productivity"
-    }
   }
 }

@@ -1015,7 +1015,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
             const daysUntilTarget = (targetDay - currentDay + 7) % 7;
             const targetDate = new Date(today);
             targetDate.setDate(today.getDate() + (daysUntilTarget === 0 ? 7 : daysUntilTarget)); // If today, schedule for next week
-            scheduledDate = targetDate.toISOString().split('T')[0];
+            scheduledDate = toLocalDateString(targetDate);
           }
 
           const task: Task = {

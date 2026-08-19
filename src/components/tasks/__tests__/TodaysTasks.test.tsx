@@ -6,6 +6,7 @@ import { TodaysTasks } from '../../tasks/TodaysTasks';
 import { AuthProvider, useAuth } from '../../../contexts/AuthContext';
 import { TaskProvider } from '../../../contexts/TaskContext';
 import { useTask } from '../../../contexts/TaskContext';
+import { toLocalDateString } from '../../../utils';
 
 // 🧪 TodaysTasks tests: verifying daily productivity dashboard logic.
 
@@ -14,7 +15,7 @@ const SeedTasks: React.FC = () => {
   const { user } = useAuth();
   React.useEffect(() => {
     if (!user) return; // Wait until logged in so createTask doesn't bail like a lazy cat.
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateString(new Date());
     if (!tasks.some((t: any) => t.title === 'Urgent A1')) {
       createTask({ title: 'Urgent A1', priority: 'A1', assignment: 'me', color: '#fff', scheduledDate: today });
       createTask({ title: 'Urgent A2', priority: 'A2', assignment: 'me', color: '#fff', scheduledDate: today });

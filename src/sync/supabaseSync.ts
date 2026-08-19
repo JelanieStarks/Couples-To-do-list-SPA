@@ -26,14 +26,14 @@ export class SupabaseSync {
     const supabase = getSupabaseClient();
     if (!supabase || !this.roomId) return [];
     const { data, error } = await supabase
-      .from<TaskRow>(TABLE)
+      .from(TABLE)
       .select('task')
       .eq('room_id', this.roomId);
     if (error) {
       console.warn('[SupabaseSync] fetchTasks failed', error.message);
       return [];
     }
-    return (data ?? []).map(row => row.task);
+    return ((data ?? []) as Pick<TaskRow, 'task'>[]).map(row => row.task);
   }
 
   async upsertTasks(tasks: Task[]): Promise<void> {
