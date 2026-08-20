@@ -13,16 +13,27 @@ const isTestEnv = (): boolean => {
   return false;
 };
 
+const cleanEnvValue = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const cleaned = value.trim();
+  return cleaned || undefined;
+};
+
 const getEnv = (key: string): string | undefined => {
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[key]) {
-    return (import.meta as any).env[key];
+    return cleanEnvValue((import.meta as any).env[key]);
   }
-  if ((globalThis as any)[key]) return (globalThis as any)[key];
+  if ((globalThis as any)[key]) return cleanEnvValue((globalThis as any)[key]);
   if (typeof process !== 'undefined' && typeof (process as any).env === 'object') {
-    return (process as any).env[key];
+    return cleanEnvValue((process as any).env[key]);
   }
   return undefined;
 };
+
+const getSupabasePublicKey = (): string | undefined => (
+  getEnv('VITE_SUPABASE_PUBLISHABLE_KEY')
+  ?? getEnv('VITE_SUPABASE_ANON_KEY')
+);
 
 const flagTrue = (value: unknown): boolean => {
   if (value === true) return true;
@@ -38,9 +49,9 @@ export const getSupabaseClient = (): SupabaseClient | null => {
   if (isTestEnv()) return null;
   if (supabase) return supabase;
   const url = getEnv('VITE_SUPABASE_URL');
-  const anonKey = getEnv('VITE_SUPABASE_ANON_KEY');
-  if (!url || !anonKey) return null;
-  supabase = createClient(url, anonKey, {
+  const publicKey = getSupabasePublicKey();
+  if (!url || !publicKey) return null;
+  supabase = createClient(url, publicKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
@@ -63,5 +74,7 @@ export const isSupabaseSyncEnabled = (): boolean => {
 
 export const getSupabaseEnv = () => ({
   url: getEnv('VITE_SUPABASE_URL'),
-  anonKey: getEnv('VITE_SUPABASE_ANON_KEY'),
+  publishableKey: getSupabasePublicKey(),
+  // Kept for compatibility with existing diagnostics.
+  anonKey: getSupabasePublicKey(),
 });
