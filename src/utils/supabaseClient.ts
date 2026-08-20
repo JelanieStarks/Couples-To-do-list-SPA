@@ -72,6 +72,12 @@ export const isSupabaseSyncEnabled = (): boolean => {
   return flagTrue(flag) && !!getSupabaseClient();
 };
 
+export const isSupabaseRoutineSyncEnabled = (): boolean => {
+  if (isTestEnv()) return false;
+  const flag = getEnv('VITE_ENABLE_SUPABASE_ROUTINE_SYNC');
+  return flagTrue(flag) && !!getSupabaseClient();
+};
+
 export const getSupabaseEnv = () => ({
   url: getEnv('VITE_SUPABASE_URL'),
   publishableKey: getSupabasePublicKey(),

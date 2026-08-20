@@ -1,5 +1,5 @@
--- Supabase schema for Couples To-Do
--- Run in the SQL editor or psql in your Supabase project.
+-- LEGACY PROTOTYPE ONLY. Do not run for the current app.
+-- Use the ordered files in supabase/migrations instead.
 
 create table if not exists public.tasks_sync (
   id text primary key,

@@ -7,6 +7,7 @@ The app stays in clearly labeled local demo mode until these steps are complete.
 1. Create a free Supabase project.
 2. Open **SQL Editor** in that project.
 3. Paste and run `supabase/migrations/202608190001_mvp_foundation.sql`.
+4. Paste and run `supabase/migrations/202608200001_secure_task_sync.sql`.
 
 The migration creates profiles, two-person households, tasks, life meetings,
 invite functions, and row-level security policies.
@@ -21,7 +22,8 @@ copy the project URL and complete publishable key using the copy button in
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-complete-key
 VITE_ENABLE_SUPABASE_AUTH=true
-VITE_ENABLE_SUPABASE_SYNC=false
+VITE_ENABLE_SUPABASE_SYNC=true
+VITE_ENABLE_SUPABASE_ROUTINE_SYNC=false
 ```
 
 The publishable key is intended for browser applications and is protected by
@@ -30,9 +32,10 @@ key here. `.env.local` is intentionally ignored by Git and must not be pushed;
 configure the same values in the deployment provider when the web app is
 published. The legacy `VITE_SUPABASE_ANON_KEY` name remains supported.
 
-Task sync stays disabled until the old `tasks_sync` implementation is migrated
-to the household-secured `tasks` table. Authentication and partner linking can
-be tested while sync is disabled.
+Keep task sync disabled until both migrations have run. The current app uses the
+household-secured `tasks` table; the old `tasks_sync` table can remain temporarily
+while the new path is tested. Routine sync remains off until its older room-based
+table is replaced with the same household security model.
 
 Restart `npm run dev` after changing environment values.
 
@@ -60,5 +63,5 @@ Add the eventual production web URL before public testing.
 4. Open Partner settings for the second account and enter the first code.
 5. Confirm both accounts show the other partner.
 
-Task syncing is the next migration milestone. Account and household linking are
-ready first so every later task write has a trustworthy security boundary.
+Create, edit, complete, and delete a task in either browser. The other browser
+should update through the household-scoped Realtime subscription.

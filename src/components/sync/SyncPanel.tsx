@@ -357,14 +357,17 @@ const formatTime = (value?: string) => {
           <span className="px-2 py-[1px] rounded-full border border-slate-600 text-slate-200">
             {supabaseStatus.enabled && supabaseStatus.hasClient ? 'Enabled' : 'Off'}
           </span>
-          {supabaseStatus.roomId && (
-            <span className="text-slate-400">Room: {supabaseStatus.roomId}</span>
+          {supabaseStatus.householdId && (
+            <span className="text-slate-400">Household: {supabaseStatus.householdId}</span>
           )}
         </div>
         <div className="mt-1 flex flex-wrap gap-3 text-slate-400">
           <span>Last push: {formatTime(supabaseStatus.lastDbUpsertAt)}</span>
           <span>Last realtime: {formatTime(supabaseStatus.lastRealtimeAt)}</span>
         </div>
+        {supabaseStatus.lastError && (
+          <p role="alert" className="mt-1 text-rose-300">{supabaseStatus.lastError}</p>
+        )}
       </div>
     </div>
   );

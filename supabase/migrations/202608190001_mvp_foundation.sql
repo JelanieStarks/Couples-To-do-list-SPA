@@ -32,6 +32,8 @@ create table if not exists public.household_members (
 create table if not exists public.tasks (
   id uuid primary key default gen_random_uuid(),
   household_id uuid not null references public.households(id) on delete cascade,
+  client_id text not null,
+  task_data jsonb not null default '{}'::jsonb,
   title text not null check (char_length(title) between 1 and 240),
   description text,
   priority text not null default 'C1' check (priority in ('A1','A2','A3','B1','B2','B3','C1','C2','C3','D')),
@@ -54,6 +56,10 @@ create index if not exists tasks_household_date_idx
   on public.tasks(household_id, scheduled_date);
 create index if not exists tasks_household_updated_idx
   on public.tasks(household_id, updated_at desc);
+create unique index if not exists tasks_household_client_id_idx
+  on public.tasks(household_id, client_id);
+
+alter table public.tasks replica identity full;
 
 create table if not exists public.life_meetings (
   id uuid primary key default gen_random_uuid(),
