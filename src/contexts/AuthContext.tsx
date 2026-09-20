@@ -31,6 +31,7 @@ interface AuthContextType extends AuthState {
   clearAuthFeedback: () => void;
   requestMagicLinkForSync: () => Promise<boolean>;
   magicLinkNotice: AuthNotice | null;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -284,6 +285,24 @@ export const AuthProvider: React.FC<{
 
   const requestMagicLinkForSync = async () => false;
 
+  const resetPassword = async (email: string) => {
+    if (!supabase || authMode !== 'supabase') throw new Error('Supabase is not configured yet.');
+    clearAuthFeedback();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) throw new Error('Please enter your email first.');
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+    });
+    if (error) {
+      setAuthError(error.message);
+      throw error;
+    }
+    setAuthNotice({
+      message: 'Password reset email sent. Check your inbox for the link.',
+      sentAt: new Date().toISOString(),
+    });
+  };
+
   const value: AuthContextType = {
     ...authState,
     authMode,
@@ -299,6 +318,7 @@ export const AuthProvider: React.FC<{
     clearAuthFeedback,
     requestMagicLinkForSync,
     magicLinkNotice: authNotice,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

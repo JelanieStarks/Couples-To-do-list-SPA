@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Heart, LockKeyhole, Users } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Heart, LockKeyhole, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 type FormMode = 'sign-in' | 'sign-up';
@@ -13,9 +13,12 @@ export const DbzHeartLoginGate: React.FC = () => {
     login,
     signIn,
     signUp,
+    resetPassword,
   } = useAuth();
   const [formMode, setFormMode] = useState<FormMode>('sign-in');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
 
   const updateField = (field: keyof typeof form, value: string) => {
@@ -52,6 +55,18 @@ export const DbzHeartLoginGate: React.FC = () => {
       // AuthContext exposes a friendly error message in the form.
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!form.email.trim() || isSendingReset) return;
+    setIsSendingReset(true);
+    try {
+      await resetPassword(form.email);
+    } catch {
+      // AuthContext exposes a friendly error message in the form.
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -128,18 +143,38 @@ export const DbzHeartLoginGate: React.FC = () => {
             {authMode === 'supabase' && (
               <div className="glow-field-stack">
                 <label htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  minLength={8}
-                  autoComplete={formMode === 'sign-up' ? 'new-password' : 'current-password'}
-                  className="glow-form-input"
-                  placeholder="At least 8 characters"
-                  value={form.password}
-                  onChange={event => updateField('password', event.target.value)}
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={8}
+                    autoComplete={formMode === 'sign-up' ? 'new-password' : 'current-password'}
+                    className="glow-form-input pr-12"
+                    placeholder="At least 8 characters"
+                    value={form.password}
+                    onChange={event => updateField('password', event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(previous => !previous)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
                 <div className="glow-ambient-orb" />
+                {formMode === 'sign-in' && (
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={!form.email.trim() || isSendingReset}
+                    className="mt-2 text-xs font-medium text-indigo-300 hover:text-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed self-start"
+                  >
+                    {isSendingReset ? 'Sending reset link…' : 'Forgot password?'}
+                  </button>
+                )}
               </div>
             )}
 
