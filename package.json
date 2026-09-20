@@ -1,7 +1,7 @@
 {
   "name": "couples-todo-list-spa",
   "private": true,
-  "version": "1.0.14",
+  "version": "1.0.15",
   "type": "module",
   "description": "A shared planner, task list, and life-meeting app for couples.",
   "author": "Couples To-do Team",

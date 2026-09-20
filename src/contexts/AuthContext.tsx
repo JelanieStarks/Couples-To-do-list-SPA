@@ -59,6 +59,7 @@ const clearAccountCache = () => {
   storage.remove(STORAGE_KEYS.TASKS);
   storage.remove(STORAGE_KEYS.TASKS_YDOC);
   storage.remove(STORAGE_KEYS.ROUTINES);
+  storage.remove(STORAGE_KEYS.LIFE_MEETINGS);
   storage.remove(STORAGE_KEYS.SUPABASE_SESSION);
   storage.remove(STORAGE_KEYS.SUPABASE_TRUSTED);
   storage.remove(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN);

@@ -4,10 +4,10 @@ This document describes how to package the SPA as an Android APK using Capacitor
 
 ## Prerequisites
 
-- Java 17 (JDK)
+- Java 21 (JDK)
 - Android Studio (SDK + Platform Tools)
 - Android SDK platform and build tools installed (via Android Studio)
-- Node.js 18+
+- Node.js 22+
 
 ## One-time setup
 
@@ -53,4 +53,27 @@ Use Android Studio to create a signed release build or run:
 cd android && ./gradlew assembleRelease
 ```
 
-Then sign and align the APK/AAB per Play Console requirements.
+For Google Play Internal Testing, build an Android App Bundle:
+
+```
+cd android && ./gradlew bundleRelease
+```
+
+The test APK installs as **Couples 2Do Test** with the `.debug` application ID
+suffix, so it can coexist with a future signed release on the same phone.
+
+## GitHub APK prereleases
+
+Pushes to `codex/android-internal-testing` run the Android APK prerelease workflow.
+It validates the backend, runs checks, builds and verifies the signed APK, then
+publishes an `android-test-v<version>-r<run>` prerelease with a SHA-256 checksum.
+Google Play and Codespaces are not needed. The repository's visibility also
+applies to its releases; a prerelease on a public repo is publicly downloadable.
+
+Required Actions secrets: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+`ANDROID_TEST_KEYSTORE_BASE64`, and `ANDROID_TEST_KEYSTORE_PASSWORD`. The test
+PKCS12 keystore uses alias `couples2do-test`. Keep the same signing secrets for
+future updates. Never commit the keystore or its password. The workflow assigns
+a monotonically increasing version code from its run number.
+
+See `docs/android-test-release.md` for installation steps and known limitations.

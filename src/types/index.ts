@@ -81,3 +81,43 @@ export interface Routine {
   createdAt: string;
   updatedAt: string;
 }
+
+export type MeetingStatus = 'draft' | 'active' | 'completed';
+export type MeetingMood = '🙂' | '😐' | '😣';
+export type MeetingEnergy = 'low' | 'medium' | 'high';
+
+export interface MeetingCheckIn {
+  mood: MeetingMood;
+  energy: MeetingEnergy;
+  supportNeed: string;
+}
+
+export interface MeetingEntry {
+  id: string;
+  text: string;
+  authorId: string;
+}
+
+export interface MeetingActionItem {
+  id: string;
+  title: string;
+  assignment: Assignment;
+  priority: Priority;
+  convertedAt?: string;
+}
+
+export interface LifeMeeting {
+  id: string;
+  householdId: string;
+  meetingDate: string;
+  status: MeetingStatus;
+  checkIn: Record<string, MeetingCheckIn>;
+  gratitude: MeetingEntry[];
+  agenda: MeetingEntry[];
+  decisions: MeetingEntry[];
+  actionItems: MeetingActionItem[];
+  notes: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}

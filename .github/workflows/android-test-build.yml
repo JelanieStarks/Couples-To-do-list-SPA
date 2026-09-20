@@ -1,0 +1,113 @@
+name: Android APK prerelease
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/android-internal-testing
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Install Android build tools
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify web app
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test -- --reporter=dot
+          npm audit --omit=dev --audit-level=high
+      - name: Set test version
+        id: version
+        run: |
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')
+          echo "tag=android-test-v${version}-r${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "ANDROID_TEST_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+      - name: Build connected web app
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_ENABLE_SUPABASE_AUTH: 'true'
+          VITE_ENABLE_SUPABASE_SYNC: 'true'
+          VITE_ENABLE_SUPABASE_ROUTINE_SYNC: 'false'
+        run: |
+          node scripts/check-android-backend.mjs
+          npm run build
+          npx cap sync android
+      - name: Restore test signing key
+        env:
+          TEST_KEYSTORE_BASE64: ${{ secrets.ANDROID_TEST_KEYSTORE_BASE64 }}
+          TEST_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$TEST_KEYSTORE_BASE64" || { echo 'Missing Android test signing key'; exit 1; }
+          test -n "$TEST_KEYSTORE_PASSWORD" || { echo 'Missing Android test signing password'; exit 1; }
+          umask 077
+          printf '%s' "$TEST_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/couples2do-test.p12"
+      - name: Assemble and verify signed APK
+        env:
+          ANDROID_TEST_KEYSTORE: ${{ runner.temp }}/couples2do-test.p12
+          ANDROID_TEST_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x android/gradlew
+          (cd android && ./gradlew assembleDebug --no-daemon)
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk release/Couples2Do-Test.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs release/Couples2Do-Test.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging release/Couples2Do-Test.apk > release/apk-info.txt
+          head -5 release/apk-info.txt
+          (cd release && sha256sum Couples2Do-Test.apk > SHA256SUMS.txt)
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/couples2do-test.p12"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: couples2do-test-apk
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: couples2do-test-apk
+          path: release
+      - name: Publish APK prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          gh release create "$RELEASE_TAG" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Couples 2Do Android Test ${RELEASE_TAG#android-test-}" \
+            --prerelease --latest=false \
+            --notes-file docs/android-test-release.md
