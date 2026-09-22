@@ -6,6 +6,7 @@ const TABLE = 'life_meetings';
 interface LifeMeetingRow {
   id: string;
   household_id: string;
+  title?: string | null;
   meeting_date: string;
   status: LifeMeeting['status'];
   check_in: LifeMeeting['checkIn'];
@@ -22,6 +23,7 @@ interface LifeMeetingRow {
 const fromRow = (row: LifeMeetingRow): LifeMeeting => ({
   id: row.id,
   householdId: row.household_id,
+  title: row.title || `Life Meeting · ${row.meeting_date}`,
   meetingDate: row.meeting_date,
   status: row.status,
   checkIn: row.check_in ?? {},
@@ -38,6 +40,7 @@ const fromRow = (row: LifeMeetingRow): LifeMeeting => ({
 const toRow = (meeting: LifeMeeting) => ({
   id: meeting.id,
   household_id: meeting.householdId,
+  title: meeting.title?.trim() || `Life Meeting · ${meeting.meetingDate}`,
   meeting_date: meeting.meetingDate,
   status: meeting.status,
   check_in: meeting.checkIn,
@@ -57,7 +60,7 @@ export const fetchLifeMeetings = async (
 ): Promise<LifeMeeting[]> => {
   const { data, error } = await client
     .from(TABLE)
-    .select('id, household_id, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at')
+    .select('id, household_id, title, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at')
     .eq('household_id', householdId)
     .order('meeting_date', { ascending: false });
   if (error) throw new Error(error.message);
@@ -71,7 +74,7 @@ export const upsertLifeMeeting = async (
   const { data, error } = await client
     .from(TABLE)
     .upsert(toRow(meeting), { onConflict: 'id' })
-    .select('id, household_id, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at')
+    .select('id, household_id, title, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at')
     .single();
   if (error) throw new Error(error.message);
   return fromRow(data as LifeMeetingRow);

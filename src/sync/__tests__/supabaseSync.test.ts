@@ -15,6 +15,7 @@ const task: Task = {
   priority: 'B1',
   assignment: 'both',
   color: '#8b5cf6',
+  urgency: 'high',
   completed: false,
   createdBy: userId,
   createdAt: '2026-08-20T10:00:00.000Z',
@@ -71,5 +72,43 @@ describe('SupabaseSync', () => {
 
     expect(firstEq).toHaveBeenCalledWith('household_id', householdId);
     expect(finalEq).toHaveBeenCalledWith('client_id', task.id);
+  });
+
+  it('merges local-only and remote-only tasks before uploading', async () => {
+    const remoteTask = { ...task, id: 'remote-task', title: 'Partner task' };
+    const order = vi.fn().mockResolvedValue({ data: [{ task_data: remoteTask }], error: null });
+    const eq = vi.fn(() => ({ order }));
+    const select = vi.fn(() => ({ eq }));
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    (getSupabaseClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      from: vi.fn(() => ({ select, upsert })),
+    });
+
+    const localTask = { ...task, id: 'local-task', title: 'Offline task' };
+    const merged = await new SupabaseSync(householdId, userId).mergeAndUpload([localTask]);
+
+    expect(merged.map(item => item.id).sort()).toEqual(['local-task', 'remote-task']);
+    expect(upsert).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ client_id: 'local-task' }),
+        expect.objectContaining({ client_id: 'remote-task' }),
+      ]),
+      { onConflict: 'household_id,client_id' },
+    );
+  });
+
+  it('chooses the newest version for matching task ids', async () => {
+    const remoteTask = { ...task, id: 'shared', title: 'Older remote', updatedAt: '2026-08-20T10:00:00.000Z' };
+    const order = vi.fn().mockResolvedValue({ data: [{ task_data: remoteTask }], error: null });
+    const eq = vi.fn(() => ({ order }));
+    const select = vi.fn(() => ({ eq }));
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    (getSupabaseClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ from: vi.fn(() => ({ select, upsert })) });
+
+    const localTask = { ...task, id: 'shared', title: 'Newer local', updatedAt: '2026-08-20T11:00:00.000Z' };
+    const merged = await new SupabaseSync(householdId, userId).mergeAndUpload([localTask]);
+
+    expect(merged).toEqual([expect.objectContaining({ id: 'shared', title: 'Newer local' })]);
+    expect(upsert.mock.calls[0][0][0].title).toBe('Newer local');
   });
 });

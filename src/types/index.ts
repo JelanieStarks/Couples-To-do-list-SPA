@@ -14,6 +14,7 @@ export interface User {
 export type Assignment = 'me' | 'partner' | 'both';
 
 export type Priority = 'A1' | 'A2' | 'A3' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | 'D';
+export type TaskUrgency = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Task {
   id: string;
@@ -22,6 +23,8 @@ export interface Task {
   priority: Priority;
   assignment: Assignment;
   color: string;
+  customColor?: string;
+  urgency?: TaskUrgency;
   // Numeric ordering within a priority bucket for custom user reordering
   order?: number;
   completed: boolean;
@@ -109,6 +112,7 @@ export interface MeetingActionItem {
 export interface LifeMeeting {
   id: string;
   householdId: string;
+  title?: string;
   meetingDate: string;
   status: MeetingStatus;
   checkIn: Record<string, MeetingCheckIn>;

@@ -32,6 +32,7 @@ interface AuthContextType extends AuthState {
   requestMagicLinkForSync: () => Promise<boolean>;
   magicLinkNotice: AuthNotice | null;
   resetPassword: (email: string) => Promise<void>;
+  changePassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -303,6 +304,18 @@ export const AuthProvider: React.FC<{
     });
   };
 
+  const changePassword = async (password: string) => {
+    if (!supabase || authMode !== 'supabase') throw new Error('Password changes require Supabase authentication.');
+    if (password.length < 8) throw new Error('Password must be at least 8 characters.');
+    clearAuthFeedback();
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      setAuthError(error.message);
+      throw error;
+    }
+    setAuthNotice({ message: 'Password updated successfully.', sentAt: new Date().toISOString() });
+  };
+
   const value: AuthContextType = {
     ...authState,
     authMode,
@@ -319,6 +332,7 @@ export const AuthProvider: React.FC<{
     requestMagicLinkForSync,
     magicLinkNotice: authNotice,
     resetPassword,
+    changePassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -9,7 +9,7 @@ export const DeletedTasks: React.FC = () => {
 
   const emptyTrash = () => {
     if (deleted.length === 0) return;
-    if (confirm(`Permanently delete ${deleted.length} item(s)? This cannot be undone.`)) {
+    if (confirm(`Remove ${deleted.length} deleted item(s) from the active device? Their sync tombstones will be retained.`)) {
       deleted.forEach((t: Task) => hardDeleteTask(t.id));
     }
   };
@@ -63,7 +63,7 @@ export const DeletedTasks: React.FC = () => {
                   onClick={() => hardDeleteTask(t.id)}
                   data-testid={`delete-forever-${t.id}`}
                 >
-                  Delete forever
+                  Remove locally
                 </button>
               </div>
             </li>

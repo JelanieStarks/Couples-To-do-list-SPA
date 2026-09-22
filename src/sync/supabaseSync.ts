@@ -16,6 +16,16 @@ interface TaskRow {
   task_data: Task;
 }
 
+const urgencyForPriority = (priority: Task['priority']): NonNullable<Task['urgency']> => (
+  priority.startsWith('A') ? 'urgent' : priority.startsWith('B') ? 'high' : priority.startsWith('C') ? 'medium' : 'low'
+);
+
+const normalizeTask = (task: Task): Task => ({
+  ...task,
+  updatedAt: task.updatedAt || task.createdAt || new Date(0).toISOString(),
+  urgency: task.urgency || urgencyForPriority(task.priority),
+});
+
 const validUuidOrNull = (value?: string): string | null => (
   value && UUID_PATTERN.test(value) ? value : null
 );
@@ -61,18 +71,32 @@ export class SupabaseSync {
       .order('created_at', { ascending: true });
     if (error) throw new Error(error.message);
     return ((data ?? []) as TaskRow[])
-      .map(row => row.task_data)
+      .map(row => row.task_data ? normalizeTask(row.task_data) : null)
       .filter((task): task is Task => Boolean(task?.id));
   }
 
   async upsertTasks(tasks: Task[]): Promise<void> {
     const supabase = getSupabaseClient();
     if (!supabase || !this.householdId || !this.currentUserId || !tasks.length) return;
-    const rows = tasks.map(task => toRow(task, this.householdId, this.currentUserId));
+    const rows = tasks.map(task => toRow(normalizeTask(task), this.householdId, this.currentUserId));
     const { error } = await supabase
       .from(TABLE)
       .upsert(rows, { onConflict: 'household_id,client_id' });
     if (error) throw new Error(error.message);
+  }
+
+  async mergeAndUpload(localTasks: Task[]): Promise<Task[]> {
+    const remoteTasks = await this.fetchTasks();
+    const mergedById = new Map<string, Task>();
+    [...localTasks, ...remoteTasks].map(normalizeTask).forEach(task => {
+      const current = mergedById.get(task.id);
+      const taskTime = new Date(task.updatedAt || task.createdAt || 0).getTime();
+      const currentTime = current ? new Date(current.updatedAt || current.createdAt || 0).getTime() : -1;
+      if (!current || taskTime > currentTime) mergedById.set(task.id, task);
+    });
+    const merged = [...mergedById.values()];
+    await this.upsertTasks(merged);
+    return merged;
   }
 
   async deleteTask(clientId: string): Promise<void> {

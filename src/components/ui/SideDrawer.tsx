@@ -6,8 +6,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
-import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDays, User2, Brain, Settings, ChevronDown, RadioTower } from 'lucide-react';
+import { CheckCircle2, Trash2, RotateCcw, XCircle, Inbox, LayoutGrid, CalendarDays, User2, Brain, Settings, ChevronDown, RadioTower, Eye, EyeOff } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import ExportTasks from '../tasks/ExportTasks';
 import { BuddyLinkGarage } from '../auth/BuddyLinkGarage';
 import { SyncPanel } from '../sync/SyncPanel';
@@ -16,7 +17,6 @@ import { STORAGE_KEYS, storage } from '../../utils';
 import { emitSettingsEvent } from '../../utils/settings';
 import { checkForUpdates } from '../../utils/updates';
 import pkg from '../../../package.json';
-import { startGoogleConnect } from '../../utils/googleAuth';
 
 const readSettings = () => {
   try {
@@ -37,6 +37,7 @@ interface SideDrawerProps {
 // 🛠 Side Drawer - Archive & Deleted Tasks Management
 export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant = 'drawer', onGoToSection }) => {
   const { getCompletedTasks, getDeletedTasks, restoreTask, hardDeleteTask, toggleTaskComplete } = useTask() as any;
+  const { authMode, authError, authNotice, changePassword, clearAuthFeedback } = useAuth();
   const completed = getCompletedTasks()
     .slice()
     .sort((a:any,b:any) => {
@@ -87,14 +88,11 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
     const saved = initialSettings.textScale;
     return typeof saved === 'number' ? saved : 1;
   });
-  const [googleEmbedEnabled, setGoogleEmbedEnabled] = useState<boolean>(() => Boolean(initialSettings.googleCalendar?.enabled));
-  const [googleEmbedUrl, setGoogleEmbedUrl] = useState<string>(() => (initialSettings.googleCalendar?.embedUrl as string | undefined) || '');
-  const [googleSavedFlash, setGoogleSavedFlash] = useState<'idle' | 'saved'>('idle');
-  const [googleConnectStatus, setGoogleConnectStatus] = useState<'disconnected' | 'ready' | 'error'>(() => (initialSettings.googleCalendar?.connectStatus as 'disconnected' | 'ready' | 'error') || 'disconnected');
-  const [googleAccountHint, setGoogleAccountHint] = useState<string>(() => (initialSettings.googleCalendar?.accountEmail as string | undefined) || '');
-  const [googleSyncEnabled, setGoogleSyncEnabled] = useState<boolean>(() => Boolean(initialSettings.googleCalendar?.syncEnabled));
-  const [googleBusy, setGoogleBusy] = useState(false);
-  const googleSaveTimeoutRef = useRef<number | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const persistSettings = useCallback((mutator: (prev: Record<string, any>) => Record<string, any>) => {
     const next = mutator(readSettings());
@@ -108,110 +106,25 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
     }
   }, [textScale]);
 
-  useEffect(() => {
-    return () => {
-      if (googleSaveTimeoutRef.current) {
-        window.clearTimeout(googleSaveTimeoutRef.current);
-      }
-    };
-  }, []);
-
   const applyTextScale = useCallback((v: number) => {
     setTextScale(v);
     persistSettings(prev => ({ ...prev, textScale: v }));
   }, [persistSettings]);
 
-  const toggleGoogleEmbed = useCallback(() => {
-    setGoogleEmbedEnabled(prev => {
-      const next = !prev;
-      const trimmed = googleEmbedUrl.trim();
-      persistSettings(prevSettings => {
-        const currentUrl = (prevSettings.googleCalendar?.embedUrl as string | undefined) || trimmed || undefined;
-        return {
-          ...prevSettings,
-          googleCalendar: {
-            ...(prevSettings.googleCalendar || {}),
-            enabled: next,
-            embedUrl: currentUrl,
-          },
-        };
-      });
-      return next;
-    });
-    setGoogleSavedFlash('idle');
-  }, [persistSettings, googleEmbedUrl]);
-
-  const markGoogleConnected = useCallback(() => {
-    const email = googleAccountHint.trim() || 'you@example.com';
-    setGoogleConnectStatus('ready');
-    setGoogleAccountHint(email);
-    persistSettings(prev => ({
-      ...prev,
-      googleCalendar: {
-        ...(prev.googleCalendar || {}),
-        connectStatus: 'ready',
-        accountEmail: email,
-        syncEnabled: googleSyncEnabled,
-      },
-    }));
-  }, [googleAccountHint, googleSyncEnabled, persistSettings]);
-
-  const markGoogleDisconnected = useCallback(() => {
-    setGoogleConnectStatus('disconnected');
-    persistSettings(prev => ({
-      ...prev,
-      googleCalendar: {
-        ...(prev.googleCalendar || {}),
-        connectStatus: 'disconnected',
-        accountEmail: prev.googleCalendar?.accountEmail,
-        syncEnabled: false,
-      },
-    }));
-    setGoogleSyncEnabled(false);
-  }, [persistSettings]);
-
-  const toggleGoogleSync = useCallback(() => {
-    setGoogleSyncEnabled(prev => {
-      const next = !prev;
-      persistSettings(prevSettings => ({
-        ...prevSettings,
-        googleCalendar: {
-          ...(prevSettings.googleCalendar || {}),
-          syncEnabled: next,
-        },
-      }));
-      return next;
-    });
-  }, [persistSettings]);
-
-  const handleGoogleConnect = useCallback(async () => {
+  const handleChangePassword = useCallback(async () => {
+    if (newPassword.length < 8 || newPassword !== passwordConfirmation || isChangingPassword) return;
+    setIsChangingPassword(true);
+    clearAuthFeedback();
     try {
-      setGoogleBusy(true);
-      await startGoogleConnect();
-      markGoogleConnected();
-    } catch (err) {
-      console.warn('google connect failed (stub)', err);
-      setGoogleConnectStatus('error');
+      await changePassword(newPassword);
+      setNewPassword('');
+      setPasswordConfirmation('');
+    } catch {
+      // AuthContext exposes the error in the settings panel.
     } finally {
-      setGoogleBusy(false);
+      setIsChangingPassword(false);
     }
-  }, [markGoogleConnected]);
-
-  const saveGoogleEmbedUrl = useCallback(() => {
-    const trimmed = googleEmbedUrl.trim();
-    setGoogleEmbedUrl(trimmed);
-    persistSettings(prev => ({
-      ...prev,
-      googleCalendar: {
-        ...(prev.googleCalendar || {}),
-        enabled: googleEmbedEnabled,
-        embedUrl: trimmed || undefined,
-      },
-    }));
-    setGoogleSavedFlash('saved');
-    if (googleSaveTimeoutRef.current) window.clearTimeout(googleSaveTimeoutRef.current);
-    googleSaveTimeoutRef.current = window.setTimeout(() => setGoogleSavedFlash('idle'), 1500);
-  }, [googleEmbedUrl, googleEmbedEnabled, persistSettings]);
+  }, [changePassword, clearAuthFeedback, isChangingPassword, newPassword, passwordConfirmation]);
 
   const [updateStatus, setUpdateStatus] = useState<{
     loading: boolean;
@@ -502,7 +415,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           <section ref={sectionRefs.export} className={`${variant === 'full' ? 'px-3' : 'px-1'} mb-4 scroll-mt-6`} data-testid="drawer-export">
             <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-2">
               <h3 className="text-sm font-semibold text-slate-200 mb-2">Export & Share</h3>
-              <div className="bg-white rounded-lg">
+              <div>
                 <ExportTasks />
               </div>
             </div>
@@ -512,7 +425,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           <section ref={sectionRefs.partner} className={`${variant === 'full' ? 'px-3' : 'px-1'} mb-6 scroll-mt-6`} data-testid="drawer-partner">
             <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-2">
               <h3 className="text-sm font-semibold text-slate-200 mb-2">Partner & Colors</h3>
-              <div className="bg-white rounded-lg">
+              <div>
                 <BuddyLinkGarage />
               </div>
             </div>
@@ -521,7 +434,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
           <section ref={sectionRefs.sync} className={`${variant === 'full' ? 'px-3' : 'px-1'} mb-6 scroll-mt-6`} data-testid="drawer-sync">
             <div className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-2">
               <h3 className="text-sm font-semibold text-slate-200 mb-2">Peer Sync</h3>
-              <div className="bg-white rounded-lg">
+              <div>
                 <SyncPanel />
               </div>
             </div>
@@ -654,106 +567,54 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                   )}
                 </div>
 
-                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-4">
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Google Calendar Connect</div>
-                      <div className="text-[10px] text-slate-500">Scaffold for OAuth + sync. No live calls yet.</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] ${googleConnectStatus === 'ready' ? 'text-emerald-300' : 'text-slate-400'}`} data-testid="drawer-google-status">
-                        {googleConnectStatus === 'ready' ? 'Connected (stub)' : 'Not connected'}
-                      </span>
-                      <button
-                        type="button"
-                        className="neon-action-button"
-                        data-size="sm"
-                        data-variant={googleConnectStatus === 'ready' ? 'outline' : undefined}
-                        onClick={googleConnectStatus === 'ready' ? markGoogleDisconnected : handleGoogleConnect}
-                        disabled={googleBusy}
-                        data-testid="drawer-google-connect-toggle"
-                      >
-                        {googleConnectStatus === 'ready' ? 'Disconnect' : googleBusy ? 'Connecting…' : 'Connect Google'}
-                      </button>
-                    </div>
+                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-3">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Change Password</div>
+                    <div className="text-[10px] text-slate-500">Update your Supabase account password.</div>
                   </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-400">Account email (for display only)</label>
-                      <input
-                        type="email"
-                        className="glow-form-input mt-1"
-                        placeholder="couple@gmail.com"
-                        value={googleAccountHint}
-                        onChange={(e) => setGoogleAccountHint(e.target.value)}
-                        data-testid="drawer-google-account"
-                      />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-400">Sync tasks to Google</label>
-                      <button
-                        type="button"
-                        className="neon-action-button"
-                        data-size="sm"
-                        data-variant={googleSyncEnabled ? undefined : 'outline'}
-                        onClick={toggleGoogleSync}
-                        disabled={googleConnectStatus !== 'ready'}
-                        data-testid="drawer-google-sync-toggle"
-                      >
-                        {googleSyncEnabled ? 'Disable Sync' : 'Enable Sync'}
-                      </button>
-                    </div>
-                    <p className="text-[10px] text-slate-500">Real OAuth flow will land here; this keeps UI stable while we wire the backend.</p>
-                  </div>
-                </div>
-
-                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-4">
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Google Calendar Embed</div>
-                      <div className="text-[10px] text-slate-500">Show your Google events next to the mega planner.</div>
-                    </div>
-                    <button
-                      type="button"
-                      className="neon-action-button"
-                      data-size="sm"
-                      data-variant={googleEmbedEnabled ? undefined : 'outline'}
-                      onClick={toggleGoogleEmbed}
-                      data-testid="drawer-google-toggle"
-                    >
-                      {googleEmbedEnabled ? 'Disable' : 'Enable'}
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] uppercase tracking-[0.14em] text-slate-400">Embed URL</label>
-                      <input
-                        type="url"
-                        className="glow-form-input mt-1"
-                        placeholder="https://calendar.google.com/calendar/embed?..."
-                        value={googleEmbedUrl}
-                        onChange={(e) => setGoogleEmbedUrl(e.target.value)}
-                        disabled={!googleEmbedEnabled}
-                        data-testid="drawer-google-url"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-[10px] text-slate-500">Grab the public embed link from Google Calendar → Settings › Integrate calendar.</p>
-                      <div className="flex items-center gap-2">
-                        {googleSavedFlash === 'saved' && <span className="text-[10px] text-emerald-300" data-testid="drawer-google-saved">Saved!</span>}
-                        <button
-                          type="button"
-                          className="neon-action-button"
-                          data-size="sm"
-                          onClick={saveGoogleEmbedUrl}
-                          disabled={!googleEmbedEnabled}
-                          data-testid="drawer-google-save"
-                        >
-                          Save Link
-                        </button>
+                  {authMode === 'supabase' ? (
+                    <>
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <input
+                            type={showNewPassword ? 'text' : 'password'}
+                            className="glow-form-input pr-11"
+                            placeholder="New password"
+                            minLength={8}
+                            value={newPassword}
+                            onChange={event => setNewPassword(event.target.value)}
+                            autoComplete="new-password"
+                            data-testid="drawer-new-password"
+                          />
+                          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" onClick={() => setShowNewPassword(value => !value)} aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}>
+                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type={showPasswordConfirmation ? 'text' : 'password'}
+                            className="glow-form-input pr-11"
+                            placeholder="Confirm new password"
+                            minLength={8}
+                            value={passwordConfirmation}
+                            onChange={event => setPasswordConfirmation(event.target.value)}
+                            autoComplete="new-password"
+                            data-testid="drawer-confirm-password"
+                          />
+                          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" onClick={() => setShowPasswordConfirmation(value => !value)} aria-label={showPasswordConfirmation ? 'Hide password confirmation' : 'Show password confirmation'}>
+                            {showPasswordConfirmation ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                      <button type="button" className="neon-action-button" data-size="sm" onClick={handleChangePassword} disabled={isChangingPassword || newPassword.length < 8 || newPassword !== passwordConfirmation} data-testid="drawer-change-password">
+                        {isChangingPassword ? 'Updating…' : 'Update Password'}
+                      </button>
+                      {authError && <p role="alert" className="text-[11px] text-rose-300">{authError}</p>}
+                      {authNotice && <p role="status" className="text-[11px] text-emerald-300">{authNotice.message}</p>}
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-slate-500">Password changes are available when Supabase authentication is enabled.</p>
+                  )}
                 </div>
 
                 <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-3">
@@ -853,8 +714,8 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                           title="Restore"
                         ><RotateCcw className="h-4 w-4" /></button>
                         <button
-                          onClick={() => { if (confirm('Permanently delete this task? This cannot be undone.')) hardDeleteTask(task.id); }}
-                          className="neon-icon-button" aria-label="Permanently delete task" title="Delete forever"
+                          onClick={() => { if (confirm('Remove this deleted task from the active device? Its sync tombstone will be retained.')) hardDeleteTask(task.id); }}
+                          className="neon-icon-button" aria-label="Remove task locally" title="Remove locally"
                         ><XCircle className="h-4 w-4 text-rose-400" /></button>
                       </div>
                     </div>
@@ -862,7 +723,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                 ))}
                 {deleted.length > 0 && (
                   <button
-                    onClick={() => { if (confirm('Empty trash? This permanently deletes all trashed tasks.')) { deleted.forEach((t:any)=> hardDeleteTask(t.id)); } }}
+                    onClick={() => { if (confirm('Remove deleted tasks from this device? Their sync tombstones will be retained.')) { deleted.forEach((t:any)=> hardDeleteTask(t.id)); } }}
                     className="w-full mt-2 neon-action-button" data-variant="outline" data-size="xs"
                     data-testid="empty-trash"
                   >🗑️ Empty Trash</button>

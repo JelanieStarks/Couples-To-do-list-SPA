@@ -59,6 +59,8 @@ describe('TaskContext core behaviors', () => {
     expect(ctx.tasks.length).toBe(1);
     expect(ctx.tasks[0].title).toBe('Test Task');
     expect(ctx.tasks[0].completed).toBeFalsy();
+    expect(ctx.tasks[0].updatedAt).toBeTruthy();
+    expect(ctx.tasks[0].urgency).toBe('urgent');
   });
 
   it('toggles completion and sets completedAt', () => {
@@ -92,13 +94,49 @@ describe('TaskContext core behaviors', () => {
     expect(ctx.getTodaysTasks().length).toBe(1);
   });
 
-  it('hard deletes removes the task fully', () => {
+  it('retains a deletion tombstone instead of removing the task immediately', () => {
     act(() => {
       ctx.createTask({ title: 'Hard Delete', priority: 'D', assignment: 'me', color: '#fff' });
     });
     const id = ctx.tasks[0].id;
     act(() => ctx.hardDeleteTask(id));
-    expect(ctx.tasks.find(t => t.id === id)).toBeUndefined();
+    expect(ctx.tasks.find(t => t.id === id)?.deletedAt).toBeTruthy();
+    expect(ctx.getTodaysTasks().find(t => t.id === id)).toBeUndefined();
+  });
+
+  it('copies a historical task with a new id and date', () => {
+    act(() => {
+      ctx.createTask({ title: 'Yesterday', priority: 'D', assignment: 'me', color: '#fff', scheduledDate: '2026-09-21' });
+    });
+    const original = ctx.tasks[0];
+    let copiedId: string | null = null;
+    act(() => { copiedId = ctx.copyTaskToDate(original.id, '2026-09-22'); });
+    const copied = ctx.tasks.find(t => t.id === copiedId);
+    expect(copied).toMatchObject({ title: 'Yesterday', scheduledDate: '2026-09-22', completed: false });
+    expect(copied?.id).not.toBe(original.id);
+    expect(ctx.tasks.find(t => t.id === original.id)?.scheduledDate).toBe('2026-09-21');
+  });
+
+  it('moves a task without changing its stable id', () => {
+    act(() => {
+      ctx.createTask({ title: 'Move me', priority: 'B1', assignment: 'me', color: '#fff', scheduledDate: '2026-09-21' });
+    });
+    const original = ctx.tasks[0];
+    act(() => ctx.moveTaskToDate(original.id, '2026-09-22'));
+    expect(ctx.tasks[0].id).toBe(original.id);
+    expect(ctx.tasks[0].scheduledDate).toBe('2026-09-22');
+    expect(ctx.tasks[0].updatedAt).not.toBe(original.updatedAt);
+  });
+
+  it('keeps custom color separate from urgency when priority changes', () => {
+    act(() => {
+      ctx.createTask({ title: 'Pink urgent task', priority: 'A1', assignment: 'me', color: '#ec4899', customColor: '#ec4899' });
+    });
+    const id = ctx.tasks[0].id;
+    act(() => ctx.updateTask(id, { priority: 'A2' }));
+    expect(ctx.tasks[0].customColor).toBe('#ec4899');
+    expect(ctx.tasks[0].color).toBe('#ec4899');
+    expect(ctx.tasks[0].urgency).toBe('urgent');
   });
 
   it('completed tasks list returns newest first', () => {

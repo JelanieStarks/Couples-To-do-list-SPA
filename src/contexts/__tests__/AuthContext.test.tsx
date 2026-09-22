@@ -94,4 +94,27 @@ describe('AuthContext', () => {
     expect(result).toBe(false);
     expect(ctx.magicLinkNotice).toBeNull();
   });
+
+  it('changes the password through Supabase for an authenticated user', async () => {
+    renderUtils?.unmount();
+    const updateUser = vi.fn().mockResolvedValue({ error: null });
+    const supabase = {
+      auth: { updateUser },
+    };
+    (getSupabaseClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(supabase);
+    (isSupabaseAuthEnabled as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    render(
+      <AuthProvider initialUser={{ id: 'user-1', name: 'Alice', inviteCode: 'ABC12345', color: '#ec4899', createdAt: '2026-09-22' }}>
+        <Harness onReady={(api) => { ctx = api; }} />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      await ctx.changePassword('new-password-123');
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ password: 'new-password-123' });
+    expect(ctx.authNotice.message).toContain('Password updated');
+  });
 });

@@ -90,6 +90,7 @@ interface TaskContextType {
   getDeletedTasks: () => Task[];
   importTasksFromText: (text: string) => Task[];
   moveTaskToDate: (taskId: string, date: string) => void;
+  copyTaskToDate: (taskId: string, date: string) => string | null;
   reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
   syncNow: () => void;
   peerSync: PeerSyncApi;
@@ -233,7 +234,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       if (cancelled) return;
       const incoming = fingerprintTasks(remoteTasks);
       if (incoming === lastSnapshotsRef.current.server) return;
-      taskDoc.replaceAllFromExternal(remoteTasks);
+      taskDoc.mergeExternal(remoteTasks);
       lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
     };
 
@@ -244,7 +245,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         if (!cancelled && remoteSnapshot.length > 0) {
           const incoming = fingerprintTasks(remoteSnapshot);
           if (incoming !== lastSnapshotsRef.current.server) {
-            taskDoc.replaceAllFromExternal(remoteSnapshot);
+            taskDoc.mergeExternal(remoteSnapshot);
             lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
           }
         }
@@ -280,7 +281,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         if (cancelled || !remote.length) return;
         const fp = fingerprintTasks(remote);
         if (fp !== lastSupabaseDbFingerprintRef.current) {
-          taskDoc.replaceAllFromExternal(remote);
+          taskDoc.mergeExternal(remote);
           lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
           lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
         }
@@ -300,7 +301,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       if (fp === lastSupabaseDbFingerprintRef.current) return;
       const taskDocNow = taskDocRef.current;
       if (!taskDocNow) return;
-      taskDocNow.replaceAllFromExternal(remoteTasks);
+      taskDocNow.mergeExternal(remoteTasks);
       lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDocNow.getTasks());
       lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
       setSupabaseStatus(prev => ({
@@ -390,7 +391,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
           if (Array.isArray(data.tasks) && taskDoc) {
             const incoming = fingerprintTasks(data.tasks);
             if (incoming !== lastSnapshotsRef.current.broadcast) {
-              taskDoc.replaceAllFromExternal(data.tasks);
+              taskDoc.mergeExternal(data.tasks);
               lastSnapshotsRef.current.broadcast = fingerprintTasks(taskDoc.getTasks());
             }
           }
@@ -404,7 +405,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         const next = e.newValue ? (JSON.parse(e.newValue) as Task[]) : [];
         const incoming = fingerprintTasks(next);
         if (incoming !== lastSnapshotsRef.current.storage) {
-          taskDoc.replaceAllFromExternal(next);
+          taskDoc.mergeExternal(next);
           lastSnapshotsRef.current.storage = fingerprintTasks(taskDoc.getTasks());
         }
       } catch {}
@@ -715,14 +716,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
     if (supabaseSyncEnabled && supabaseDbSyncRef.current) {
       try {
-        const remote = await supabaseDbSyncRef.current.fetchTasks();
-        if (remote.length) {
-          const incoming = fingerprintTasks(remote);
-          if (incoming !== lastSupabaseDbFingerprintRef.current) {
-            taskDoc.replaceAllFromExternal(remote);
-            lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
-          }
-        }
+        const merged = await supabaseDbSyncRef.current.mergeAndUpload(taskDoc.getTasks());
+        taskDoc.mergeExternal(merged);
+        lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
         setSupabaseStatus(prev => ({ ...prev, lastError: undefined }));
       } catch (error) {
         setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
@@ -731,14 +727,14 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       const remote = await serverSyncRef.current.fetchTasks();
       const incoming = fingerprintTasks(remote);
       if (incoming !== lastSnapshotsRef.current.server) {
-        taskDoc.replaceAllFromExternal(remote);
+        taskDoc.mergeExternal(remote);
         lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
       }
     } else if (typeof window !== 'undefined') {
       const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? [];
       const incoming = fingerprintTasks(savedTasks);
       if (incoming !== lastSnapshotsRef.current.storage) {
-        taskDoc.replaceAllFromExternal(savedTasks);
+        taskDoc.mergeExternal(savedTasks);
         lastSnapshotsRef.current.storage = fingerprintTasks(taskDoc.getTasks());
       }
     }
@@ -764,6 +760,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const nextOrder = taskDoc.getNextOrderForPriority(taskData.priority);
     const newTask: Task = {
       ...taskData,
+      urgency: taskData.urgency ?? urgencyForPriority(taskData.priority),
       id: generateId(),
       createdBy: user.id,
       createdAt: now,
@@ -795,7 +792,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const now = new Date().toISOString();
     taskDoc.update(id, current => {
       if (!current) return current;
-      return { ...current, ...updates, updatedAt: now };
+      return {
+        ...current,
+        ...updates,
+        ...(updates.priority && !updates.urgency ? { urgency: urgencyForPriority(updates.priority) } : {}),
+        updatedAt: now,
+      };
     });
   };
 
@@ -805,7 +807,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const now = new Date().toISOString();
     taskDoc.update(id, current => {
       if (!current) return current;
-      return { ...current, deletedAt: now };
+      return { ...current, deletedAt: now, updatedAt: now };
     });
   };
 
@@ -815,17 +817,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     taskDoc.update(id, current => {
       if (!current) return current;
       if (current.deletedAt === undefined) return current;
-      return { ...current, deletedAt: undefined };
+      return { ...current, deletedAt: undefined, updatedAt: new Date().toISOString() };
     });
   };
 
   const hardDeleteTask = (id: string): void => {
-    taskDocRef.current?.delete(id);
-    if (supabaseSyncEnabled && supabaseDbSyncRef.current) {
-      void supabaseDbSyncRef.current.deleteTask(id).catch(error => {
-        setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
-      });
-    }
+    // Keep a tombstone so offline partners cannot resurrect a permanently removed task.
+    softDeleteTask(id);
   };
 
   const toggleTaskComplete = (id: string): void => {
@@ -881,6 +879,26 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
   const moveTaskToDate = (taskId: string, date: string): void => {
     updateTask(taskId, { scheduledDate: date });
+  };
+
+  const copyTaskToDate = (taskId: string, date: string): string | null => {
+    const source = taskDocRef.current?.getTasks().find(task => task.id === taskId);
+    if (!source || !user) return null;
+    const now = new Date().toISOString();
+    const copiedTask: Task = {
+      ...source,
+      id: generateId(),
+      scheduledDate: date,
+      completed: false,
+      completedAt: undefined,
+      deletedAt: undefined,
+      createdBy: user.id,
+      createdAt: now,
+      updatedAt: now,
+      order: taskDocRef.current?.getNextOrderForPriority(source.priority),
+    };
+    taskDocRef.current?.upsert(copiedTask);
+    return copiedTask.id;
   };
 
   // Import tasks from AI-generated text using --- delimiter
@@ -1053,6 +1071,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     getDeletedTasks,
     importTasksFromText,
     moveTaskToDate,
+    copyTaskToDate,
     reorderTasksWithinPriority,
     syncNow,
     peerSync: peerSyncApi,
@@ -1157,3 +1176,7 @@ const getDefaultColorForAssignment = (assignment: Assignment, user: any): string
       return user?.color || '#3b82f6';
   }
 };
+
+const urgencyForPriority = (priority: Priority): NonNullable<Task['urgency']> => (
+  priority.startsWith('A') ? 'urgent' : priority.startsWith('B') ? 'high' : priority.startsWith('C') ? 'medium' : 'low'
+);

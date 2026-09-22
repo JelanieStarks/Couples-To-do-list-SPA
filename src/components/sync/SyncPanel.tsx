@@ -3,9 +3,9 @@
  * What: controls peer-to-peer sync sessions with QR codes, codes, and LAN options.
  * How: drop inside quick-action cards to let couples host or join a session in seconds.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Copy, Check, RadioTower, Power, Wifi, Link2, Loader2, RefreshCw } from 'lucide-react';
+import { Copy, Check, RadioTower, Power, Link2, Loader2, RefreshCw } from 'lucide-react';
 import { useTask } from '../../contexts/TaskContext';
 
 interface SyncPanelProps {
@@ -63,13 +63,10 @@ export const SyncPanel: React.FC<SyncPanelProps> = ({ variant = 'card' }) => {
   const { peerSync, syncNow, supabaseStatus } = useTask();
   const {
     status,
-    lan,
     startHosting,
     joinSession,
     submitRemoteSignal,
     endSession,
-    enableLan,
-    disableLan,
     resetError,
   } = peerSync;
 
@@ -85,29 +82,11 @@ const formatTime = (value?: string) => {
   const [hostCodeInput, setHostCodeInput] = useState('');
   const [answerInput, setAnswerInput] = useState('');
   const [copied, setCopied] = useState(false);
-  const [lanCopied, setLanCopied] = useState(false);
 
   const localSignalValue = status.localSignal?.payload ?? null;
   const localSignalKind = status.localSignal?.kind ?? null;
   const qrCode = useQrCode(localSignalValue);
-  const lanAvailable = !!lan.serverUrl;
-
   const friendlyRole = status.role ? (status.role === 'host' ? 'Hosting' : 'Joining') : 'Standby';
-  const friendlyLanStatus = useMemo(() => {
-    if (!lan.enabled) return 'Disabled';
-    switch (lan.status) {
-      case 'idle':
-        return 'Waiting';
-      case 'connecting':
-        return 'Connecting…';
-      case 'connected':
-        return 'Live';
-      case 'error':
-        return 'Error';
-      default:
-        return lan.status;
-    }
-  }, [lan.enabled, lan.status]);
 
   const handleCopySignal = async () => {
     if (!localSignalValue) return;
@@ -118,24 +97,15 @@ const formatTime = (value?: string) => {
     } catch {}
   };
 
-  const handleCopyLanUrl = async () => {
-    if (!lan.serverUrl) return;
-    try {
-      await navigator.clipboard.writeText(lan.serverUrl);
-      setLanCopied(true);
-      setTimeout(() => setLanCopied(false), 2000);
-    } catch {}
-  };
-
   const onStartHosting = () => {
-    startHosting({ enableLan: lan.enabled });
+    startHosting();
     setAnswerInput('');
   };
 
   const onJoinWithCode = () => {
     const trimmed = hostCodeInput.trim();
     if (!trimmed) return;
-    joinSession(trimmed, { enableLan: lan.enabled });
+    joinSession(trimmed);
     setHostCodeInput('');
   };
 
@@ -146,22 +116,12 @@ const formatTime = (value?: string) => {
     setAnswerInput('');
   };
 
-  const toggleLan = () => {
-    if (lan.enabled) {
-      disableLan();
-    } else {
-      enableLan();
-    }
-  };
-
   const containerClass = variant === 'card'
-    ? 'bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6'
+    ? 'neon-hype-panel rainbow-crunch-border rounded-xl p-4 sm:p-6 space-y-6'
     : 'space-y-6';
 
   const showAnswerInput = status.role === 'host' && status.expectedRemote === 'answer';
   const showLocalSignal = !!localSignalValue;
-
-  const showLanHint = lan.enabled && lan.status === 'connected' && status.state !== 'connected';
 
   return (
     <div className={containerClass}>
@@ -171,14 +131,11 @@ const formatTime = (value?: string) => {
             <RadioTower className="h-6 w-6" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Peer Sync</h3>
-            <p className="text-sm text-gray-500">Share tasks instantly over QR, codes, or LAN.</p>
+            <h3 className="text-lg font-semibold text-slate-100">Peer Sync</h3>
+            <p className="text-sm text-slate-400">Share tasks instantly over QR codes or pairing codes.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`${chipClass} bg-blue-50 text-blue-700 border border-blue-200`}>
-            <Wifi className="h-3 w-3" /> {friendlyLanStatus}
-          </span>
           <span className={`${chipClass} bg-purple-50 text-purple-700 border border-purple-200`}>
             <Link2 className="h-3 w-3" /> {friendlyRole}
           </span>
@@ -188,12 +145,11 @@ const formatTime = (value?: string) => {
         </div>
       </header>
 
-      {(status.lastError || lan.lastError) && (
+      {status.lastError && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg p-3 text-sm flex items-start gap-3">
           <div className="font-semibold">Heads up:</div>
           <div className="flex-1">
             {status.lastError && <div>{status.lastError}</div>}
-            {lan.lastError && <div>{lan.lastError}</div>}
             <div className="mt-2 flex gap-2">
               <button className="neon-action-button" data-size="xs" onClick={resetError}>Clear notice</button>
               <button className="neon-action-button" data-size="xs" data-variant="outline" onClick={() => syncNow()}>Refresh tasks</button>
@@ -211,14 +167,14 @@ const formatTime = (value?: string) => {
               {status.role === 'host' ? 'Restart Hosting' : 'Start Hosting'}
             </button>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-slate-400">
             Share the pairing string or QR with your partner. Once they respond, the session connects automatically.
           </p>
 
           {showLocalSignal && status.role === 'host' && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
               <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Share this host code</div>
-              <div className="font-mono text-sm break-all bg-white border border-gray-200 rounded-lg px-3 py-2">
+              <div className="font-mono text-sm break-all bg-slate-950/80 border border-slate-600 text-slate-200 rounded-lg px-3 py-2">
                 {localSignalValue}
               </div>
               <div className="flex items-center gap-2">
@@ -266,12 +222,9 @@ const formatTime = (value?: string) => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-900">Join a session</h4>
-            <button className="neon-action-button" data-size="sm" data-variant="soft" onClick={() => joinSession(undefined, { enableLan: lan.enabled })}>
-              <Loader2 className="h-4 w-4" /> Listen on LAN
-            </button>
           </div>
-          <p className="text-xs text-gray-500">
-            Paste the host code, or switch on LAN to auto-detect and respond when the host is nearby.
+          <p className="text-xs text-slate-400">
+            Paste the host code to connect with your partner.
           </p>
 
           <div className="space-y-3">
@@ -292,7 +245,7 @@ const formatTime = (value?: string) => {
           {showLocalSignal && status.role === 'guest' && localSignalKind === 'answer' && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
               <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Send this back to the host</div>
-              <div className="font-mono text-sm break-all bg-white border border-gray-200 rounded-lg px-3 py-2">
+              <div className="font-mono text-sm break-all bg-slate-950/80 border border-slate-600 text-slate-200 rounded-lg px-3 py-2">
                 {localSignalValue}
               </div>
               <div className="flex items-center gap-2">
@@ -320,36 +273,6 @@ const formatTime = (value?: string) => {
           )}
         </div>
       </section>
-
-      <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
-        <div className="flex items-center gap-2">
-          <button
-            className={`neon-action-button ${lan.enabled ? '' : '!bg-gray-100 !text-gray-600 !border-gray-200'}`}
-            data-size="sm"
-            onClick={toggleLan}
-            disabled={!lanAvailable}
-          >
-            <Wifi className="h-4 w-4" />
-            {lan.enabled ? 'Disable LAN Auto' : 'Enable LAN Auto'}
-          </button>
-          {lanAvailable && (
-            <button className="neon-action-button" data-size="sm" data-variant="soft" onClick={handleCopyLanUrl}>
-              <Copy className="h-4 w-4" />
-              {lanCopied ? 'URL copied!' : 'Copy LAN URL'}
-            </button>
-          )}
-        </div>
-        {showLanHint && (
-          <div className="text-emerald-600 flex items-center gap-2">
-            <Wifi className="h-4 w-4" /> Listening for nearby devices…
-          </div>
-        )}
-        {!lanAvailable && (
-          <div className="text-amber-600 flex items-center gap-1">
-            <Wifi className="h-4 w-4" /> Start the local signaling server to unlock LAN auto-connect.
-          </div>
-        )}
-      </footer>
 
       <div className="mt-4 rounded-lg border border-slate-700/60 bg-slate-900/70 px-3 py-2 text-[11px] text-slate-200">
         <div className="flex flex-wrap items-center gap-2">

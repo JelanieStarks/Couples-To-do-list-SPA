@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, HeartHandshake, Plus, Save } from 'lucide-react';
+import { CheckCircle2, HeartHandshake, Plus, Printer, Save } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTask } from '../../contexts/TaskContext';
 import { useLifeMeetings } from '../../hooks/useLifeMeetings';
@@ -28,6 +28,19 @@ const textToEntries = (text: string, existing: MeetingEntry[], authorId: string)
     authorId: existing[index]?.authorId ?? authorId,
   }))
 );
+
+const getMeetingTitle = (meeting: LifeMeeting) => meeting.title?.trim() || `Life Meeting · ${meeting.meetingDate}`;
+
+const escapeHtml = (value: string) => value
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
+const formatEntries = (entries: MeetingEntry[]) => entries.length
+  ? `<ul>${entries.map(entry => `<li>${escapeHtml(entry.text)}</li>`).join('')}</ul>`
+  : '<p class="muted">None recorded.</p>';
 
 export const LifeMeetingPanel: React.FC = () => {
   const { user, partner } = useAuth();
@@ -85,6 +98,24 @@ export const LifeMeetingPanel: React.FC = () => {
     setDraft(selected);
     setDirty(false);
     setSavedFlash(false);
+  };
+
+  const printMeeting = () => {
+    if (!draft) return;
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!printWindow) return;
+    const actionItems = draft.actionItems.length
+      ? `<ul>${draft.actionItems.map(item => `<li><strong>${escapeHtml(item.title || 'Untitled task')}</strong> · ${escapeHtml(item.assignment)} · ${escapeHtml(item.priority)}${item.convertedAt ? ' · Added to planner' : ''}</li>`).join('')}</ul>`
+      : '<p class="muted">No associated tasks.</p>';
+    const checkIns = Object.entries(draft.checkIn).map(([authorId, checkIn]) => (
+      `<li><strong>${escapeHtml(authorId === user.id ? user.name : partner?.name || 'Partner')}</strong>: ${escapeHtml(checkIn.mood)} · ${escapeHtml(checkIn.energy)}${checkIn.supportNeed ? ` · ${escapeHtml(checkIn.supportNeed)}` : ''}</li>`
+    )).join('');
+    printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(getMeetingTitle(draft))}</title><style>
+      :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#182235;font:15px/1.6 Georgia,serif}main{max-width:820px;margin:0 auto;background:#fff;padding:48px 56px;min-height:100vh}h1{margin:0 0 4px;font:700 32px/1.15 Georgia,serif;color:#172554}h2{margin:28px 0 8px;padding-bottom:4px;border-bottom:1px solid #dbe3ef;font:700 18px/1.3 Georgia,serif;color:#334155}.meta{color:#64748b;font:14px/1.5 Arial,sans-serif}.muted{color:#64748b;font-style:italic}ul{padding-left:24px}li{margin:4px 0}.intro{margin:24px 0;padding:14px 18px;border-left:4px solid #ec4899;background:#fdf2f8}@media print{body{background:#fff}main{max-width:none;padding:0;min-height:auto}h2{break-after:avoid}.section{break-inside:avoid}}@media(max-width:600px){main{padding:28px 22px}h1{font-size:26px}}
+    </style></head><body><main><h1>${escapeHtml(getMeetingTitle(draft))}</h1><div class="meta">${escapeHtml(draft.meetingDate)} · ${escapeHtml(draft.status)}</div><div class="intro">Life Meeting notes and next steps</div><section class="section"><h2>Check-ins</h2>${checkIns ? `<ul>${checkIns}</ul>` : '<p class="muted">None recorded.</p>'}</section><section class="section"><h2>Gratitude</h2>${formatEntries(draft.gratitude)}</section><section class="section"><h2>Agenda</h2>${formatEntries(draft.agenda)}</section><section class="section"><h2>Decisions</h2>${formatEntries(draft.decisions)}</section><section class="section"><h2>Associated Tasks</h2>${actionItems}</section><section class="section"><h2>Shared Notes</h2><p>${escapeHtml(draft.notes || 'None recorded.').replace(/\n/g, '<br>')}</p></section></main></body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.setTimeout(() => printWindow.print(), 250);
   };
 
   const save = async (nextDraft = draft) => {
@@ -176,17 +207,30 @@ export const LifeMeetingPanel: React.FC = () => {
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
             <label className="text-xs text-slate-300">
               Meeting
-              <select
-                className="glow-form-input mt-1"
-                value={meetings.some(meeting => meeting.id === draft?.id) ? draft?.id : ''}
-                onChange={event => selectMeeting(event.target.value)}
-              >
-                {!draft && <option value="">No meetings yet</option>}
-                {draft && !meetings.some(meeting => meeting.id === draft.id) && <option value="">Unsaved new meeting</option>}
-                {meetings.map(meeting => (
-                  <option key={meeting.id} value={meeting.id}>{meeting.meetingDate} · {meeting.status}</option>
-                ))}
-              </select>
+              <div className="relative mt-1">
+                <input
+                  className={`glow-form-input ${meetings.filter(meeting => meeting.id !== draft?.id).length ? 'pr-12' : ''}`}
+                  value={draft ? getMeetingTitle(draft) : ''}
+                  placeholder="Life Meeting name"
+                  onChange={event => updateDraft({ title: event.target.value })}
+                  disabled={!draft}
+                  data-testid="life-meeting-title"
+                />
+                {meetings.filter(meeting => meeting.id !== draft?.id).length > 0 && (
+                  <select
+                    aria-label="Select another Life Meeting"
+                    className="absolute right-1 top-1/2 h-9 w-10 -translate-y-1/2 cursor-pointer appearance-none bg-transparent text-slate-300"
+                    value=""
+                    onChange={event => selectMeeting(event.target.value)}
+                    data-testid="life-meeting-selector"
+                  >
+                    <option value="">⌄</option>
+                    {meetings.filter(meeting => meeting.id !== draft?.id).map(meeting => (
+                      <option key={meeting.id} value={meeting.id}>{getMeetingTitle(meeting)} · {meeting.meetingDate}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </label>
             <label className="text-xs text-slate-300">
               Date
@@ -295,8 +339,11 @@ export const LifeMeetingPanel: React.FC = () => {
                 <textarea className="neon-textarea mt-1" rows={5} value={draft.notes} onChange={event => updateDraft({ notes: event.target.value })} />
               </label>
 
-              <div className="flex items-center justify-end gap-3">
+              <div className="flex items-center justify-end gap-3 flex-wrap">
                 {savedFlash && <span className="text-xs text-emerald-300">Saved and synced.</span>}
+                <button type="button" className="neon-action-button" data-size="sm" onClick={printMeeting} data-testid="print-life-meeting">
+                  <Printer className="h-4 w-4" /> Print / Export
+                </button>
                 <button type="button" className="neon-action-button" disabled={saving || !dirty} onClick={() => void save()}>
                   <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save meeting'}
                 </button>

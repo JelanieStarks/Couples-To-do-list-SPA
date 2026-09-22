@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { Users, Copy, Check, UserPlus, Unlink, Share } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { SyncPanel } from '../sync/SyncPanel';
 
 export const BuddyLinkGarage: React.FC = () => {
   const { user, partner, authMode, authError, authNotice, linkPartner, unlinkPartner, updateUser } = useAuth();
@@ -55,14 +54,14 @@ export const BuddyLinkGarage: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="neon-hype-panel rainbow-crunch-border rounded-xl p-4 sm:p-6 text-slate-100">
       <div className="flex items-center space-x-3 mb-6">
         <div className="bg-gradient-to-r from-purple-100 to-pink-100 p-2 rounded-lg">
           <Users className="h-6 w-6 text-purple-600" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Partner Connection</h2>
-          <p className="text-sm text-gray-500">🤖 Because teamwork makes the dream work!</p>
+          <h2 className="text-xl font-semibold text-slate-100">Partner Connection</h2>
+          <p className="text-sm text-slate-400">🤖 Because teamwork makes the dream work!</p>
         </div>
       </div>
 
@@ -89,16 +88,16 @@ export const BuddyLinkGarage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-1">Your invite code:</p>
-                <p className="font-mono text-lg font-bold text-gray-900 bg-white px-3 py-1 rounded border">{user?.inviteCode}</p>
+                <p className="text-sm font-medium text-slate-300 mb-1">Your invite code:</p>
+                <p className="font-mono text-lg font-bold text-pink-200 bg-slate-950/80 px-3 py-1 rounded border border-slate-600">{user?.inviteCode}</p>
               </div>
               <button
                 onClick={copyInviteToClipboard}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
-                  isCopied ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  isCopied ? 'bg-emerald-950 text-emerald-300' : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
                 }`}
               >
                 {isCopied ? (
@@ -114,7 +113,7 @@ export const BuddyLinkGarage: React.FC = () => {
                 )}
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">💡 Share this code only with the partner joining your household.</p>
+            <p className="text-xs text-slate-400 mt-2">💡 Share this code only with the partner joining your household.</p>
           </div>
         </div>
       ) : (
@@ -144,13 +143,13 @@ export const BuddyLinkGarage: React.FC = () => {
                 )}
               </button>
             </div>
-            <p className="font-mono text-xl font-bold text-blue-900 bg-white px-4 py-2 rounded border text-center">{user?.inviteCode}</p>
-            <p className="text-sm text-blue-700 mt-2">📱 Share this code with your partner to start collaborating!</p>
+            <p className="font-mono text-xl font-bold text-cyan-200 bg-slate-950/80 px-4 py-2 rounded border border-slate-600 text-center">{user?.inviteCode}</p>
+            <p className="text-sm text-cyan-200/80 mt-2">📱 Share this code with your partner to start collaborating!</p>
           </div>
 
           <div className="border-t pt-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-gray-900">Connect with Partner</h3>
+              <h3 className="font-medium text-slate-200">Connect with Partner</h3>
               <button
                 onClick={() => setIsLinkFormVisible(!isLinkFormVisible)}
                 className="flex items-center space-x-2 text-purple-600 hover:text-purple-700 font-medium"
@@ -162,11 +161,11 @@ export const BuddyLinkGarage: React.FC = () => {
 
             {isLinkFormVisible && (
               <form onSubmit={linkPartnerByCode} className="animate-slide-up">
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     placeholder={authMode === 'supabase' ? 'ABCD2345' : 'ABC123'}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono uppercase"
+                    className="min-w-0 w-full flex-1 px-4 py-2 border border-slate-600 bg-slate-950/80 text-slate-100 placeholder:text-slate-500 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent font-mono uppercase"
                     maxLength={authMode === 'supabase' ? 8 : 6}
                     value={inviteCodeEntry}
                     onChange={(event) => setInviteCodeEntry(event.target.value.toUpperCase())}
@@ -174,7 +173,7 @@ export const BuddyLinkGarage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isLinkingPartner || !inviteCodeEntry.trim()}
-                    className="neon-action-button !py-2"
+                    className="neon-action-button !py-2 w-full sm:w-auto shrink-0"
                   >
                     {isLinkingPartner ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
@@ -183,7 +182,7 @@ export const BuddyLinkGarage: React.FC = () => {
                     )}
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-slate-400 mt-2">
                   Enter your partner&apos;s {authMode === 'supabase' ? '8' : '6'}-character invite code to link your accounts.
                 </p>
                 {authError && <p role="alert" className="text-xs text-red-600 mt-2">{authError}</p>}
@@ -195,10 +194,10 @@ export const BuddyLinkGarage: React.FC = () => {
       )}
 
       <div className="border-t pt-6 mt-6">
-        <h3 className="font-medium text-gray-900 mb-4">🎨 Color Settings</h3>
+        <h3 className="font-medium text-slate-200 mb-4">🎨 Color Settings</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Your color (for "Me" tasks)</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Your color (for "Me" tasks)</label>
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 rounded-lg border-2 border-gray-300" style={{ backgroundColor: user?.color || '#ec4899' }} />
               <div className="flex flex-wrap gap-2">
@@ -219,31 +218,27 @@ export const BuddyLinkGarage: React.FC = () => {
 
           {partner && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Partner's color</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Partner's color</label>
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 rounded-lg border-2 border-gray-300" style={{ backgroundColor: partner.color || '#3b82f6' }} />
-                <span className="text-sm text-gray-600">{partner.name}'s chosen color</span>
+                <span className="text-sm text-slate-400">{partner.name}'s chosen color</span>
               </div>
             </div>
           )}
 
           {partner && (
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">"Both" tasks preview</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">"Both" tasks preview</label>
               <div
                 className="h-8 rounded-lg border-2 border-gray-200"
                 style={{ background: `linear-gradient(to right, ${user?.color || '#ec4899'}, ${partner.color || '#3b82f6'})` }}
               />
-              <p className="text-xs text-gray-500 mt-1">Tasks assigned to "Both" will use this gradient</p>
+              <p className="text-xs text-slate-400 mt-1">Tasks assigned to "Both" will use this gradient</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="border-t pt-6 mt-8">
-        <h3 className="font-medium text-gray-900 mb-4">🔗 Local Sync &amp; LAN</h3>
-        <SyncPanel variant="inline" />
-      </div>
     </div>
   );
 };

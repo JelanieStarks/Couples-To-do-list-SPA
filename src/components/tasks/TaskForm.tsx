@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { useTask } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Plus, Calendar, Clock, Star, Palette } from 'lucide-react';
-import type { Priority, Assignment } from '../../types';
+import type { Priority, Assignment, TaskUrgency } from '../../types';
 
 // 📝 Task Creation Form - Where great ideas become actionable tasks
 export const TaskForm: React.FC = () => {
@@ -20,6 +20,7 @@ export const TaskForm: React.FC = () => {
     priority: 'C1' as Priority,
     assignment: 'me' as Assignment,
     color: '#3b82f6', // Default blue
+    customColor: '',
     dueDate: '',
     scheduledDate: '',
     scheduledTime: '',
@@ -39,6 +40,10 @@ export const TaskForm: React.FC = () => {
     { value: 'C3' as Priority, label: 'C3', description: 'Low priority task 🟫', color: 'yellow' },
     { value: 'D' as Priority, label: 'D', description: 'Someday / optional 🟢', color: 'green' },
   ];
+
+  const urgencyForPriority = (priority: Priority): TaskUrgency => (
+    priority.startsWith('A') ? 'urgent' : priority.startsWith('B') ? 'high' : priority.startsWith('C') ? 'medium' : 'low'
+  );
 
   const assignmentOptions = [
     { value: 'me' as Assignment, label: 'Me', description: 'I will handle this task', icon: '👤' },
@@ -72,6 +77,8 @@ export const TaskForm: React.FC = () => {
       priority: formData.priority,
       assignment: formData.assignment,
       color: getTaskColor(),
+      customColor: formData.customColor || undefined,
+      urgency: urgencyForPriority(formData.priority),
       completed: false,
       scheduledDate: formData.scheduledDate || undefined,
       scheduledTime: formData.scheduledTime || undefined,
@@ -86,6 +93,7 @@ export const TaskForm: React.FC = () => {
       priority: 'C1',
       assignment: 'me',
       color: '#3b82f6',
+      customColor: '',
       dueDate: '',
       scheduledDate: '',
       scheduledTime: '',
@@ -97,6 +105,7 @@ export const TaskForm: React.FC = () => {
 
   // Get task color based on assignment
   const getTaskColor = () => {
+    if (formData.customColor) return formData.customColor;
     switch (formData.assignment) {
       case 'me':
         return user?.color || '#ec4899'; // Pink for me
@@ -237,7 +246,7 @@ export const TaskForm: React.FC = () => {
                   <button
                     key={color}
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, color }))}
+                    onClick={() => setFormData(prev => ({ ...prev, color, customColor: color }))}
                     data-testid={`color-btn-${color}`}
                     className={`w-12 h-12 rounded-xl border-2 transition-all ${
                       selected

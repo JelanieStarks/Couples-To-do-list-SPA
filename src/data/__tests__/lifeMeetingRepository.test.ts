@@ -6,6 +6,7 @@ import type { LifeMeeting } from '../../types';
 const row = {
   id: '11111111-1111-4111-8111-111111111111',
   household_id: '22222222-2222-4222-8222-222222222222',
+  title: 'Weekly Reset',
   meeting_date: '2026-09-18',
   status: 'draft',
   check_in: { 'user-1': { mood: '🙂', energy: 'high', supportNeed: 'Pray with me' } },
@@ -30,6 +31,7 @@ describe('lifeMeetingRepository', () => {
 
     expect(meetings[0]).toMatchObject({
       householdId: row.household_id,
+      title: row.title,
       meetingDate: '2026-09-18',
       notes: 'Weekly check in',
       actionItems: [{ title: 'Plan date night', assignment: 'both' }],
@@ -45,6 +47,7 @@ describe('lifeMeetingRepository', () => {
     const meeting: LifeMeeting = {
       id: row.id,
       householdId: row.household_id,
+      title: row.title,
       meetingDate: row.meeting_date,
       status: 'draft',
       checkIn: row.check_in as LifeMeeting['checkIn'],

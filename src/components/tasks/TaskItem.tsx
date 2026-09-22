@@ -7,8 +7,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Check, Edit, Trash2, Calendar, User, Users, Clock, AlarmClockCheck } from 'lucide-react';
-import type { Task, Priority, Assignment } from '../../types';
+import { Check, Edit, Trash2, Calendar, User, Users, Clock, AlarmClockCheck, Copy, MoveRight } from 'lucide-react';
+import type { Task, Priority, Assignment, TaskUrgency } from '../../types';
 import { formatDate, toLocalDateString } from '../../utils';
 
 interface TaskItemProps {
@@ -23,17 +23,18 @@ interface TaskItemProps {
 
 // 📋 Task Item Component - Individual task with all the bells and whistles
 export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDragging = false, onTaskClick, compact = false, forceActions = false, editInModal = false }) => {
-  const { updateTask, softDeleteTask, toggleTaskComplete } = useTask() as any;
+  const { updateTask, softDeleteTask, toggleTaskComplete, copyTaskToDate, moveTaskToDate } = useTask() as any;
   const { user, partner } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const baseEditState = useMemo(() => ({
     title: task.title,
     description: task.description || '',
     priority: task.priority,
-    color: task.color,
+    color: task.customColor || task.color,
+    customColor: task.customColor || task.color,
     scheduledDate: task.scheduledDate || '',
     scheduledTime: task.scheduledTime || '',
-  }), [task.title, task.description, task.priority, task.color, task.scheduledDate, task.scheduledTime]);
+  }), [task.title, task.description, task.priority, task.color, task.customColor, task.scheduledDate, task.scheduledTime]);
 
   const [editData, setEditData] = useState(baseEditState);
   const priorityOptions = useMemo<Priority[]>(() => ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D'], []);
@@ -60,11 +61,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   const getAssignmentInfo = () => {
     switch (task.assignment) {
       case 'me':
-        return { icon: '👤', label: 'Me', color: user?.color || '#ec4899' };
+        return { icon: '👤', label: 'Me', color: task.color };
       case 'partner':
-        return { icon: '👥', label: 'Partner', color: '#3b82f6' };
+        return { icon: '👥', label: 'Partner', color: task.color };
       case 'both':
-        return { icon: '💕', label: 'Both', color: 'gradient' };
+        return { icon: '💕', label: 'Both', color: task.color };
       default:
         return { icon: '👤', label: 'Me', color: task.color };
     }
@@ -94,7 +95,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
       title: editData.title.trim(),
       description: editData.description.trim() || undefined,
       priority: editData.priority,
+      urgency: editData.priority.startsWith('A') ? 'urgent' as TaskUrgency : editData.priority.startsWith('B') ? 'high' as TaskUrgency : editData.priority.startsWith('C') ? 'medium' as TaskUrgency : 'low' as TaskUrgency,
       color: editData.color,
+      customColor: editData.color,
       scheduledDate: editData.scheduledDate || undefined,
       scheduledTime: editData.scheduledTime || undefined,
     });
@@ -127,12 +130,27 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   // Overdue detection (scheduled date strictly before today and not completed)
   const todayStr = toLocalDateString(new Date());
+  const isPastTask = !!task.scheduledDate && task.scheduledDate < todayStr;
   const isOverdue = !!task.scheduledDate && !task.completed && task.scheduledDate < todayStr;
 
   const snoozeToTomorrow = () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     updateTask(task.id, { scheduledDate: toLocalDateString(tomorrow) });
+  };
+
+  const copyToDate = (date: string) => {
+    if (date) copyTaskToDate(task.id, date);
+  };
+
+  const chooseCopyDate = () => {
+    const date = window.prompt('Copy this task to which date? (YYYY-MM-DD)', todayStr);
+    if (date) copyToDate(date);
+  };
+
+  const chooseMoveDate = () => {
+    const date = window.prompt('Move this task to which date? (YYYY-MM-DD)', todayStr);
+    if (date) moveTaskToDate(task.id, date);
   };
 
   const canSave = editData.title.trim().length > 0;
@@ -213,6 +231,17 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
           })}
         </div>
       </div>
+
+      <label className="glow-field-stack">
+        <span>Task color</span>
+        <input
+          type="color"
+          value={editData.color}
+          onChange={(event) => setEditData(prev => ({ ...prev, color: event.target.value }))}
+          className="h-10 w-full rounded-lg border border-slate-600 bg-slate-900"
+          aria-label="Task color"
+        />
+      </label>
     </div>
   );
 
@@ -266,7 +295,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
         onClick={() => onTaskClick?.(task.id)}
       >
         {/* Left accent bar to improve visibility */}
-  <span className="mission-glow-bar" style={{ background: task.priority.startsWith('A') ? '#ef4444' : task.priority.startsWith('B') ? '#f59e0b' : task.priority.startsWith('C') ? '#eab308' : '#22c55e' }} aria-hidden />
+  <span className="mission-glow-bar" style={{ background: assignmentInfo.color }} aria-hidden />
         <div className="flex items-start gap-3 task-title-row">
         <button
           onClick={(e) => { e.stopPropagation(); toggleTaskComplete(task.id); }}
@@ -302,6 +331,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
               {task.repeat === 'daily' && (
                 <span className="ml-1 inline-flex items-center px-2 py-[2px] rounded-full bg-indigo-900/60 text-indigo-200 border border-indigo-400/40 text-[9px]">Daily</span>
               )}
+              <span className="ml-1 inline-flex items-center px-2 py-[2px] rounded-full bg-slate-800/80 text-slate-300 border border-slate-600/60 text-[9px]" data-testid="urgency-badge">
+                {task.priority.startsWith('A') ? 'Urgent' : task.priority.startsWith('B') ? 'High' : task.priority.startsWith('C') ? 'Medium' : 'Low'}
+              </span>
             </div>
           </div>
 
@@ -344,6 +376,14 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
                   >
                     <Check className="h-4 w-4" />
                   </button>
+                )}
+                {isPastTask && (
+                  <>
+                    <button onClick={(e) => { e.stopPropagation(); copyToDate(todayStr); }} className="p-1 text-cyan-300 hover:text-cyan-200 rounded" title="Copy to today" data-testid="copy-to-today"><Copy className="h-4 w-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); moveTaskToDate(task.id, todayStr); }} className="p-1 text-amber-300 hover:text-amber-200 rounded" title="Move to today" data-testid="move-to-today"><MoveRight className="h-4 w-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); chooseCopyDate(); }} className="p-1 text-cyan-300 hover:text-cyan-200 rounded" title="Copy to another date" data-testid="copy-to-date"><Copy className="h-4 w-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); chooseMoveDate(); }} className="p-1 text-amber-300 hover:text-amber-200 rounded" title="Move to another date" data-testid="move-to-date"><MoveRight className="h-4 w-4" /></button>
+                  </>
                 )}
                 {isOverdue && (
                   <button
