@@ -400,9 +400,9 @@ const FullDayReplay: React.FC<FullDayReplayProps> = ({ day, onClose }) => {
   if (!portalTarget) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 py-6">
-      <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-md" onClick={onClose} aria-hidden />
-  <div className="relative w-full max-w-3xl neon-hype-panel rainbow-crunch-border overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+    <div className="app-modal-layer">
+      <div className="app-modal-backdrop" onClick={onClose} aria-hidden />
+  <div className="app-modal-panel w-full max-w-3xl neon-hype-panel rainbow-crunch-border overflow-hidden shadow-2xl flex flex-col">
         <header className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-700/60 bg-slate-900/50">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{day.date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>

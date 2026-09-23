@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, HeartHandshake, Plus, Printer, Save } from 'lucide-react';
+import { CheckCircle2, ChevronDown, HeartHandshake, Plus, Printer, Save } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTask } from '../../contexts/TaskContext';
 import { useLifeMeetings } from '../../hooks/useLifeMeetings';
@@ -217,18 +217,21 @@ export const LifeMeetingPanel: React.FC = () => {
                   data-testid="life-meeting-title"
                 />
                 {meetings.filter(meeting => meeting.id !== draft?.id).length > 0 && (
-                  <select
-                    aria-label="Select another Life Meeting"
-                    className="absolute right-1 top-1/2 h-9 w-10 -translate-y-1/2 cursor-pointer appearance-none bg-transparent text-slate-300"
-                    value=""
-                    onChange={event => selectMeeting(event.target.value)}
-                    data-testid="life-meeting-selector"
-                  >
-                    <option value="">⌄</option>
-                    {meetings.filter(meeting => meeting.id !== draft?.id).map(meeting => (
-                      <option key={meeting.id} value={meeting.id}>{getMeetingTitle(meeting)} · {meeting.meetingDate}</option>
-                    ))}
-                  </select>
+                  <>
+                    <select
+                      aria-label="Select another Life Meeting"
+                      className="life-meeting-selector select-neon absolute right-1 top-1/2 h-9 w-10 -translate-y-1/2 cursor-pointer appearance-none border-0 bg-transparent !p-0 text-transparent shadow-none"
+                      value=""
+                      onChange={event => selectMeeting(event.target.value)}
+                      data-testid="life-meeting-selector"
+                    >
+                      <option value="">Select meeting</option>
+                      {meetings.filter(meeting => meeting.id !== draft?.id).map(meeting => (
+                        <option key={meeting.id} value={meeting.id}>{getMeetingTitle(meeting)} · {meeting.meetingDate}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" aria-hidden="true" />
+                  </>
                 )}
               </div>
             </label>

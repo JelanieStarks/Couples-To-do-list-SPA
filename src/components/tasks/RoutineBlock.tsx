@@ -4,6 +4,7 @@
  * How: drop inside the dashboard to reserve space for routine blocks.
  */
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CalendarCheck, Pencil } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRoutines } from '../../hooks/useRoutines';
@@ -158,9 +159,9 @@ export const RoutineBlock: React.FC = () => {
         )}
       </div>
 
-      {isEditing && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-700/60 bg-slate-950 p-5">
+      {isEditing && typeof document !== 'undefined' && createPortal(
+        <div className="app-modal-layer" onClick={() => setIsEditing(false)}>
+          <div className="app-modal-panel surface-modal w-full max-w-3xl p-5" onClick={event => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Edit routine">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h4 className="text-sm font-semibold text-slate-100">Edit Routine Blocks</h4>
@@ -248,7 +249,8 @@ export const RoutineBlock: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </section>
   );

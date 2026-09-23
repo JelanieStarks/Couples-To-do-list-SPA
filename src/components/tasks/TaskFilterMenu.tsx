@@ -97,7 +97,7 @@ export const TaskFilterMenu: React.FC<TaskFilterMenuProps> = ({ className }) => 
             id={menuId}
             role="dialog"
             aria-label="Task filters"
-            className="fixed z-[120] rounded-2xl border border-slate-700/60 bg-slate-950/95 backdrop-blur-md shadow-[0_20px_60px_rgba(76,29,149,0.35)] p-4 space-y-4 max-h-[70vh] overflow-y-auto"
+            className="fixed z-[10000] rounded-2xl border border-slate-700/60 bg-slate-950/95 backdrop-blur-md shadow-[0_20px_60px_rgba(76,29,149,0.35)] p-4 space-y-4 max-h-[70vh] overflow-y-auto"
             style={{ top: menuPosition.top, left: menuPosition.left, width: menuPosition.width }}
           >
             <div className="flex items-center justify-between">

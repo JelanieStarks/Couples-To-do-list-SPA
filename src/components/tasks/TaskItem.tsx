@@ -261,9 +261,9 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
 
   const modal = editInModal && isEditing && portalTarget
     ? createPortal(
-        <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 py-8">
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" onClick={handleCancelEdit} role="presentation" />
-          <div className="relative w-full max-w-2xl neon-hype-panel rainbow-crunch-border overflow-hidden shadow-2xl" role="dialog" aria-modal="true" aria-label="Edit task">
+        <div className="app-modal-layer">
+          <div className="app-modal-backdrop" onClick={handleCancelEdit} role="presentation" />
+          <div className="app-modal-panel w-full max-w-2xl neon-hype-panel rainbow-crunch-border overflow-hidden shadow-2xl" role="dialog" aria-modal="true" aria-label="Edit task">
             <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-700/60 bg-slate-900/40">
               <div>
                 <h3 className="text-sm font-semibold tracking-[0.2em] uppercase text-slate-200">Edit Task</h3>
