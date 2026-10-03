@@ -117,11 +117,13 @@ describe('TaskContext core behaviors', () => {
     expect(ctx.tasks.find(t => t.id === original.id)?.scheduledDate).toBe('2026-09-21');
   });
 
-  it('moves a task without changing its stable id', () => {
+  it('moves a task without changing its stable id', async () => {
     act(() => {
       ctx.createTask({ title: 'Move me', priority: 'B1', assignment: 'me', color: '#fff', scheduledDate: '2026-09-21' });
     });
     const original = ctx.tasks[0];
+    // Give the ISO timestamp clock time to advance before checking updatedAt.
+    await new Promise(resolve => setTimeout(resolve, 10));
     act(() => ctx.moveTaskToDate(original.id, '2026-09-22'));
     expect(ctx.tasks[0].id).toBe(original.id);
     expect(ctx.tasks[0].scheduledDate).toBe('2026-09-22');
