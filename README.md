@@ -74,9 +74,21 @@ npm run cap:add:ios
 npm run cap:sync:ios
 ```
 
-GitHub Actions builds the web app, runs quality checks, and can produce a debug
-Android APK. Store signing and paid store accounts are intentionally deferred
-until the beta is ready.
+## Windows desktop app
+
+The Electron desktop app remains supported alongside the Android and web app.
+Build its Windows installer locally on Windows with:
+
+```bash
+npm run build:desktop:win
+```
+
+Pushing a `v*` tag runs the combined release workflow and attaches both the
+Windows `.exe` installer and Android APK. The separate **Build Windows
+Installer** workflow can also be run manually from GitHub Actions.
+
+Store signing and paid store accounts are intentionally deferred until the
+mobile beta is ready.
 
 ## Current refactor status
 

@@ -14,14 +14,16 @@ import {
   DndContext,
   closestCenter,
   DragEndEvent,
-  PointerSensor,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// 📅 Today's Tasks - Your daily command center
+// ?? Today's Tasks - Your daily command center
 export const TodaysTasks: React.FC = () => {
   const { getTodaysTasks, reorderTasksWithinPriority } = useTask() as any;
   const todaysTasksRaw = getTodaysTasks();
@@ -68,31 +70,34 @@ export const TodaysTasks: React.FC = () => {
 
   const getJarvisEncouragement = () => {
     if (todaysTasks.length === 0) {
-      return "🤖 No tasks for today? Time to add some goals and conquer the world!";
+      return "?? No tasks for today? Time to add some goals and conquer the world!";
     }
     
     if (completionRate === 100) {
-      return "🤖 Outstanding! You've completed everything! Time for a victory dance! 🎉";
+      return "?? Outstanding! You've completed everything! Time for a victory dance! ??";
     }
     
     if (completionRate >= 75) {
-      return "🤖 Excellent progress! You're in the productivity zone! Keep it up! 💪";
+      return "?? Excellent progress! You're in the productivity zone! Keep it up! ??";
     }
     
     if (completionRate >= 50) {
-      return "🤖 Good work! You're halfway there. Momentum is building! 🚀";
+      return "?? Good work! You're halfway there. Momentum is building! ??";
     }
     
     if (priorityATasks.length > 0) {
-      return "🤖 Priority A tasks detected! These need your immediate attention! 🔥";
+      return "?? Priority A tasks detected! These need your immediate attention! ??";
     }
     
-    return "🤖 Ready to tackle today's challenges? Let's make things happen! ⚡";
+    return "?? Ready to tackle today's challenges? Let's make things happen! ?";
   };
 
-  // Sensors for minimal drag constraint inside urgent list
+  // Mouse drag starts with a small movement. On touchscreens, press and hold
+  // anywhere on the card so ordinary taps still activate task controls.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -175,11 +180,11 @@ export const TodaysTasks: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-3">
             <AlertCircle className="h-5 w-5 text-rose-400" />
-            <h3 className="font-semibold text-rose-300 tracking-wide text-sm">🔥 URGENT</h3>
+            <h3 className="font-semibold text-rose-300 tracking-wide text-sm">?? URGENT</h3>
             <span className="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-1 rounded-full">
               {priorityATasks.length}
             </span>
-            <span className="ml-2 text-[10px] text-slate-500">(Drag to reorder)</span>
+            <span className="ml-2 text-[10px] text-slate-500">(Hold and drag a card to reorder)</span>
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={priorityATasks.map((t: Task) => t.id)} strategy={verticalListSortingStrategy}>
@@ -198,7 +203,7 @@ export const TodaysTasks: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-3">
             <Star className="h-5 w-5 text-indigo-300" />
-            <h3 className="font-semibold text-slate-200 text-sm">📋 Other Tasks</h3>
+            <h3 className="font-semibold text-slate-200 text-sm">?? Other Tasks</h3>
             <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-2 py-1 rounded-full">
               {otherTasks.length}
             </span>
@@ -216,7 +221,7 @@ export const TodaysTasks: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2 mb-3">
             <CheckCircle className="h-5 w-5 text-emerald-300" />
-            <h3 className="font-semibold text-emerald-300 text-sm">✅ Completed</h3>
+            <h3 className="font-semibold text-emerald-300 text-sm">? Completed</h3>
             <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-1 rounded-full">
               {completedTasks.length}
             </span>
@@ -232,9 +237,9 @@ export const TodaysTasks: React.FC = () => {
       {/* Empty State */}
       {todaysTasks.length === 0 && (
         <div className="text-center py-10">
-          <div className="text-5xl mb-3">🌅</div>
+          <div className="text-5xl mb-3">??</div>
           <h3 className="text-base font-semibold text-slate-100 mb-2 tracking-wide">No tasks today</h3>
-          <p className="text-slate-400 max-w-md mx-auto text-xs">🤖 Free day detected! Add tasks or savor the calm.</p>
+          <p className="text-slate-400 max-w-md mx-auto text-xs">?? Free day detected! Add tasks or savor the calm.</p>
         </div>
       )}
     </div>
@@ -249,37 +254,22 @@ interface SortableTaskRowProps {
 }
 
 const SortableTaskRow: React.FC<SortableTaskRowProps> = ({ id, task, onTaskClick }) => {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="group/row" data-task-id={task.id}>
-      <div className="flex items-start gap-2">
-        {/* Drag handle: only this control starts drag */}
-        <button
-          type="button"
-          ref={setActivatorNodeRef as any}
-          {...listeners}
-          aria-label="Drag to reorder"
-          title="Drag to reorder"
-          className="mt-1 h-5 w-5 flex items-center justify-center text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing focus:outline-none"
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          {/* Simple grip icon using dots */}
-          <span className="h-3 w-3 grid grid-cols-2 gap-[2px]">
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-          </span>
-        </button>
-        <div className="flex-1">
-          <TaskItem task={task} onTaskClick={onTaskClick} isDragging={isDragging} />
-        </div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`group/row cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'opacity-50' : ''}`}
+      data-task-id={task.id}
+      data-testid={`sortable-task-${task.id}`}
+    >
+      <TaskItem task={task} onTaskClick={onTaskClick} isDragging={isDragging} />
       </div>
-    </div>
   );
 };

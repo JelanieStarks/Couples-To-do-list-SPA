@@ -8,7 +8,7 @@ import { TaskProvider } from '../../../contexts/TaskContext';
 import { useTask } from '../../../contexts/TaskContext';
 import { toLocalDateString } from '../../../utils';
 
-// 🧪 TodaysTasks tests: verifying daily productivity dashboard logic.
+// ?? TodaysTasks tests: verifying daily productivity dashboard logic.
 
 const SeedTasks: React.FC = () => {
   const { createTask, toggleTaskComplete, tasks } = useTask() as any;
@@ -62,7 +62,7 @@ describe('TodaysTasks', () => {
   it('shows urgent, other, and completed sections', async () => {
     render(<LoggedInProviders><SeedTasks /><TodaysTasks /></LoggedInProviders>);
     // Specific header, disambiguate from task titles
-    const urgentHeader = await screen.findByText(/^🔥 URGENT$/);
+    const urgentHeader = await screen.findByText(/^?? URGENT$/);
     expect(urgentHeader).toBeTruthy();
     const urgentTasks = await screen.findAllByText(/Urgent A[12]/i);
     expect(urgentTasks.length).toBeGreaterThanOrEqual(2);
@@ -71,18 +71,21 @@ describe('TodaysTasks', () => {
     expect(await screen.findByText(/completed/i)).toBeTruthy();
   });
 
-  it('renders a drag handle for each urgent task', async () => {
+  it('makes each urgent task card a touch-enabled drag target', async () => {
     render(<LoggedInProviders><SeedTasks /><TodaysTasks /></LoggedInProviders>);
     // Wait for urgent list to appear
-    await screen.findByText(/^🔥 URGENT$/);
-    // Each A-priority task row should have a handle-only drag button
-    const handles = await screen.findAllByRole('button', { name: /drag to reorder/i });
-    expect(handles.length).toBeGreaterThanOrEqual(2);
+    await screen.findByText(/^?? URGENT$/);
+    const draggableCards = await screen.findAllByTestId(/^sortable-task-/);
+    expect(draggableCards).toHaveLength(2);
+    draggableCards.forEach((card) => {
+      expect(card).toHaveAttribute('aria-roledescription', 'sortable');
+      expect(card).toHaveClass('touch-none');
+    });
   });
 
   it('keeps urgent task actions clickable under DnD', async () => {
     render(<LoggedInProviders><SeedTasks /><TodaysTasks /></LoggedInProviders>);
-    await screen.findByText(/^🔥 URGENT$/);
+    await screen.findByText(/^?? URGENT$/);
     // Initial count of toggles set to "incomplete" (present for completed tasks)
     const before = screen.queryAllByLabelText(/mark task incomplete/i).length;
     // Click the action button to complete one urgent task
