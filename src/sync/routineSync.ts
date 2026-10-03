@@ -27,14 +27,14 @@ export class RoutineSync {
     const supabase = getSupabaseClient();
     if (!supabase || !this.roomId) return [];
     const { data, error } = await supabase
-      .from<RoutineRow>(TABLE)
+      .from(TABLE)
       .select('id, owner_id, room_id, updated_at, blocks')
       .eq('room_id', this.roomId);
     if (error) {
       console.warn('[RoutineSync] fetchRoutines failed', error.message);
       return [];
     }
-    return data ?? [];
+    return (data ?? []) as RoutineRow[];
   }
 
   async upsertRoutine(routine: Routine, roomId: string | null): Promise<void> {

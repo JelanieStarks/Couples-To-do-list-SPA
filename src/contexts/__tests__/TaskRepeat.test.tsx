@@ -4,6 +4,7 @@ import { render, waitFor } from '@testing-library/react';
 import { TaskProvider, useTask } from '../../contexts/TaskContext';
 import { AuthProvider } from '../../contexts/AuthContext';
 import type { Task, User } from '../../types';
+import { toLocalDateString } from '../../utils';
 
 const user: User = { id: 'u1', name: 'U', inviteCode: 'ABCDEF', color: '#ec4899', createdAt: new Date().toISOString() };
 
@@ -20,14 +21,9 @@ describe('Task repeating (daily)', () => {
 
   it('includes daily repeat on today and future days', async () => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = toLocalDateString(today);
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-    const start = new Date();
-    const todayLocal = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const todayStrLocal = `${todayLocal.getFullYear()}-${pad(todayLocal.getMonth()+1)}-${pad(todayLocal.getDate())}`;
+    const tomorrowStr = toLocalDateString(tomorrow);
 
     const repeatingTask: Task = {
       id: 'r1',
@@ -37,7 +33,7 @@ describe('Task repeating (daily)', () => {
       color: '#ec4899',
       completed: false,
       createdBy: user.id,
-      scheduledDate: todayStrLocal,
+      scheduledDate: todayStr,
       repeat: 'daily',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

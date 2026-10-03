@@ -12,7 +12,7 @@ const Probe: React.FC = () => {
     <div>
       <div data-testid="count">{tasks.length}</div>
       <button data-testid="mk" onClick={() => createTask({
-        title: 'X', description: undefined, priority: 'C1', assignment: 'both', color: '#000'
+        title: 'X', description: undefined, priority: 'C1', assignment: 'both', color: '#000', completed: false
       })}>mk</button>
       <button data-testid="sync" onClick={() => syncNow()}>sync</button>
     </div>

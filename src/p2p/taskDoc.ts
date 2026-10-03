@@ -20,6 +20,21 @@ const cloneTask = (task: Task): Task => {
   return JSON.parse(JSON.stringify(task)) as Task;
 };
 
+const urgencyForPriority = (priority: Task['priority']): NonNullable<Task['urgency']> => (
+  priority.startsWith('A') ? 'urgent' : priority.startsWith('B') ? 'high' : priority.startsWith('C') ? 'medium' : 'low'
+);
+
+const normalizeTask = (task: Task): Task => ({
+  ...cloneTask(task),
+  updatedAt: task.updatedAt || task.createdAt || new Date(0).toISOString(),
+  urgency: task.urgency || urgencyForPriority(task.priority),
+});
+
+const taskTimestamp = (task: Task): number => {
+  const value = new Date(task.updatedAt || task.createdAt || 0).getTime();
+  return Number.isFinite(value) ? value : 0;
+};
+
 const serializeSnapshot = (update: Uint8Array): number[] => Array.from(update);
 const deserializeSnapshot = (raw: unknown): Uint8Array | null => {
   if (!Array.isArray(raw)) return null;
@@ -76,7 +91,7 @@ export class TaskDoc {
   getTasks(): Task[] {
     const items: Task[] = [];
     this.tasksMap.forEach(value => {
-      items.push(cloneTask(value));
+      items.push(normalizeTask(value));
     });
     return items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }
@@ -93,7 +108,7 @@ export class TaskDoc {
 
   upsert(task: Task): void {
     this.doc.transact(() => {
-      this.tasksMap.set(task.id, cloneTask(task));
+      this.tasksMap.set(task.id, normalizeTask(task));
       this.isHydrated = true;
       this.bumpVersion();
       this.syncOrderCounter(task.priority, task.order ?? null);
@@ -108,7 +123,7 @@ export class TaskDoc {
         this.tasksMap.delete(id);
         return;
       }
-      this.tasksMap.set(id, cloneTask(next));
+      this.tasksMap.set(id, normalizeTask(next));
       this.isHydrated = true;
       this.bumpVersion();
       this.syncOrderCounter(next.priority, next.order ?? null);
@@ -132,7 +147,7 @@ export class TaskDoc {
         this.tasksMap.delete(key);
       });
       tasks.forEach(task => {
-        this.tasksMap.set(task.id, cloneTask(task));
+        this.tasksMap.set(task.id, normalizeTask(task));
       });
       this.isHydrated = true;
       this.bumpVersion();
@@ -141,16 +156,18 @@ export class TaskDoc {
   }
 
   replaceAllFromExternal(tasks: Task[]): void {
+    // Keep the old API name for compatibility, but never let external data replace local tasks.
+    this.mergeExternal(tasks);
+  }
+
+  mergeExternal(tasks: Task[]): void {
+    const incomingById = new Map(tasks.map(task => [task.id, normalizeTask(task)]));
     this.doc.transact(() => {
-      const idsToRemove: string[] = [];
-      this.tasksMap.forEach((_, key) => {
-        idsToRemove.push(key);
-      });
-      idsToRemove.forEach(key => {
-        this.tasksMap.delete(key);
-      });
-      tasks.forEach(task => {
-        this.tasksMap.set(task.id, cloneTask(task));
+      incomingById.forEach(incoming => {
+        const current = this.tasksMap.get(incoming.id);
+        if (!current || taskTimestamp(incoming) > taskTimestamp(current)) {
+          this.tasksMap.set(incoming.id, normalizeTask(incoming));
+        }
       });
       this.isHydrated = true;
       this.bumpVersion();

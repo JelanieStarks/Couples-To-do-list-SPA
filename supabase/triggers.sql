@@ -1,4 +1,5 @@
--- Realtime trigger for tasks_sync
+-- LEGACY PROTOTYPE ONLY. Current task realtime uses Postgres Changes configured
+-- by the ordered files in supabase/migrations.
 
 create or replace function public.broadcast_tasks_sync_changes()
 returns trigger as $$

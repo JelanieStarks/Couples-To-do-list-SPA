@@ -14,11 +14,13 @@ import {
   DndContext,
   closestCenter,
   DragEndEvent,
-  PointerSensor,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 // 📅 Today's Tasks - Your daily command center
@@ -90,9 +92,12 @@ export const TodaysTasks: React.FC = () => {
     return "🤖 Ready to tackle today's challenges? Let's make things happen! ⚡";
   };
 
-  // Sensors for minimal drag constraint inside urgent list
+  // Mouse drag starts with a small movement. On touchscreens, press and hold
+  // anywhere on the card so ordinary taps still activate task controls.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -179,7 +184,7 @@ export const TodaysTasks: React.FC = () => {
             <span className="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-1 rounded-full">
               {priorityATasks.length}
             </span>
-            <span className="ml-2 text-[10px] text-slate-500">(Drag to reorder)</span>
+            <span className="ml-2 text-[10px] text-slate-500">(Hold and drag a card to reorder)</span>
           </div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={priorityATasks.map((t: Task) => t.id)} strategy={verticalListSortingStrategy}>
@@ -249,37 +254,22 @@ interface SortableTaskRowProps {
 }
 
 const SortableTaskRow: React.FC<SortableTaskRowProps> = ({ id, task, onTaskClick }) => {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="group/row" data-task-id={task.id}>
-      <div className="flex items-start gap-2">
-        {/* Drag handle: only this control starts drag */}
-        <button
-          type="button"
-          ref={setActivatorNodeRef as any}
-          {...listeners}
-          aria-label="Drag to reorder"
-          title="Drag to reorder"
-          className="mt-1 h-5 w-5 flex items-center justify-center text-slate-500 hover:text-slate-300 cursor-grab active:cursor-grabbing focus:outline-none"
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          {/* Simple grip icon using dots */}
-          <span className="h-3 w-3 grid grid-cols-2 gap-[2px]">
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-            <span className="h-[3px] w-[3px] bg-slate-500 rounded" />
-          </span>
-        </button>
-        <div className="flex-1">
-          <TaskItem task={task} onTaskClick={onTaskClick} isDragging={isDragging} />
-        </div>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`group/row cursor-grab active:cursor-grabbing touch-none ${isDragging ? 'opacity-50' : ''}`}
+      data-task-id={task.id}
+      data-testid={`sortable-task-${task.id}`}
+    >
+      <TaskItem task={task} onTaskClick={onTaskClick} isDragging={isDragging} />
       </div>
-    </div>
   );
 };

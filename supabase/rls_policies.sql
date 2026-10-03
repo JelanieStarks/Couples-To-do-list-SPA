@@ -1,5 +1,5 @@
--- RLS policies for tasks_sync
--- Note: This uses a simple room_id rule. Replace with a membership table when ready.
+-- LEGACY PROTOTYPE ONLY. These room-id policies are not safe for production.
+-- Use the household policies in supabase/migrations instead.
 
 alter table public.tasks_sync enable row level security;
 

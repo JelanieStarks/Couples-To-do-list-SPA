@@ -33,7 +33,7 @@ describe('normalizeRoutineBlocks', () => {
     ]);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
+    if ('error' in result) {
       expect(result.error).toMatch(/overlap/i);
     }
   });

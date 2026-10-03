@@ -4,6 +4,8 @@ export interface User {
   name: string;
   email?: string;
   partnerId?: string;
+  householdId?: string;
+  householdName?: string;
   inviteCode: string;
   color: string; // User's chosen color
   createdAt: string;
@@ -12,6 +14,7 @@ export interface User {
 export type Assignment = 'me' | 'partner' | 'both';
 
 export type Priority = 'A1' | 'A2' | 'A3' | 'B1' | 'B2' | 'B3' | 'C1' | 'C2' | 'C3' | 'D';
+export type TaskUrgency = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Task {
   id: string;
@@ -20,6 +23,8 @@ export interface Task {
   priority: Priority;
   assignment: Assignment;
   color: string;
+  customColor?: string;
+  urgency?: TaskUrgency;
   // Numeric ordering within a priority bucket for custom user reordering
   order?: number;
   completed: boolean;
@@ -76,6 +81,47 @@ export interface Routine {
   ownerId: string;
   ownerName: string;
   blocks: RoutineBlock[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MeetingStatus = 'draft' | 'active' | 'completed';
+export type MeetingMood = '🙂' | '😐' | '😣';
+export type MeetingEnergy = 'low' | 'medium' | 'high';
+
+export interface MeetingCheckIn {
+  mood: MeetingMood;
+  energy: MeetingEnergy;
+  supportNeed: string;
+}
+
+export interface MeetingEntry {
+  id: string;
+  text: string;
+  authorId: string;
+}
+
+export interface MeetingActionItem {
+  id: string;
+  title: string;
+  assignment: Assignment;
+  priority: Priority;
+  convertedAt?: string;
+}
+
+export interface LifeMeeting {
+  id: string;
+  householdId: string;
+  title?: string;
+  meetingDate: string;
+  status: MeetingStatus;
+  checkIn: Record<string, MeetingCheckIn>;
+  gratitude: MeetingEntry[];
+  agenda: MeetingEntry[];
+  decisions: MeetingEntry[];
+  actionItems: MeetingActionItem[];
+  notes: string;
+  createdBy: string;
   createdAt: string;
   updatedAt: string;
 }

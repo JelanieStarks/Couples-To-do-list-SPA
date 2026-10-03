@@ -141,9 +141,9 @@ export const TurboWeekFullCalendarModal: React.FC<TurboWeekFullCalendarModalProp
   if (!open || !portalTarget) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] pointer-events-auto">
-      <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md" onClick={onClose} aria-hidden />
-      <div className="relative mx-auto my-6 flex h-[calc(100%-3rem)] w-[min(1280px,95vw)] flex-col overflow-hidden neon-hype-panel rainbow-crunch-border">
+    <div className="app-modal-layer pointer-events-auto">
+      <div className="app-modal-backdrop" onClick={onClose} aria-hidden />
+      <div className="app-modal-panel mx-auto flex h-[calc(100%-1rem)] w-full max-w-[1280px] flex-col overflow-hidden neon-hype-panel rainbow-crunch-border">
         <header className="flex items-center justify-between gap-4 border-b border-slate-700/60 bg-slate-900/60 px-6 py-4">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Turbo Week Master View</p>

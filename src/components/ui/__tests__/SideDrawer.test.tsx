@@ -69,14 +69,9 @@ describe('SideDrawer', () => {
     expect(screen.queryByTestId('empty-trash')).toBeNull();
   });
 
-  it('keeps Google features optional by default', () => {
+  it('shows the password settings area', () => {
     setup(true);
-    // Embed toggle defaults to off but present
-    const toggle = screen.getByTestId('drawer-google-toggle');
-    expect(toggle).toBeTruthy();
-    expect(toggle.textContent?.toLowerCase()).toContain('enable');
-    // Connect section shows stub status without requiring auth
-    const status = screen.getByTestId('drawer-google-status');
-    expect(status.textContent?.toLowerCase()).toContain('not connected');
+    expect(screen.getByText('Change Password')).toBeTruthy();
+    expect(screen.getByText(/Password changes are available/)).toBeTruthy();
   });
 });

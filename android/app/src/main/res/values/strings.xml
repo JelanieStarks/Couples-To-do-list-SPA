@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Couples 2Do</string>
+    <string name="title_activity_main">Couples 2Do</string>
+    <string name="package_name">com.couples.todo.spa</string>
+    <string name="custom_url_scheme">com.couples.todo.spa</string>
+</resources>

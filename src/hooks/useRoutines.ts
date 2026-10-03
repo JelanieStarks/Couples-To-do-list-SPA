@@ -9,7 +9,7 @@ import { storage, STORAGE_KEYS, generateId } from '../utils';
 import { createDefaultRoutineBlocks, normalizeRoutineBlocks } from '../utils/routine';
 import { useAuth } from '../contexts/AuthContext';
 import { deriveRoomId } from '../config';
-import { isSupabaseSyncEnabled } from '../utils/supabaseClient';
+import { isSupabaseRoutineSyncEnabled } from '../utils/supabaseClient';
 import { RoutineSync } from '../sync/routineSync';
 
 const createRoutine = (owner: User): Routine => {
@@ -27,7 +27,7 @@ const createRoutine = (owner: User): Routine => {
 export const useRoutines = () => {
   const { user, partner } = useAuth();
   const roomId = useMemo(() => deriveRoomId(user?.id, partner?.id), [user?.id, partner?.id]);
-  const supabaseSyncEnabled = useMemo(() => isSupabaseSyncEnabled(), []);
+  const supabaseSyncEnabled = useMemo(() => isSupabaseRoutineSyncEnabled(), []);
   const routineSyncRef = useRef<RoutineSync | null>(null);
   const [routines, setRoutines] = useState<Record<string, Routine>>(() => {
     return storage.get<Record<string, Routine>>(STORAGE_KEYS.ROUTINES) || {};

@@ -40,7 +40,7 @@ describe('TopNavPanel Deleted view', () => {
     expect(screen.queryByText('Deleted task')).not.toBeInTheDocument();
   });
 
-  it('empties trash and removes deleted items', async () => {
+  it('keeps deletion tombstones after emptying trash', async () => {
     seed();
     const user = userEvent.setup();
     renderWithProviders(<TopNavPanel open={true} onClose={() => {}} />);
@@ -48,7 +48,7 @@ describe('TopNavPanel Deleted view', () => {
     await user.click(screen.getByTestId('topnav-btn-deleted'));
     expect(screen.getByText('Deleted task')).toBeInTheDocument();
     await user.click(screen.getByTestId('empty-trash'));
-    expect(screen.queryByText('Deleted task')).not.toBeInTheDocument();
+    expect(screen.getByText('Deleted task')).toBeInTheDocument();
   });
 
   it('keeps Clear All in settings card', async () => {

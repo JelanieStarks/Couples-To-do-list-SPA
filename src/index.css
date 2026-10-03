@@ -174,6 +174,42 @@
     box-shadow: var(--shadow-glow-strong);
   }
 
+  .app-modal-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    isolation: isolate;
+  }
+
+  .app-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.82);
+    backdrop-filter: blur(6px);
+  }
+
+  .app-modal-panel {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 72rem);
+    max-height: min(90vh, 56rem);
+    overflow-y: auto;
+  }
+
+  @media (max-width: 640px) {
+    .app-modal-layer {
+      padding: 0.75rem;
+    }
+
+    .app-modal-panel {
+      max-height: 94vh;
+    }
+  }
+
   .rainbow-crunch-border {
     position: relative;
   }
@@ -577,6 +613,18 @@
   .date-neon:focus {
     border-color: rgba(96, 165, 250, 0.8);
     box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.5), 0 0 24px rgba(96, 165, 250, 0.35);
+  }
+
+  .glow-form-input option,
+  .select-neon option {
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+
+  .glow-form-input option:checked,
+  .select-neon option:checked {
+    background: #312e81;
+    color: #f8fafc;
   }
 
   .neon-textarea {

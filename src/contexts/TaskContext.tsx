@@ -16,7 +16,6 @@ import {
 import { LanSignalingClient } from '../p2p/signaling';
 import { useAuth } from './AuthContext';
 import { getSupabaseClient, isSupabaseSyncEnabled } from '../utils/supabaseClient';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // 📝 Task Context - Your digital task manager with a sense of humor
 interface PeerSignal {
@@ -54,7 +53,7 @@ interface PeerSyncApi {
 interface SupabaseStatus {
   enabled: boolean;
   hasClient: boolean;
-  roomId: string | null;
+  householdId: string | null;
   lastDbUpsertAt?: string;
   lastRealtimeAt?: string;
   lastError?: string;
@@ -91,6 +90,7 @@ interface TaskContextType {
   getDeletedTasks: () => Task[];
   importTasksFromText: (text: string) => Task[];
   moveTaskToDate: (taskId: string, date: string) => void;
+  copyTaskToDate: (taskId: string, date: string) => string | null;
   reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
   syncNow: () => void;
   peerSync: PeerSyncApi;
@@ -139,15 +139,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   const lastSnapshotsRef = React.useRef<{ server: string; storage: string; broadcast: string; supabase: string }>({ server: '', storage: '', broadcast: '', supabase: '' });
   const supabase = React.useMemo(() => getSupabaseClient(), []);
   const supabaseSyncEnabled = React.useMemo(() => isSupabaseSyncEnabled(), []);
-  const supabaseChannelRef = React.useRef<RealtimeChannel | null>(null);
-  const supabaseReadyRef = React.useRef(false);
-  const lastSupabaseFingerprintRef = React.useRef<string>('');
   const supabaseDbSyncRef = React.useRef<SupabaseSync | null>(null);
   const lastSupabaseDbFingerprintRef = React.useRef<string>('');
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatus>(() => ({
     enabled: supabaseSyncEnabled,
     hasClient: Boolean(supabase),
-    roomId: null,
+    householdId: null,
   }));
 
   if (!taskDocRef.current) {
@@ -179,15 +176,16 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
   const partnerId = partner?.id ?? cachedPartnerId;
   const roomId = React.useMemo(() => deriveRoomId(user?.id, partnerId), [user?.id, partnerId]);
+  const householdId = user?.householdId ?? null;
 
   useEffect(() => {
     setSupabaseStatus(prev => ({
       ...prev,
       enabled: supabaseSyncEnabled,
       hasClient: Boolean(supabase),
-      roomId: roomId ?? null,
+      householdId,
     }));
-  }, [supabaseSyncEnabled, supabase, roomId]);
+  }, [supabaseSyncEnabled, supabase, householdId]);
 
   useEffect(() => {
     const taskDoc = taskDocRef.current;
@@ -236,7 +234,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       if (cancelled) return;
       const incoming = fingerprintTasks(remoteTasks);
       if (incoming === lastSnapshotsRef.current.server) return;
-      taskDoc.replaceAllFromExternal(remoteTasks);
+      taskDoc.mergeExternal(remoteTasks);
       lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
     };
 
@@ -247,7 +245,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         if (!cancelled && remoteSnapshot.length > 0) {
           const incoming = fingerprintTasks(remoteSnapshot);
           if (incoming !== lastSnapshotsRef.current.server) {
-            taskDoc.replaceAllFromExternal(remoteSnapshot);
+            taskDoc.mergeExternal(remoteSnapshot);
             lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
           }
         }
@@ -267,64 +265,31 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     };
   }, [instanceId, roomId]);
 
-  // Supabase realtime broadcast channel (flagged)
+  // One durable Supabase path: household rows plus Postgres Changes realtime.
   useEffect(() => {
-    if (!supabaseSyncEnabled || !supabase || !roomId) return;
-    const channel = supabase.channel(`tasks-${roomId}`);
-    supabaseChannelRef.current = channel;
-    let active = true;
-
-    channel.on('broadcast', { event: 'tasks-sync' }, payload => {
-      if (!active) return;
-      const data = payload?.payload as { tasks?: Task[]; fingerprint?: string };
-      if (!data || !Array.isArray(data.tasks)) return;
-      const incomingFp = data.fingerprint || fingerprintTasks(data.tasks);
-      if (incomingFp === lastSupabaseFingerprintRef.current) return;
-      const taskDoc = taskDocRef.current;
-      if (!taskDoc) return;
-      const currentFp = fingerprintTasks(taskDoc.getTasks());
-      if (incomingFp === currentFp) return;
-      taskDoc.replaceAllFromExternal(data.tasks);
-      lastSupabaseFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
-      lastSnapshotsRef.current.supabase = lastSupabaseFingerprintRef.current;
-      setSupabaseStatus(prev => ({ ...prev, lastRealtimeAt: new Date().toISOString() }));
-    });
-
-    channel.subscribe(status => {
-      if (status === 'SUBSCRIBED') {
-        supabaseReadyRef.current = true;
-        setSupabaseStatus(prev => ({ ...prev, lastError: undefined }));
-      }
-    });
-
-    return () => {
-      active = false;
-      supabaseReadyRef.current = false;
-      channel.unsubscribe();
-      if (supabaseChannelRef.current === channel) {
-        supabaseChannelRef.current = null;
-      }
-    };
-  }, [supabaseSyncEnabled, supabase, roomId]);
-
-  // Supabase DB sync (flagged)
-  useEffect(() => {
-    if (!supabaseSyncEnabled || !supabase || !roomId) return;
+    if (!supabaseSyncEnabled || !supabase || !householdId || !user?.id) return;
     const taskDoc = taskDocRef.current;
     if (!taskDoc) return;
-    const sync = new SupabaseSync(roomId);
+    lastSupabaseDbFingerprintRef.current = '';
+    const sync = new SupabaseSync(householdId, user.id);
     supabaseDbSyncRef.current = sync;
     let cancelled = false;
 
     const hydrate = async () => {
-      const remote = await sync.fetchTasks();
-      if (cancelled) return;
-      if (!remote.length) return;
-      const fp = fingerprintTasks(remote);
-      if (fp !== lastSupabaseDbFingerprintRef.current) {
-        taskDoc.replaceAllFromExternal(remote);
-        lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
-        lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
+      try {
+        const remote = await sync.fetchTasks();
+        if (cancelled || !remote.length) return;
+        const fp = fingerprintTasks(remote);
+        if (fp !== lastSupabaseDbFingerprintRef.current) {
+          taskDoc.mergeExternal(remote);
+          lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
+          lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
+        }
+        setSupabaseStatus(prev => ({ ...prev, lastError: undefined }));
+      } catch (error) {
+        if (!cancelled) {
+          setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
+        }
       }
     };
 
@@ -336,9 +301,16 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       if (fp === lastSupabaseDbFingerprintRef.current) return;
       const taskDocNow = taskDocRef.current;
       if (!taskDocNow) return;
-      taskDocNow.replaceAllFromExternal(remoteTasks);
+      taskDocNow.mergeExternal(remoteTasks);
       lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDocNow.getTasks());
       lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
+      setSupabaseStatus(prev => ({
+        ...prev,
+        lastRealtimeAt: new Date().toISOString(),
+        lastError: undefined,
+      }));
+    }, error => {
+      if (!cancelled) setSupabaseStatus(prev => ({ ...prev, lastError: error.message }));
     });
 
     return () => {
@@ -348,7 +320,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         supabaseDbSyncRef.current = null;
       }
     };
-  }, [supabaseSyncEnabled, supabase, roomId]);
+  }, [supabaseSyncEnabled, supabase, householdId, user?.id]);
 
   // Save tasks to localStorage whenever tasks change and push to server if connected
   useEffect(() => {
@@ -379,42 +351,30 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       }
     } catch {}
 
-    // Supabase DB upsert (flagged)
-    try {
-      if (supabaseSyncEnabled && supabaseDbSyncRef.current && lastDocOriginRef.current !== TASK_DOC_REMOTE_ORIGIN) {
-        const fp = fingerprintTasks(tasks);
-        if (fp !== lastSupabaseDbFingerprintRef.current) {
-          lastSupabaseDbFingerprintRef.current = fp;
-          lastSnapshotsRef.current.supabase = fp;
-          setSupabaseStatus(prev => ({ ...prev, lastDbUpsertAt: new Date().toISOString(), lastError: undefined }));
-          void supabaseDbSyncRef.current.upsertTasks(tasks);
-        }
-      }
-    } catch {}
-
-    // Supabase realtime broadcast (flagged)
-    try {
-      if (
-        supabaseSyncEnabled &&
-        supabaseReadyRef.current &&
-        supabaseChannelRef.current &&
-        lastDocOriginRef.current !== TASK_DOC_REMOTE_ORIGIN
-      ) {
-        const fp = fingerprintTasks(tasks);
-        if (fp !== lastSupabaseFingerprintRef.current) {
-          lastSupabaseFingerprintRef.current = fp;
-          lastSnapshotsRef.current.supabase = fp;
-          void supabaseChannelRef.current.send({
-            type: 'broadcast',
-            event: 'tasks-sync',
-            payload: { tasks, fingerprint: fp },
+    // Persist the local snapshot; database changes drive realtime updates.
+    if (supabaseSyncEnabled && supabaseDbSyncRef.current && lastDocOriginRef.current !== TASK_DOC_REMOTE_ORIGIN) {
+      const fp = fingerprintTasks(tasks);
+      if (fp !== lastSupabaseDbFingerprintRef.current) {
+        lastSupabaseDbFingerprintRef.current = fp;
+        lastSnapshotsRef.current.supabase = fp;
+        void supabaseDbSyncRef.current.upsertTasks(tasks)
+          .then(() => {
+            setSupabaseStatus(prev => ({
+              ...prev,
+              lastDbUpsertAt: new Date().toISOString(),
+              lastError: undefined,
+            }));
+          })
+          .catch(error => {
+            // Allow a retry after the next local change.
+            lastSupabaseDbFingerprintRef.current = '';
+            setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
           });
-        }
       }
-    } catch {}
+    }
 
     lastDocOriginRef.current = null;
-  }, [tasks, isLoading, instanceId]);
+  }, [tasks, isLoading, instanceId, householdId, supabaseSyncEnabled]);
 
   // Handle external changes via BroadcastChannel and storage events
   useEffect(() => {
@@ -431,7 +391,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
           if (Array.isArray(data.tasks) && taskDoc) {
             const incoming = fingerprintTasks(data.tasks);
             if (incoming !== lastSnapshotsRef.current.broadcast) {
-              taskDoc.replaceAllFromExternal(data.tasks);
+              taskDoc.mergeExternal(data.tasks);
               lastSnapshotsRef.current.broadcast = fingerprintTasks(taskDoc.getTasks());
             }
           }
@@ -445,7 +405,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         const next = e.newValue ? (JSON.parse(e.newValue) as Task[]) : [];
         const incoming = fingerprintTasks(next);
         if (incoming !== lastSnapshotsRef.current.storage) {
-          taskDoc.replaceAllFromExternal(next);
+          taskDoc.mergeExternal(next);
           lastSnapshotsRef.current.storage = fingerprintTasks(taskDoc.getTasks());
         }
       } catch {}
@@ -754,18 +714,27 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
     await requestMagicLinkForSync();
 
-    if (serverSyncRef.current) {
+    if (supabaseSyncEnabled && supabaseDbSyncRef.current) {
+      try {
+        const merged = await supabaseDbSyncRef.current.mergeAndUpload(taskDoc.getTasks());
+        taskDoc.mergeExternal(merged);
+        lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
+        setSupabaseStatus(prev => ({ ...prev, lastError: undefined }));
+      } catch (error) {
+        setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
+      }
+    } else if (serverSyncRef.current) {
       const remote = await serverSyncRef.current.fetchTasks();
       const incoming = fingerprintTasks(remote);
       if (incoming !== lastSnapshotsRef.current.server) {
-        taskDoc.replaceAllFromExternal(remote);
+        taskDoc.mergeExternal(remote);
         lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
       }
     } else if (typeof window !== 'undefined') {
       const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? [];
       const incoming = fingerprintTasks(savedTasks);
       if (incoming !== lastSnapshotsRef.current.storage) {
-        taskDoc.replaceAllFromExternal(savedTasks);
+        taskDoc.mergeExternal(savedTasks);
         lastSnapshotsRef.current.storage = fingerprintTasks(taskDoc.getTasks());
       }
     }
@@ -791,6 +760,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const nextOrder = taskDoc.getNextOrderForPriority(taskData.priority);
     const newTask: Task = {
       ...taskData,
+      urgency: taskData.urgency ?? urgencyForPriority(taskData.priority),
       id: generateId(),
       createdBy: user.id,
       createdAt: now,
@@ -822,7 +792,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const now = new Date().toISOString();
     taskDoc.update(id, current => {
       if (!current) return current;
-      return { ...current, ...updates, updatedAt: now };
+      return {
+        ...current,
+        ...updates,
+        ...(updates.priority && !updates.urgency ? { urgency: urgencyForPriority(updates.priority) } : {}),
+        updatedAt: now,
+      };
     });
   };
 
@@ -832,7 +807,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const now = new Date().toISOString();
     taskDoc.update(id, current => {
       if (!current) return current;
-      return { ...current, deletedAt: now };
+      return { ...current, deletedAt: now, updatedAt: now };
     });
   };
 
@@ -842,12 +817,13 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     taskDoc.update(id, current => {
       if (!current) return current;
       if (current.deletedAt === undefined) return current;
-      return { ...current, deletedAt: undefined };
+      return { ...current, deletedAt: undefined, updatedAt: new Date().toISOString() };
     });
   };
 
   const hardDeleteTask = (id: string): void => {
-    taskDocRef.current?.delete(id);
+    // Keep a tombstone so offline partners cannot resurrect a permanently removed task.
+    softDeleteTask(id);
   };
 
   const toggleTaskComplete = (id: string): void => {
@@ -903,6 +879,26 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
   const moveTaskToDate = (taskId: string, date: string): void => {
     updateTask(taskId, { scheduledDate: date });
+  };
+
+  const copyTaskToDate = (taskId: string, date: string): string | null => {
+    const source = taskDocRef.current?.getTasks().find(task => task.id === taskId);
+    if (!source || !user) return null;
+    const now = new Date().toISOString();
+    const copiedTask: Task = {
+      ...source,
+      id: generateId(),
+      scheduledDate: date,
+      completed: false,
+      completedAt: undefined,
+      deletedAt: undefined,
+      createdBy: user.id,
+      createdAt: now,
+      updatedAt: now,
+      order: taskDocRef.current?.getNextOrderForPriority(source.priority),
+    };
+    taskDocRef.current?.upsert(copiedTask);
+    return copiedTask.id;
   };
 
   // Import tasks from AI-generated text using --- delimiter
@@ -1015,7 +1011,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
             const daysUntilTarget = (targetDay - currentDay + 7) % 7;
             const targetDate = new Date(today);
             targetDate.setDate(today.getDate() + (daysUntilTarget === 0 ? 7 : daysUntilTarget)); // If today, schedule for next week
-            scheduledDate = targetDate.toISOString().split('T')[0];
+            scheduledDate = toLocalDateString(targetDate);
           }
 
           const task: Task = {
@@ -1075,6 +1071,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     getDeletedTasks,
     importTasksFromText,
     moveTaskToDate,
+    copyTaskToDate,
     reorderTasksWithinPriority,
     syncNow,
     peerSync: peerSyncApi,
@@ -1179,3 +1176,7 @@ const getDefaultColorForAssignment = (assignment: Assignment, user: any): string
       return user?.color || '#3b82f6';
   }
 };
+
+const urgencyForPriority = (priority: Priority): NonNullable<Task['urgency']> => (
+  priority.startsWith('A') ? 'urgent' : priority.startsWith('B') ? 'high' : priority.startsWith('C') ? 'medium' : 'low'
+);

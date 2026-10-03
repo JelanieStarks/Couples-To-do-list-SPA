@@ -2,7 +2,6 @@ import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { AuthProvider, useAuth } from '../AuthContext';
-import { STORAGE_KEYS } from '../../utils';
 import { getSupabaseClient, isSupabaseAuthEnabled } from '../../utils/supabaseClient';
 
 vi.mock('../../utils/supabaseClient', () => ({
@@ -29,14 +28,6 @@ const renderWithAuth = (onReady: (api: any) => void) => {
 describe('AuthContext', () => {
   let ctx: any;
   let renderUtils: ReturnType<typeof renderWithAuth> | null = null;
-  const mockSupabase = {
-    auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      signInWithOtp: vi.fn().mockResolvedValue({}),
-      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
-    },
-  };
-
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
@@ -95,31 +86,35 @@ describe('AuthContext', () => {
     expect(ctx.user.inviteCode).toBe(storedInvite);
   });
 
-  it('sends magic link on sync request and shows notice', async () => {
-    vi.useFakeTimers();
-    (getSupabaseClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockSupabase);
-    (isSupabaseAuthEnabled as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
-    renderUtils?.unmount();
-    renderWithAuth((api) => { ctx = api; });
-
+  it('does not use the retired magic-link sync flow', async () => {
+    let result = true;
     await act(async () => {
-      await ctx.login('Alice', 'alice@example.com');
+      result = await ctx.requestMagicLinkForSync();
     });
-
-    localStorage.setItem(STORAGE_KEYS.SUPABASE_OFFLINE_TOKEN, JSON.stringify({ email: 'alice@example.com' }));
-
-    await act(async () => {
-      await ctx.requestMagicLinkForSync();
-    });
-
-    expect(mockSupabase.auth.signInWithOtp).toHaveBeenCalled();
-    expect(ctx.magicLinkNotice?.message).toBe('Magic link sent');
-
-    act(() => {
-      vi.advanceTimersByTime(8000);
-    });
-
+    expect(result).toBe(false);
     expect(ctx.magicLinkNotice).toBeNull();
-    vi.useRealTimers();
+  });
+
+  it('changes the password through Supabase for an authenticated user', async () => {
+    renderUtils?.unmount();
+    const updateUser = vi.fn().mockResolvedValue({ error: null });
+    const supabase = {
+      auth: { updateUser },
+    };
+    (getSupabaseClient as unknown as ReturnType<typeof vi.fn>).mockReturnValue(supabase);
+    (isSupabaseAuthEnabled as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    render(
+      <AuthProvider initialUser={{ id: 'user-1', name: 'Alice', inviteCode: 'ABC12345', color: '#ec4899', createdAt: '2026-09-22' }}>
+        <Harness onReady={(api) => { ctx = api; }} />
+      </AuthProvider>,
+    );
+
+    await act(async () => {
+      await ctx.changePassword('new-password-123');
+    });
+
+    expect(updateUser).toHaveBeenCalledWith({ password: 'new-password-123' });
+    expect(ctx.authNotice.message).toContain('Password updated');
   });
 });
