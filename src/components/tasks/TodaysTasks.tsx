@@ -23,7 +23,7 @@ import {
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// ?? Today's Tasks - Your daily command center
+// 📅 Today's Tasks - Your daily command center
 export const TodaysTasks: React.FC = () => {
   const { getTodaysTasks, reorderTasksWithinPriority } = useTask() as any;
   const todaysTasksRaw = getTodaysTasks();
@@ -70,26 +70,26 @@ export const TodaysTasks: React.FC = () => {
 
   const getJarvisEncouragement = () => {
     if (todaysTasks.length === 0) {
-      return "?? No tasks for today? Time to add some goals and conquer the world!";
+      return "🤖 No tasks for today? Time to add some goals and conquer the world!";
     }
     
     if (completionRate === 100) {
-      return "?? Outstanding! You've completed everything! Time for a victory dance! ??";
+      return "🤖 Outstanding! You've completed everything! Time for a victory dance! 🎉";
     }
     
     if (completionRate >= 75) {
-      return "?? Excellent progress! You're in the productivity zone! Keep it up! ??";
+      return "🤖 Excellent progress! You're in the productivity zone! Keep it up! 💪";
     }
     
     if (completionRate >= 50) {
-      return "?? Good work! You're halfway there. Momentum is building! ??";
+      return "🤖 Good work! You're halfway there. Momentum is building! 🚀";
     }
     
     if (priorityATasks.length > 0) {
-      return "?? Priority A tasks detected! These need your immediate attention! ??";
+      return "🤖 Priority A tasks detected! These need your immediate attention! 🔥";
     }
     
-    return "?? Ready to tackle today's challenges? Let's make things happen! ?";
+    return "🤖 Ready to tackle today's challenges? Let's make things happen! ⚡";
   };
 
   // Mouse drag starts with a small movement. On touchscreens, press and hold
@@ -180,7 +180,7 @@ export const TodaysTasks: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-3">
             <AlertCircle className="h-5 w-5 text-rose-400" />
-            <h3 className="font-semibold text-rose-300 tracking-wide text-sm">?? URGENT</h3>
+            <h3 className="font-semibold text-rose-300 tracking-wide text-sm">🔥 URGENT</h3>
             <span className="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-1 rounded-full">
               {priorityATasks.length}
             </span>
@@ -203,7 +203,7 @@ export const TodaysTasks: React.FC = () => {
         <div className="mb-6">
           <div className="flex items-center space-x-2 mb-3">
             <Star className="h-5 w-5 text-indigo-300" />
-            <h3 className="font-semibold text-slate-200 text-sm">?? Other Tasks</h3>
+            <h3 className="font-semibold text-slate-200 text-sm">📋 Other Tasks</h3>
             <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-2 py-1 rounded-full">
               {otherTasks.length}
             </span>
@@ -221,7 +221,7 @@ export const TodaysTasks: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2 mb-3">
             <CheckCircle className="h-5 w-5 text-emerald-300" />
-            <h3 className="font-semibold text-emerald-300 text-sm">? Completed</h3>
+            <h3 className="font-semibold text-emerald-300 text-sm">✅ Completed</h3>
             <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-1 rounded-full">
               {completedTasks.length}
             </span>
@@ -237,9 +237,9 @@ export const TodaysTasks: React.FC = () => {
       {/* Empty State */}
       {todaysTasks.length === 0 && (
         <div className="text-center py-10">
-          <div className="text-5xl mb-3">??</div>
+          <div className="text-5xl mb-3">🌅</div>
           <h3 className="text-base font-semibold text-slate-100 mb-2 tracking-wide">No tasks today</h3>
-          <p className="text-slate-400 max-w-md mx-auto text-xs">?? Free day detected! Add tasks or savor the calm.</p>
+          <p className="text-slate-400 max-w-md mx-auto text-xs">🤖 Free day detected! Add tasks or savor the calm.</p>
         </div>
       )}
     </div>

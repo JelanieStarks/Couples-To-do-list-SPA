@@ -105,7 +105,7 @@ export const TurboWeekTracker: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-semibold text-slate-100 tracking-wide">Weekly Planner</h2>
-            <p className="text-xs text-slate-400">?? Drag & drop tasks across your week</p>
+            <p className="text-xs text-slate-400">🤖 Drag & drop tasks across your week</p>
           </div>
         </div>
 
@@ -196,12 +196,12 @@ export const TurboWeekTracker: React.FC = () => {
 
       {/* Jarvis Tips */}
       <div className="mt-6 p-4 rounded-lg bg-slate-800/60 border border-slate-700 text-xs text-slate-300 leading-relaxed">
-        <h4 className="font-semibold text-indigo-300 mb-2 tracking-wide">?? Jarvis Calendar Tips</h4>
+        <h4 className="font-semibold text-indigo-300 mb-2 tracking-wide">🤖 Jarvis Calendar Tips</h4>
         <ul className="space-y-1">
-          <li><span className="text-indigo-400"></span> Drag any task to a different day to reschedule it</li>
-          <li><span className="text-indigo-400"></span> Today is outlined in neon glow</li>
-          <li><span className="text-indigo-400"></span> Past days are slightly dimmed</li>
-          <li><span className="text-indigo-400"></span> No date? It appears in Today's list</li>
+          <li><span className="text-indigo-400">•</span> Drag any task to a different day to reschedule it</li>
+          <li><span className="text-indigo-400">•</span> Today is outlined in neon glow</li>
+          <li><span className="text-indigo-400">•</span> Past days are slightly dimmed</li>
+          <li><span className="text-indigo-400">•</span> No date? It appears in Today's list</li>
         </ul>
       </div>
     </div>
@@ -406,7 +406,7 @@ const FullDayReplay: React.FC<FullDayReplayProps> = ({ day, onClose }) => {
             <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{day.date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</p>
             <h3 className="text-lg font-semibold text-slate-100 tracking-wide">{day.dayName}</h3>
           </div>
-          <button className="neon-icon-button" onClick={onClose} aria-label="Close day details">?</button>
+          <button className="neon-icon-button" onClick={onClose} aria-label="Close day details">✕</button>
         </header>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {day.tasks.length === 0 && (
