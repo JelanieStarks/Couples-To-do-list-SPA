@@ -1,11 +1,15 @@
 // Electron main process entry (ESM)
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import updater from 'electron-updater';
+import process from 'node:process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createPrintHandler } from './printing.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const { autoUpdater } = updater;
+const smokeTest = process.argv.includes('--smoke-test');
 
 // Single instance lock to avoid multiple windows on Windows installers
 const gotTheLock = app.requestSingleInstanceLock();
@@ -14,6 +18,11 @@ if (!gotTheLock) {
 }
 
 let mainWindow;
+
+ipcMain.handle('documents:print', createPrintHandler({
+  BrowserWindow,
+  getMainWindow: () => mainWindow,
+}));
 
 autoUpdater.autoDownload = false;
 
@@ -37,9 +46,9 @@ const createWindow = async () => {
     minHeight: 600,
     backgroundColor: '#111827',
     show: false,
-    icon: path.join(__dirname, '../src/assets/HeartICON.png'),
+    icon: path.join(__dirname, '../dist/icon-512.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -48,7 +57,7 @@ const createWindow = async () => {
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', () => { if (!smokeTest) mainWindow?.show(); });
 
   // Open external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -137,4 +146,32 @@ app.on('activate', () => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await createWindow();
+  if (!smokeTest) return;
+  await mainWindow.webContents.executeJavaScript(`
+    new Promise((resolve, reject) => {
+      const deadline = Date.now() + 15000;
+      const check = () => {
+        if (document.getElementById('root')?.children.length && window.appUpdates && window.appDocuments) {
+          resolve(true);
+        } else if (Date.now() > deadline) {
+          reject(new Error('The app interface or desktop bridge did not load.'));
+        } else {
+          setTimeout(check, 50);
+        }
+      };
+      check();
+    })
+  `);
+  const response = await mainWindow.webContents.executeJavaScript("window.appDocuments.print('')");
+  if (response.ok || !response.message?.includes('empty')) {
+    throw new Error('The document printing bridge did not respond correctly.');
+  }
+  console.log('Desktop startup check passed.');
+  app.exit(0);
+}).catch(error => {
+  console.error(error);
+  app.exit(1);
+});
+

@@ -23,6 +23,8 @@ jobs:
         run: npm run lint --if-present
       - name: Type check
         run: npm run typecheck
+      - name: Desktop bridge and printing checks
+        run: npm run test:desktop
       - name: Build
         run: npm run build
       - name: Test
@@ -36,3 +38,4 @@ jobs:
         with:
           name: coverage-lcov
           path: coverage/lcov.info
+

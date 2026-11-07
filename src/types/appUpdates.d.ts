@@ -2,6 +2,9 @@ export {};
 
 declare global {
   interface Window {
+    appDocuments?: {
+      print: (html: string) => Promise<{ ok: boolean; canceled?: boolean; message?: string }>;
+    };
     appUpdates?: {
       check: () => Promise<{ ok: boolean; message?: string }>;
       download: () => Promise<{ ok: boolean; message?: string }>;
@@ -12,3 +15,4 @@ declare global {
     };
   }
 }
+

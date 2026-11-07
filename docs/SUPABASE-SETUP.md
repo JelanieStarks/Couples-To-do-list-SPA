@@ -8,6 +8,8 @@ The app stays in clearly labeled local demo mode until these steps are complete.
 2. Open **SQL Editor** in that project.
 3. Paste and run `supabase/migrations/202608190001_mvp_foundation.sql`.
 4. Paste and run `supabase/migrations/202608200001_secure_task_sync.sql`.
+5. Paste and run `supabase/migrations/202609180001_life_meeting_action_items.sql`.
+6. Paste and run `supabase/migrations/202609220001_life_meeting_titles.sql`.
 
 The migration creates profiles, two-person households, tasks, life meetings,
 invite functions, and row-level security policies.
@@ -65,3 +67,4 @@ Add the eventual production web URL before public testing.
 
 Create, edit, complete, and delete a task in either browser. The other browser
 should update through the household-scoped Realtime subscription.
+
