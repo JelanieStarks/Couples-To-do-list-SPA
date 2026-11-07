@@ -1,46 +1,44 @@
 name: Build Windows Installer
 
-permissions:
-  contents: write
-
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release tag to create (e.g., v1.0.3-beta)'
-        required: false
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_ENABLE_SUPABASE_AUTH: 'true'
+      VITE_ENABLE_SUPABASE_SYNC: 'true'
+      VITE_ENABLE_SUPABASE_ROUTINE_SYNC: 'false'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --reporter=dot
+      - run: npm run test:desktop
+      - name: Verify cloud configuration
+        run: node scripts/check-backend.mjs
       - name: Build Windows installer
-        run: npm run build:desktop:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifact (exe)
+        run: npm run build:desktop:win -- --publish=never
+      - name: Upload installer and update files
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: dist/*.exe
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+            release/latest.yml
+          if-no-files-found: error
 
-      - name: Create or update GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

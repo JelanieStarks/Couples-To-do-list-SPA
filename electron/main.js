@@ -3,6 +3,7 @@ import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createPrintHandler } from './printing.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +15,11 @@ if (!gotTheLock) {
 }
 
 let mainWindow;
+
+ipcMain.handle('documents:print', createPrintHandler({
+  BrowserWindow,
+  getMainWindow: () => mainWindow,
+}));
 
 autoUpdater.autoDownload = false;
 
@@ -37,9 +43,9 @@ const createWindow = async () => {
     minHeight: 600,
     backgroundColor: '#111827',
     show: false,
-    icon: path.join(__dirname, '../src/assets/HeartICON.png'),
+    icon: path.join(__dirname, '../dist/icon-512.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -138,3 +144,4 @@ app.on('activate', () => {
 });
 
 app.whenReady().then(createWindow);
+

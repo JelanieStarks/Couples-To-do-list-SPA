@@ -21,6 +21,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:desktop": "node --test electron/__tests__/desktop.check.mjs scripts/__tests__/backend-config.check.mjs",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:peer-sync": "cross-env RUN_PEER_SYNC=true vitest run src/p2p/__tests__/lanSignaling.test.ts",
@@ -96,7 +97,7 @@
     "productName": "Couples To-do",
     "icon": "src/assets/HeartICON.png",
     "files": ["dist/**", "electron/**", "package.json"],
-    "directories": { "buildResources": "build" },
+    "directories": { "buildResources": "build", "output": "release" },
     "publish": [{ "provider": "github", "owner": "JelanieStarks", "repo": "Couples-To-do-list-SPA" }],
     "nsis": {
       "oneClick": false,
@@ -109,3 +110,4 @@
     "mac": { "target": ["dmg"], "category": "public.app-category.productivity" }
   }
 }
+
