@@ -1,7 +1,7 @@
 {
   "name": "couples-todo-list-spa",
   "private": true,
-  "version": "1.0.15",
+  "version": "1.0.16",
   "type": "module",
   "main": "electron/main.js",
   "description": "A shared planner, task list, and life-meeting app for couples.",
@@ -95,19 +95,55 @@
   "build": {
     "appId": "com.couples.todo.spa",
     "productName": "Couples To-do",
-    "icon": "src/assets/HeartICON.png",
-    "files": ["dist/**", "electron/**", "package.json"],
-    "directories": { "buildResources": "build", "output": "release" },
-    "publish": [{ "provider": "github", "owner": "JelanieStarks", "repo": "Couples-To-do-list-SPA" }],
-    "nsis": {
-      "oneClick": false,
-      "allowElevation": true,
-      "perMachine": true,
-      "allowToChangeInstallationDirectory": true
+    "icon": "public/icon-512.png",
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
     },
-    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
-    "linux": { "icon": "src/assets/HeartICON.png", "target": ["AppImage"], "category": "Utility" },
-    "mac": { "target": ["dmg"], "category": "public.app-category.productivity" }
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JelanieStarks",
+        "repo": "Couples-To-do-list-SPA"
+      }
+    ],
+    "nsis": {
+      "oneClick": true,
+      "allowElevation": false,
+      "perMachine": false,
+      "artifactName": "Couples2Do-Setup-${version}.${ext}",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "src/assets/HeartICON.png",
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    }
   }
 }
-

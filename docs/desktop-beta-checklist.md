@@ -3,6 +3,11 @@
 The Windows installer uses the same React app as Android and web. Build it from
 `main` after the Android changes have passed review.
 
+The installer uses one-click setup for the current Windows user. Version 1.0.16
+fixes the CommonJS updater import that prevented the previous build from opening.
+The build now launches the packaged executable and checks that its interface
+and desktop bridges load before uploading the installer.
+
 ## Build and download
 
 Configure these repository Actions secrets:
@@ -16,7 +21,7 @@ authentication is reachable before building.
 
 The **Build Windows Installer** workflow runs for pull requests and can be started
 manually from Actions. Download its `windows-installer` artifact for a test build.
-It does not publish a release. Installer files are written to `release/`;
+Pull-request builds stay as test artifacts. Pushes to the desktop beta branch also publish a Windows prerelease after the packaged app passes its startup check. Download the Setup EXE from that release directly; the blockmap and YAML are only needed by the updater. Installer files are written to `release/`;
 `dist/` contains only the shared web app.
 
 The combined release workflow publishes on a `v*` tag. For automatic Windows
@@ -47,3 +52,9 @@ Windows app and two authenticated accounts are still needed for the device tests
 - Finish the ChatGPT connection after cross-device account and data tests pass.
 - Verify email password recovery opens a reachable web URL from the desktop app.
 - Fix GitHub Pages configuration if the deploy workflow fails at configure-pages.
+
+## Quick Windows setup
+
+Download `Couples2Do-Setup-1.0.16.exe` from the newest Windows beta release and open it. Setup installs for your Windows account, adds shortcuts, and opens the app without a directory-selection wizard. Existing app data is kept when uninstalling.
+
+Version 1.0.16 fixes the startup crash caused by importing a named export from the CommonJS `electron-updater` package. Windows workflows now launch the packaged app and verify its rendered interface and desktop bridge before sharing a build.

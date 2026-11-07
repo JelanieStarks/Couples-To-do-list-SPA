@@ -36,6 +36,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Verify update files
         run: node scripts/check-windows-artifacts.mjs
+      - name: Launch packaged app
+        run: node scripts/smoke-desktop.mjs
       - name: Upload Windows EXE
         uses: actions/upload-artifact@v4
         with:

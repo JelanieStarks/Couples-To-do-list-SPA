@@ -2,6 +2,8 @@ name: Build Windows Installer
 
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/desktop-parity-fixes]
   pull_request:
     branches: [main]
 
@@ -34,6 +36,8 @@ jobs:
         run: npm run build:desktop:win -- --publish=never
       - name: Verify update files
         run: node scripts/check-windows-artifacts.mjs
+      - name: Launch packaged app
+        run: node scripts/smoke-desktop.mjs
       - name: Upload installer and update files
         uses: actions/upload-artifact@v4
         with:
@@ -44,3 +48,26 @@ jobs:
             release/latest.yml
           if-no-files-found: error
 
+
+  publish-beta:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/desktop-parity-fixes'
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: release
+      - name: Publish easy-download Windows beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')
+          tag="windows-beta-v${version}-r${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" release/*.exe release/*.exe.blockmap release/latest.yml \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Couples 2Do Windows Beta ${version}" --prerelease --latest=false \
+            --notes "Download the Setup EXE below and open it. One-click setup installs for your account, creates shortcuts, and opens Couples 2Do. Includes the startup crash fix and refreshed logo. The packaged app passed its automated startup check; couple sync and printing still need hands-on beta testing."
