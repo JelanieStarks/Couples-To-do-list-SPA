@@ -32,6 +32,8 @@ jobs:
         run: node scripts/check-backend.mjs
       - name: Build Windows installer
         run: npm run build:desktop:win -- --publish=never
+      - name: Verify update files
+        run: node scripts/check-windows-artifacts.mjs
       - name: Upload installer and update files
         uses: actions/upload-artifact@v4
         with:
