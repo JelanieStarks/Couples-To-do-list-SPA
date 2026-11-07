@@ -40,7 +40,7 @@ test('sandboxed preload exposes callable update and printing APIs', async () => 
     contextBridge: { exposeInMainWorld: (name, value) => { exposed[name] = value; } },
     ipcRenderer: {
       invoke: (...args) => { calls.push(args); return Promise.resolve({ ok: true }); },
-      on: (name, listener) => { listeners[name] = listener; },
+      on: (name, listener) => { listeners[name] = listener; return electron.ipcRenderer; },
       removeAllListeners: name => { delete listeners[name]; },
     },
   };
@@ -57,7 +57,8 @@ test('sandboxed preload exposes callable update and printing APIs', async () => 
     ['documents:print', '<html>Our meeting</html>'],
   ]);
   let received;
-  exposed.appUpdates.onStatus(payload => { received = payload; });
+  assert.equal(exposed.appUpdates.onStatus(payload => { received = payload; }), undefined);
+  assert.equal(exposed.appUpdates.onProgress(() => {}), undefined);
   listeners['updates:status']({ sender: 'must stay private' }, { state: 'available' });
   assert.deepEqual(received, { state: 'available' });
   exposed.appUpdates.clearListeners();

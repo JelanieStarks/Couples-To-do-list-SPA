@@ -45,4 +45,5 @@ Windows app and two authenticated accounts are still needed for the device tests
 - Migrate routine sharing to household-scoped Supabase tables.
 - Replace Google Calendar placeholder authentication and sync.
 - Finish the ChatGPT connection after cross-device account and data tests pass.
+- Verify email password recovery opens a reachable web URL from the desktop app.
 - Fix GitHub Pages configuration if the deploy workflow fails at configure-pages.
