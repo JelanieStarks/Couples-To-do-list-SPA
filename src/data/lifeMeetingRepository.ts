@@ -23,7 +23,7 @@ interface LifeMeetingRow {
 const fromRow = (row: LifeMeetingRow): LifeMeeting => ({
   id: row.id,
   householdId: row.household_id,
-  title: row.title || `Life Meeting · ${row.meeting_date}`,
+  title: row.title || `Life Meeting � ${row.meeting_date}`,
   meetingDate: row.meeting_date,
   status: row.status,
   checkIn: row.check_in ?? {},
@@ -40,7 +40,7 @@ const fromRow = (row: LifeMeetingRow): LifeMeeting => ({
 const toRow = (meeting: LifeMeeting) => ({
   id: meeting.id,
   household_id: meeting.householdId,
-  title: meeting.title?.trim() || `Life Meeting · ${meeting.meetingDate}`,
+  title: meeting.title?.trim() || `Life Meeting � ${meeting.meetingDate}`,
   meeting_date: meeting.meetingDate,
   status: meeting.status,
   check_in: meeting.checkIn,
@@ -71,11 +71,18 @@ export const upsertLifeMeeting = async (
   client: SupabaseClient,
   meeting: LifeMeeting,
 ): Promise<LifeMeeting> => {
-  const { data, error } = await client
-    .from(TABLE)
-    .upsert(toRow(meeting), { onConflict: 'id' })
-    .select('id, household_id, title, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at')
-    .single();
+  const columns = 'id, household_id, title, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at';
+  const lookup = await client.from(TABLE).select('id')
+    .eq('household_id', meeting.householdId).eq('id', meeting.id).maybeSingle();
+  if (lookup.error) throw new Error(lookup.error.message);
+  const row = toRow(meeting);
+  // A spouse can UPDATE a shared meeting, but cannot INSERT under its creator.
+  // UPSERT performs that INSERT ownership check even when the row exists.
+  const { created_by: _creator, created_at: _created, ...updates } = row;
+  const query = lookup.data
+    ? client.from(TABLE).update(updates).eq('household_id', meeting.householdId).eq('id', meeting.id)
+    : client.from(TABLE).insert(row);
+  const { data, error } = await query.select(columns).single();
   if (error) throw new Error(error.message);
   return fromRow(data as LifeMeetingRow);
 };
@@ -108,3 +115,5 @@ export const subscribeToLifeMeetings = (
     void client.removeChannel(channel);
   };
 };
+
+

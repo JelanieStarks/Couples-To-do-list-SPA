@@ -9,7 +9,7 @@ const row = {
   title: 'Weekly Reset',
   meeting_date: '2026-09-18',
   status: 'draft',
-  check_in: { 'user-1': { mood: '🙂', energy: 'high', supportNeed: 'Pray with me' } },
+  check_in: { 'user-1': { mood: '??', energy: 'high', supportNeed: 'Pray with me' } },
   gratitude: [{ id: 'g1', text: 'Grace', authorId: 'user-1' }],
   agenda: [],
   decisions: [],
@@ -39,11 +39,13 @@ describe('lifeMeetingRepository', () => {
     expect(eq).toHaveBeenCalledWith('household_id', row.household_id);
   });
 
-  it('writes the secure household and JSON meeting fields', async () => {
+  it('updates shared meeting fields without re-inserting or changing its creator', async () => {
     const single = vi.fn().mockResolvedValue({ data: row, error: null });
-    const select = vi.fn(() => ({ single }));
-    const upsert = vi.fn(() => ({ select }));
-    const client = { from: vi.fn(() => ({ upsert })) } as unknown as SupabaseClient;
+    const lookupQuery: any = { eq: vi.fn(() => lookupQuery), maybeSingle: vi.fn().mockResolvedValue({ data: { id: row.id }, error: null }) };
+    const updateQuery: any = { eq: vi.fn(() => updateQuery), select: vi.fn(() => ({ single })) };
+    const update = vi.fn((_patch: unknown) => updateQuery);
+    const insert = vi.fn();
+    const client = { from: vi.fn(() => ({ select: () => lookupQuery, update, insert })) } as unknown as SupabaseClient;
     const meeting: LifeMeeting = {
       id: row.id,
       householdId: row.household_id,
@@ -63,10 +65,13 @@ describe('lifeMeetingRepository', () => {
 
     await upsertLifeMeeting(client, meeting);
 
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
-      household_id: row.household_id,
-      action_items: meeting.actionItems,
-      created_by: 'user-1',
-    }), { onConflict: 'id' });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      household_id: row.household_id, action_items: meeting.actionItems,
+    }));
+    expect(update.mock.calls[0][0]).not.toHaveProperty('created_by');
+    expect(update.mock.calls[0][0]).not.toHaveProperty('created_at');
+    expect(insert).not.toHaveBeenCalled();
   });
 });
+
+
