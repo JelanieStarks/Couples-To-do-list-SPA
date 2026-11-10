@@ -1,7 +1,3 @@
-## Version 1.0.16
-
-Built from the merged main app, including the refreshed Couples 2Do launcher icon and shared Android/Windows/web interface. Install this signed beta over your previous Couples2Do Test build, then test task sync with Windows and saving/reopening Life Meetings.
-
 Download **Couples2Do-Test.apk** below on each Android phone. This is a prerelease for hands-on testing, not a Google Play release. This public repository's downloads are publicly accessible.
 
 ## Install
@@ -23,3 +19,4 @@ The test app uses a separate application ID, so you can keep your older app inst
 * Routines are currently stored locally and do not sync between phones.
 
 The APK is signed with a dedicated test key, reused for later test updates. Signing and automated checks do not replace testing on your actual phones. Report the screen, steps, expected result, actual result, and phone model for anything that fails.
+

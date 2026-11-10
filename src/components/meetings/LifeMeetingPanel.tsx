@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, HeartHandshake, Plus, Printer, Save } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTask } from '../../contexts/TaskContext';
@@ -16,19 +16,10 @@ import type {
 } from '../../types';
 import { generateUuid } from '../../utils';
 import { printDocument } from '../../utils/printDocument';
+import { MeetingEntryList } from './MeetingEntryList';
 
 const moods: MeetingMood[] = ['🙂', '😐', '😣'];
 const energies: MeetingEnergy[] = ['low', 'medium', 'high'];
-
-const entriesToText = (entries: MeetingEntry[]) => entries.map(entry => entry.text).join('\n');
-
-const textToEntries = (text: string, existing: MeetingEntry[], authorId: string): MeetingEntry[] => (
-  text.split('\n').map(line => line.trim()).filter(Boolean).map((line, index) => ({
-    id: existing[index]?.id ?? generateUuid(),
-    text: line,
-    authorId: existing[index]?.authorId ?? authorId,
-  }))
-);
 
 const getMeetingTitle = (meeting: LifeMeeting) => meeting.title?.trim() || `Life Meeting · ${meeting.meetingDate}`;
 
@@ -45,7 +36,8 @@ const formatEntries = (entries: MeetingEntry[]) => entries.length
 
 export const LifeMeetingPanel: React.FC = () => {
   const { user, partner } = useAuth();
-  const { createTask } = useTask();
+  const { createTask, tasks } = useTask();
+  const converting = useRef(new Set<string>());
   const { meetings, isLoading, error, createMeeting, saveMeeting, remoteEnabled } = useLifeMeetings();
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState<LifeMeeting | null>(null);
@@ -54,6 +46,7 @@ export const LifeMeetingPanel: React.FC = () => {
   const [savedFlash, setSavedFlash] = useState(false);
   const [printError, setPrintError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!draft && meetings[0]) setDraft(meetings[0]);
@@ -129,7 +122,12 @@ export const LifeMeetingPanel: React.FC = () => {
     if (!nextDraft) return;
     setSaving(true);
     try {
-      const saved = await saveMeeting(nextDraft);
+      const saved = await saveMeeting({
+        ...nextDraft,
+        gratitude: nextDraft.gratitude.filter(entry => entry.text.trim()),
+        agenda: nextDraft.agenda.filter(entry => entry.text.trim()),
+        decisions: nextDraft.decisions.filter(entry => entry.text.trim()),
+      });
       setDraft(saved);
       setDirty(false);
       setSavedFlash(true);
@@ -157,26 +155,51 @@ export const LifeMeetingPanel: React.FC = () => {
     });
   };
 
-  const convertActionItem = async (item: MeetingActionItem) => {
-    if (!draft || !user || !item.title.trim() || item.convertedAt) return;
-    createTask({
-      title: item.title.trim(),
-      description: `Created from Life Meeting on ${draft.meetingDate}`,
-      priority: item.priority,
-      assignment: item.assignment,
-      color: item.assignment === 'me' ? user.color : item.assignment === 'partner' ? (partner?.color ?? '#3b82f6') : '#8b5cf6',
-      completed: false,
-      scheduledDate: draft.meetingDate,
-    });
-    const updated = {
-      ...draft,
-      actionItems: draft.actionItems.map(action => action.id === item.id
-        ? { ...action, convertedAt: new Date().toISOString() }
-        : action),
-    };
+  const plannerTaskId = (item: MeetingActionItem) => `meeting-${draft?.id}-${item.id}`;
+
+  const convertActionItem = async (item: MeetingActionItem, meeting = draft) => {
+    if (!meeting || !user || !item.title.trim() || item.convertedAt || converting.current.has(item.id)) return;
+    converting.current.add(item.id);
+    setActionError(null);
+    try {
+      const taskId = `meeting-${meeting.id}-${item.id}`;
+      // A stable ID makes retries (including a failed meeting save) idempotent.
+      if (!tasks.some(task => task.id === taskId)) createTask({
+        title: item.title.trim(),
+        description: `Created from Life Meeting on ${meeting.meetingDate}`,
+        priority: item.priority,
+        assignment: item.assignment,
+        color: item.assignment === 'me' ? user.color : item.assignment === 'partner' ? (partner?.color ?? '#3b82f6') : '#8b5cf6',
+        completed: false,
+        scheduledDate: meeting.meetingDate,
+      }, taskId);
+      const updated = {
+        ...meeting,
+        actionItems: meeting.actionItems.map(action => action.id === item.id
+          ? { ...action, convertedAt: new Date().toISOString() }
+          : action),
+      };
+      setDraft(updated);
+      setDirty(true);
+      await save(updated);
+    } catch (error) {
+      setActionError((error as Error).message);
+    } finally {
+      converting.current.delete(item.id);
+    }
+  };
+
+  const entryActionId = (section: 'agenda' | 'decisions', entry: MeetingEntry) => `${section}-${entry.id}`;
+  const sendEntryToAction = async (section: 'agenda' | 'decisions', entry: MeetingEntry, makeTask: boolean) => {
+    if (!draft || !entry.text.trim()) return;
+    const id = entryActionId(section, entry);
+    const existing = draft.actionItems.find(item => item.id === id);
+    const item = existing ?? { id, title: entry.text.trim(), assignment: 'both' as const, priority: 'B2' as const };
+    const updated = existing ? draft : { ...draft, actionItems: [...draft.actionItems, item] };
     setDraft(updated);
     setDirty(true);
-    await save(updated);
+    setSavedFlash(false);
+    if (makeTask) await convertActionItem(item, updated);
   };
 
   if (!user) return null;
@@ -305,20 +328,20 @@ export const LifeMeetingPanel: React.FC = () => {
                   ['agenda', 'What we should discuss'],
                   ['decisions', 'What we decided'],
                 ] as const).map(([key, label]) => (
-                  <label key={key} className="text-xs text-slate-300">
-                    {label}
-                    <textarea
-                      className="neon-textarea mt-1"
-                      rows={6}
-                      placeholder="One item per line"
-                      value={entriesToText(draft[key])}
-                      onChange={event => updateDraft({ [key]: textToEntries(event.target.value, draft[key], user.id) })}
-                    />
-                  </label>
+                  <MeetingEntryList key={`${draft.id}-${key}`}
+                    label={label} entries={draft[key]} authorId={user.id}
+                    onChange={entries => updateDraft({ [key]: entries })}
+                    disabled={saving}
+                    onAction={key === 'gratitude' ? undefined : (entry, makeTask) => void sendEntryToAction(key, entry, makeTask)}
+                    actionState={key === 'gratitude' ? undefined : entry => {
+                      const action = draft.actionItems.find(item => item.id === entryActionId(key, entry));
+                      return action?.convertedAt || (action && tasks.some(task => task.id === plannerTaskId(action))) ? 'task' : action ? 'added' : undefined;
+                    }}
+                  />
                 ))}
               </div>
 
-              <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-4 space-y-3">
+              <div id="life-meeting-actions" className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-100">Action items</h3>
@@ -326,6 +349,7 @@ export const LifeMeetingPanel: React.FC = () => {
                   </div>
                   <button type="button" className="neon-action-button" data-size="sm" onClick={addActionItem}><Plus className="h-4 w-4" /> Add</button>
                 </div>
+                {actionError && <p role="alert" className="text-sm text-rose-200">{actionError}</p>}
                 {draft.actionItems.map(item => (
                   <div key={item.id} className="grid gap-2 md:grid-cols-[1fr_120px_90px_auto]">
                     <input className="glow-form-input" placeholder="Next step" value={item.title} onChange={event => updateActionItem(item.id, { title: event.target.value })} />
@@ -337,8 +361,8 @@ export const LifeMeetingPanel: React.FC = () => {
                     <select className="glow-form-input" value={item.priority} onChange={event => updateActionItem(item.id, { priority: event.target.value as Priority })}>
                       {['A1','A2','A3','B1','B2','B3','C1','C2','C3','D'].map(priority => <option key={priority}>{priority}</option>)}
                     </select>
-                    <button type="button" className="neon-action-button" data-size="sm" disabled={!item.title.trim() || Boolean(item.convertedAt)} onClick={() => void convertActionItem(item)}>
-                      {item.convertedAt ? <><CheckCircle2 className="h-4 w-4" /> Added</> : 'Make task'}
+                    <button type="button" className="neon-action-button" data-size="sm" disabled={saving || !item.title.trim() || Boolean(item.convertedAt) || tasks.some(task => task.id === plannerTaskId(item))} onClick={() => void convertActionItem(item)}>
+                      {item.convertedAt || tasks.some(task => task.id === plannerTaskId(item)) ? <><CheckCircle2 className="h-4 w-4" /> Added</> : 'Make task'}
                     </button>
                   </div>
                 ))}
@@ -355,7 +379,7 @@ export const LifeMeetingPanel: React.FC = () => {
                 <button type="button" className="neon-action-button" data-size="sm" disabled={printing} onClick={() => void printMeeting()} data-testid="print-life-meeting">
                   <Printer className="h-4 w-4" /> Print / Export
                 </button>
-                <button type="button" className="neon-action-button" disabled={saving || !dirty} onClick={() => void save()}>
+                <button type="button" className="neon-action-button" disabled={saving || !dirty} onClick={() => { void save().catch(() => {}); }}>
                   <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save meeting'}
                 </button>
               </div>

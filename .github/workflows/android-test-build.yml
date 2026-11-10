@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - codex/android-internal-testing
+      - codex/life-meeting-sync-hotfix
 
 permissions:
   contents: read

@@ -77,7 +77,7 @@ const createDefaultLanState = (serverUrl: string | null): LanSyncState => ({
 interface TaskContextType {
   tasks: Task[];
   isLoading: boolean;
-  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>) => void;
+  createTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>, id?: string) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   toggleTaskComplete: (id: string) => void;
   softDeleteTask: (id: string) => void;
@@ -140,6 +140,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   const supabase = React.useMemo(() => getSupabaseClient(), []);
   const supabaseSyncEnabled = React.useMemo(() => isSupabaseSyncEnabled(), []);
   const supabaseDbSyncRef = React.useRef<SupabaseSync | null>(null);
+  const requestCloudSyncRef = React.useRef<(() => Promise<void>) | null>(null);
   const lastSupabaseDbFingerprintRef = React.useRef<string>('');
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatus>(() => ({
     enabled: supabaseSyncEnabled,
@@ -265,7 +266,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     };
   }, [instanceId, roomId]);
 
-  // One durable Supabase path: household rows plus Postgres Changes realtime.
+  // Reconcile both ways on startup, edits, reconnect, and a bounded retry timer.
   useEffect(() => {
     if (!supabaseSyncEnabled || !supabase || !householdId || !user?.id) return;
     const taskDoc = taskDocRef.current;
@@ -274,51 +275,60 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     const sync = new SupabaseSync(householdId, user.id);
     supabaseDbSyncRef.current = sync;
     let cancelled = false;
+    let requested = false;
+    let inFlight: Promise<void> | null = null;
 
-    const hydrate = async () => {
-      try {
-        const remote = await sync.fetchTasks();
-        if (cancelled || !remote.length) return;
-        const fp = fingerprintTasks(remote);
-        if (fp !== lastSupabaseDbFingerprintRef.current) {
-          taskDoc.mergeExternal(remote);
-          lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
-          lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
-        }
-        setSupabaseStatus(prev => ({ ...prev, lastError: undefined }));
-      } catch (error) {
-        if (!cancelled) {
-          setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
-        }
-      }
+    const synchronize = (): Promise<void> => {
+      requested = true;
+      if (inFlight) return inFlight;
+      inFlight = (async () => {
+        do {
+          requested = false;
+          try {
+            // Receive partner changes even if a pending upload later fails.
+            const remote = await sync.fetchTasks();
+            if (cancelled) return;
+            taskDoc.mergeExternal(remote);
+            const snapshot = taskDoc.getTasks();
+            const merged = await sync.mergeAndUpload(snapshot);
+            if (cancelled) return;
+            // A newer edit during the request must remain pending.
+            lastSupabaseDbFingerprintRef.current = fingerprintTasks(merged);
+            taskDoc.mergeExternal(merged);
+            lastSnapshotsRef.current.supabase = fingerprintTasks(merged);
+            setSupabaseStatus(prev => ({ ...prev, lastDbUpsertAt: new Date().toISOString(), lastError: undefined }));
+          } catch (error) {
+            if (!cancelled) setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
+            return;
+          }
+        } while (requested && !cancelled);
+      })().finally(() => { inFlight = null; });
+      return inFlight;
     };
-
-    void hydrate();
-
-    const unsubscribe = sync.subscribe(remoteTasks => {
+    requestCloudSyncRef.current = synchronize;
+    void synchronize();
+    const unsubscribe = sync.subscribe(remote => {
       if (cancelled) return;
-      const fp = fingerprintTasks(remoteTasks);
-      if (fp === lastSupabaseDbFingerprintRef.current) return;
-      const taskDocNow = taskDocRef.current;
-      if (!taskDocNow) return;
-      taskDocNow.mergeExternal(remoteTasks);
-      lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDocNow.getTasks());
-      lastSnapshotsRef.current.supabase = lastSupabaseDbFingerprintRef.current;
-      setSupabaseStatus(prev => ({
-        ...prev,
-        lastRealtimeAt: new Date().toISOString(),
-        lastError: undefined,
-      }));
+      taskDoc.mergeExternal(remote);
+      setSupabaseStatus(prev => ({ ...prev, lastRealtimeAt: new Date().toISOString() }));
+      if (fingerprintTasks(taskDoc.getTasks()) !== fingerprintTasks(remote)) void synchronize();
     }, error => {
       if (!cancelled) setSupabaseStatus(prev => ({ ...prev, lastError: error.message }));
     });
-
+    const resume = () => { if (!cancelled && document.visibilityState !== 'hidden') void synchronize(); };
+    window.addEventListener('online', resume);
+    window.addEventListener('focus', resume);
+    document.addEventListener('visibilitychange', resume);
+    const retryTimer = window.setInterval(resume, 15000);
     return () => {
       cancelled = true;
       unsubscribe();
-      if (supabaseDbSyncRef.current === sync) {
-        supabaseDbSyncRef.current = null;
-      }
+      window.clearInterval(retryTimer);
+      window.removeEventListener('online', resume);
+      window.removeEventListener('focus', resume);
+      document.removeEventListener('visibilitychange', resume);
+      if (requestCloudSyncRef.current === synchronize) requestCloudSyncRef.current = null;
+      if (supabaseDbSyncRef.current === sync) supabaseDbSyncRef.current = null;
     };
   }, [supabaseSyncEnabled, supabase, householdId, user?.id]);
 
@@ -351,26 +361,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
       }
     } catch {}
 
-    // Persist the local snapshot; database changes drive realtime updates.
-    if (supabaseSyncEnabled && supabaseDbSyncRef.current && lastDocOriginRef.current !== TASK_DOC_REMOTE_ORIGIN) {
-      const fp = fingerprintTasks(tasks);
-      if (fp !== lastSupabaseDbFingerprintRef.current) {
-        lastSupabaseDbFingerprintRef.current = fp;
-        lastSnapshotsRef.current.supabase = fp;
-        void supabaseDbSyncRef.current.upsertTasks(tasks)
-          .then(() => {
-            setSupabaseStatus(prev => ({
-              ...prev,
-              lastDbUpsertAt: new Date().toISOString(),
-              lastError: undefined,
-            }));
-          })
-          .catch(error => {
-            // Allow a retry after the next local change.
-            lastSupabaseDbFingerprintRef.current = '';
-            setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
-          });
-      }
+    // Remote snapshots cannot acknowledge unrelated, still-local edits.
+    if (supabaseSyncEnabled && requestCloudSyncRef.current && fingerprintTasks(tasks) !== lastSupabaseDbFingerprintRef.current) {
+      void requestCloudSyncRef.current();
     }
 
     lastDocOriginRef.current = null;
@@ -714,15 +707,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
 
     await requestMagicLinkForSync();
 
-    if (supabaseSyncEnabled && supabaseDbSyncRef.current) {
-      try {
-        const merged = await supabaseDbSyncRef.current.mergeAndUpload(taskDoc.getTasks());
-        taskDoc.mergeExternal(merged);
-        lastSupabaseDbFingerprintRef.current = fingerprintTasks(taskDoc.getTasks());
-        setSupabaseStatus(prev => ({ ...prev, lastError: undefined }));
-      } catch (error) {
-        setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
-      }
+    if (supabaseSyncEnabled && requestCloudSyncRef.current) {
+      await requestCloudSyncRef.current();
     } else if (serverSyncRef.current) {
       const remote = await serverSyncRef.current.fetchTasks();
       const incoming = fingerprintTasks(remote);
@@ -751,17 +737,18 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     }
   };
 
-  const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>): void => {
+  const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>, id?: string): void => {
     if (!user) return;
     const taskDoc = taskDocRef.current;
     if (!taskDoc) return;
 
+    if (id && taskDoc.getTasks().some(task => task.id === id)) return;
     const now = new Date().toISOString();
     const nextOrder = taskDoc.getNextOrderForPriority(taskData.priority);
     const newTask: Task = {
       ...taskData,
       urgency: taskData.urgency ?? urgencyForPriority(taskData.priority),
-      id: generateId(),
+      id: id ?? generateId(),
       createdBy: user.id,
       createdAt: now,
       updatedAt: now,
