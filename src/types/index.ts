@@ -120,8 +120,18 @@ export interface LifeMeeting {
   agenda: MeetingEntry[];
   decisions: MeetingEntry[];
   actionItems: MeetingActionItem[];
+  goals?: MeetingGoal[];
+  syncRevision?: number;
   notes: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface MeetingGoal {
+  id: string;
+  term: 'short' | 'long';
+  title: string;
+  steps: { id: string; text: string; done: boolean }[];
+}
+

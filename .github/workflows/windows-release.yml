@@ -3,7 +3,7 @@ name: Build Windows Installer
 on:
   workflow_dispatch:
   push:
-    branches: [codex/desktop-parity-fixes]
+    branches: [codex/desktop-parity-fixes, codex/life-meeting-sync-hotfix]
   pull_request:
     branches: [main]
 
@@ -50,7 +50,7 @@ jobs:
 
 
   publish-beta:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/desktop-parity-fixes'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/codex/desktop-parity-fixes' || github.ref == 'refs/heads/codex/life-meeting-sync-hotfix')
     needs: build-windows
     runs-on: ubuntu-latest
     permissions:
@@ -70,4 +70,4 @@ jobs:
           gh release create "$tag" release/*.exe release/*.exe.blockmap release/latest.yml \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "Couples 2Do Windows Beta ${version}" --prerelease --latest=false \
-            --notes "Download the Setup EXE below and open it. One-click setup installs for your account, creates shortcuts, and opens Couples 2Do. Includes the startup crash fix and refreshed logo. The packaged app passed its automated startup check; couple sync and printing still need hands-on beta testing."
+            --notes "Download the Setup EXE below and open it. One-click setup installs for your account, creates shortcuts, and opens Couples 2Do. Includes autosave, verified Save & Sync with local backups, and native in-app update controls. The packaged app passed its automated startup check; couple sync and printing still need hands-on beta testing."

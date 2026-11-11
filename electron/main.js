@@ -5,6 +5,7 @@ import process from 'node:process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPrintHandler } from './printing.js';
+import { compareVersions, fetchReleaseCatalog, selectPlatformRelease } from './releaseCatalog.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,9 +101,21 @@ autoUpdater.on('error', (error) => {
   sendUpdateStatus({ state: 'error', message: error?.message || 'Update error' });
 });
 
+let updateFeedReady = false;
 ipcMain.handle('updates:check', async () => {
+  updateFeedReady = false;
   try {
+    const latest = selectPlatformRelease(await fetchReleaseCatalog(), 'windows', true);
+    if (!latest) throw new Error('No Windows installer with update metadata is available yet.');
+    if (compareVersions(latest.version, app.getVersion()) <= 0) {
+      sendUpdateStatus({ state: 'none' });
+      return { ok: true };
+    }
+    const feed = latest.asset.browser_download_url.replace(/[^/]+$/, '');
+    autoUpdater.setFeedURL({ provider: 'generic', url: feed });
+    autoUpdater.allowDowngrade = false;
     await autoUpdater.checkForUpdates();
+    updateFeedReady = true;
     return { ok: true };
   } catch (error) {
     return { ok: false, message: error?.message || 'Failed to check updates' };
@@ -111,6 +124,7 @@ ipcMain.handle('updates:check', async () => {
 
 ipcMain.handle('updates:download', async () => {
   try {
+    if (!updateFeedReady) throw new Error('Check for updates before downloading.');
     await autoUpdater.downloadUpdate();
     return { ok: true };
   } catch (error) {

@@ -18,6 +18,8 @@ const row = {
   created_by: 'user-1',
   created_at: '2026-09-18T12:00:00.000Z',
   updated_at: '2026-09-18T12:00:00.000Z',
+  sync_revision: 0,
+  goals: [],
 };
 
 describe('lifeMeetingRepository', () => {
@@ -39,11 +41,15 @@ describe('lifeMeetingRepository', () => {
     expect(eq).toHaveBeenCalledWith('household_id', row.household_id);
   });
 
-  it('writes the secure household and JSON meeting fields', async () => {
-    const single = vi.fn().mockResolvedValue({ data: row, error: null });
-    const select = vi.fn(() => ({ single }));
-    const upsert = vi.fn(() => ({ select }));
-    const client = { from: vi.fn(() => ({ upsert })) } as unknown as SupabaseClient;
+  it('re-reads and merges shared entries if another device wins the write race', async () => {
+    const latest = { ...row, sync_revision: 1, agenda: [{ id: 'partner', text: 'Partner bullet', authorId: 'user-2' }] };
+    const lookup = vi.fn().mockResolvedValueOnce({ data: row, error: null }).mockResolvedValueOnce({ data: latest, error: null });
+    const written = vi.fn().mockResolvedValueOnce({ data: null, error: null }).mockResolvedValueOnce({ data: latest, error: null });
+    const lookupQuery: any = { eq: vi.fn(() => lookupQuery), maybeSingle: lookup };
+    const updateQuery: any = { eq: vi.fn(() => updateQuery), select: vi.fn(() => ({ maybeSingle: written })) };
+    const update = vi.fn((_patch: unknown) => updateQuery);
+    const insert = vi.fn();
+    const client = { from: vi.fn(() => ({ select: () => lookupQuery, update, insert })) } as unknown as SupabaseClient;
     const meeting: LifeMeeting = {
       id: row.id,
       householdId: row.household_id,
@@ -61,12 +67,19 @@ describe('lifeMeetingRepository', () => {
       updatedAt: row.updated_at,
     };
 
-    await upsertLifeMeeting(client, meeting);
+    const draft = { ...meeting, agenda: [{ id: 'mine', text: 'My bullet', authorId: 'user-1' }] };
+    await upsertLifeMeeting(client, draft, meeting);
 
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
-      household_id: row.household_id,
+    expect(update).toHaveBeenLastCalledWith(expect.objectContaining({
+      sync_revision: 2,
       action_items: meeting.actionItems,
-      created_by: 'user-1',
-    }), { onConflict: 'id' });
+      agenda: [...latest.agenda, ...draft.agenda],
+    }));
+    expect(updateQuery.eq).toHaveBeenCalledWith('sync_revision', 0);
+    expect(updateQuery.eq).toHaveBeenCalledWith('sync_revision', 1);
+    expect(update.mock.calls[0][0]).not.toHaveProperty('created_by');
+    expect(update.mock.calls[0][0]).not.toHaveProperty('created_at');
+    expect(insert).not.toHaveBeenCalled();
   });
 });
+

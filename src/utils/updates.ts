@@ -1,50 +1,37 @@
+import { compareVersions, fetchReleaseCatalog, selectPlatformRelease } from '../../electron/releaseCatalog.js';
+
 export type UpdateInfo = {
   current: string;
   latestTag?: string;
   releaseUrl?: string;
   windowsExeUrl?: string;
   androidApkUrl?: string;
+  windowsNewer?: boolean;
+  androidNewer?: boolean;
+  windowsVersion?: string;
+  androidVersion?: string;
   isNewer: boolean;
   error?: string;
 };
 
-const normalize = (v: string) => v.replace(/^v/, '').split('-')[0];
-
-const cmp = (a: string, b: string) => {
-  const as = normalize(a).split('.').map(n => parseInt(n, 10) || 0);
-  const bs = normalize(b).split('.').map(n => parseInt(n, 10) || 0);
-  for (let i = 0; i < Math.max(as.length, bs.length); i++) {
-    const ai = as[i] || 0; const bi = bs[i] || 0;
-    if (ai > bi) return 1; if (ai < bi) return -1;
-  }
-  return 0;
-};
-
-export async function checkForUpdates(currentVersion: string): Promise<UpdateInfo> {
+export async function checkForUpdates(currentVersion: string, platform: 'android' | 'windows' | 'web' = 'web'): Promise<UpdateInfo> {
   try {
-    const res = await fetch('https://api.github.com/repos/JelanieStarks/Couples-To-do-list-SPA/releases/latest', {
-      headers: { 'Accept': 'application/vnd.github+json' },
-    });
-    if (!res.ok) {
-      return { current: currentVersion, isNewer: false, error: `GitHub API error: ${res.status}` };
-    }
-    const data = await res.json();
-    const latestTag: string | undefined = data?.tag_name;
-    const releaseUrl: string | undefined = data?.html_url;
-    const assets: any[] = Array.isArray(data?.assets) ? data.assets : [];
-    const windowsExe = assets.find(a => typeof a?.browser_download_url === 'string' && /\.exe$/i.test(a.browser_download_url));
-    const androidApk = assets.find(a => typeof a?.browser_download_url === 'string' && /\.apk$/i.test(a.browser_download_url));
-
-    const isNewer = latestTag ? cmp(latestTag, currentVersion) > 0 : false;
+    const releases = await fetchReleaseCatalog();
+    const windows = selectPlatformRelease(releases, 'windows');
+    const android = selectPlatformRelease(releases, 'android');
+    const selected = platform === 'android' ? android : platform === 'windows' ? windows : (
+      !windows || (android && compareVersions(android.version, windows.version) > 0) ? android : windows
+    );
+    if (!selected) throw new Error('No downloadable update is available for this platform yet.');
     return {
-      current: currentVersion,
-      latestTag,
-      releaseUrl,
-      windowsExeUrl: windowsExe?.browser_download_url,
-      androidApkUrl: androidApk?.browser_download_url,
-      isNewer,
+      current: currentVersion, latestTag: selected.release.tag_name, releaseUrl: selected.release.html_url,
+      windowsExeUrl: windows?.asset.browser_download_url, androidApkUrl: android?.asset.browser_download_url,
+      windowsVersion: windows?.version, androidVersion: android?.version,
+      windowsNewer: Boolean(windows && compareVersions(windows.version, currentVersion) > 0),
+      androidNewer: Boolean(android && compareVersions(android.version, currentVersion) > 0),
+      isNewer: compareVersions(selected.version, currentVersion) > 0,
     };
-  } catch (err: any) {
-    return { current: currentVersion, isNewer: false, error: err?.message || 'Unknown error' };
+  } catch (error) {
+    return { current: currentVersion, isNewer: false, error: (error as Error).message };
   }
 }

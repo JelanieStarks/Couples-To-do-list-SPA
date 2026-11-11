@@ -1,7 +1,9 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import type { LifeMeeting } from '../types';
+import { mergeLifeMeeting } from './mergeLifeMeeting';
 
 const TABLE = 'life_meetings';
+const COLUMNS = 'id, household_id, title, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, goals, notes, created_by, created_at, updated_at, sync_revision';
 
 interface LifeMeetingRow {
   id: string;
@@ -14,6 +16,8 @@ interface LifeMeetingRow {
   agenda: LifeMeeting['agenda'];
   decisions: LifeMeeting['decisions'];
   action_items?: LifeMeeting['actionItems'];
+  goals: LifeMeeting['goals'];
+  sync_revision: number;
   notes: string | null;
   created_by: string | null;
   created_at: string;
@@ -31,6 +35,8 @@ const fromRow = (row: LifeMeetingRow): LifeMeeting => ({
   agenda: row.agenda ?? [],
   decisions: row.decisions ?? [],
   actionItems: row.action_items ?? [],
+  goals: row.goals ?? [],
+  syncRevision: row.sync_revision,
   notes: row.notes ?? '',
   createdBy: row.created_by ?? '',
   createdAt: row.created_at,
@@ -48,6 +54,7 @@ const toRow = (meeting: LifeMeeting) => ({
   agenda: meeting.agenda,
   decisions: meeting.decisions,
   action_items: meeting.actionItems,
+  goals: meeting.goals ?? [],
   notes: meeting.notes || null,
   created_by: meeting.createdBy,
   created_at: meeting.createdAt,
@@ -60,7 +67,7 @@ export const fetchLifeMeetings = async (
 ): Promise<LifeMeeting[]> => {
   const { data, error } = await client
     .from(TABLE)
-    .select('id, household_id, title, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at')
+    .select(COLUMNS)
     .eq('household_id', householdId)
     .order('meeting_date', { ascending: false });
   if (error) throw new Error(error.message);
@@ -70,14 +77,29 @@ export const fetchLifeMeetings = async (
 export const upsertLifeMeeting = async (
   client: SupabaseClient,
   meeting: LifeMeeting,
+  base: LifeMeeting | null,
 ): Promise<LifeMeeting> => {
-  const { data, error } = await client
-    .from(TABLE)
-    .upsert(toRow(meeting), { onConflict: 'id' })
-    .select('id, household_id, title, meeting_date, status, check_in, gratitude, agenda, decisions, action_items, notes, created_by, created_at, updated_at')
-    .single();
-  if (error) throw new Error(error.message);
-  return fromRow(data as LifeMeetingRow);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const lookup = await client.from(TABLE).select(COLUMNS)
+      .eq('household_id', meeting.householdId).eq('id', meeting.id).maybeSingle();
+    if (lookup.error) throw new Error(lookup.error.message);
+    if (!lookup.data) {
+      const { data, error } = await client.from(TABLE).insert(toRow(meeting)).select(COLUMNS).single();
+      if (error?.code === '23505') continue;
+      if (error) throw new Error(error.message);
+      return fromRow(data as LifeMeetingRow);
+    }
+    const current = fromRow(lookup.data as LifeMeetingRow);
+    const syncRevision = current.syncRevision!;
+    const { id, household_id, created_by: _creator, created_at: _created, ...updates } =
+      toRow(mergeLifeMeeting(base, meeting, current));
+    const { data, error } = await client.from(TABLE).update({ ...updates, sync_revision: syncRevision + 1 })
+      .eq('household_id', household_id).eq('id', id).eq('sync_revision', syncRevision)
+      .select(COLUMNS).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data) return fromRow(data as LifeMeetingRow);
+  }
+  throw new Error('Someone else is saving this meeting. Your changes will retry automatically.');
 };
 
 export const subscribeToLifeMeetings = (
@@ -98,6 +120,7 @@ export const subscribeToLifeMeetings = (
     refreshTimer = setTimeout(onChange, 100);
   });
   channel.subscribe(status => {
+    if (status === 'SUBSCRIBED') onChange();
     if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
       onError?.(new Error(`Life Meeting realtime connection ${status.toLowerCase().replace('_', ' ')}`));
     }
@@ -108,3 +131,4 @@ export const subscribeToLifeMeetings = (
     void client.removeChannel(channel);
   };
 };
+

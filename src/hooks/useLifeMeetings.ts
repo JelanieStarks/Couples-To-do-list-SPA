@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LifeMeeting } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { fetchLifeMeetings, subscribeToLifeMeetings, upsertLifeMeeting } from '../data/lifeMeetingRepository';
@@ -19,9 +19,16 @@ export const useLifeMeetings = () => {
   ));
   const [isLoading, setIsLoading] = useState(remoteEnabled);
   const [error, setError] = useState<string | null>(null);
+  const meetingsRef = useRef(meetings);
 
-  const persist = useCallback((next: LifeMeeting[]) => {
-    const sorted = sortMeetings(next);
+  const persist = useCallback((incoming: LifeMeeting[]) => {
+    const next = new Map(meetingsRef.current.map(meeting => [meeting.id, meeting]));
+    for (const meeting of incoming) {
+      const saved = next.get(meeting.id);
+      if (!saved || (meeting.syncRevision ?? 0) >= (saved.syncRevision ?? 0)) next.set(meeting.id, meeting);
+    }
+    const sorted = sortMeetings([...next.values()]);
+    meetingsRef.current = sorted;
     setMeetings(sorted);
     storage.set(STORAGE_KEYS.LIFE_MEETINGS, sorted);
   }, []);
@@ -64,6 +71,7 @@ export const useLifeMeetings = () => {
       agenda: [],
       decisions: [],
       actionItems: [],
+      goals: [],
       notes: '',
       createdBy: user.id,
       createdAt: now,
@@ -71,23 +79,23 @@ export const useLifeMeetings = () => {
     };
   }, [householdId, user]);
 
-  const saveMeeting = useCallback(async (meeting: LifeMeeting): Promise<LifeMeeting> => {
+  const saveMeeting = useCallback(async (meeting: LifeMeeting, base: LifeMeeting | null): Promise<LifeMeeting> => {
     const pending = { ...meeting, updatedAt: new Date().toISOString() };
-    persist([pending, ...meetings.filter(item => item.id !== pending.id)]);
     if (!client || !remoteEnabled) {
+      persist([pending]);
       setError(null);
       return pending;
     }
     try {
-      const saved = await upsertLifeMeeting(client, pending);
-      persist([saved, ...meetings.filter(item => item.id !== saved.id)]);
+      const saved = await upsertLifeMeeting(client, pending, base);
+      persist([saved]);
       setError(null);
       return saved;
     } catch (saveError) {
       setError((saveError as Error).message);
       throw saveError;
     }
-  }, [client, meetings, persist, remoteEnabled]);
+  }, [client, persist, remoteEnabled]);
 
-  return { meetings, isLoading, error, createMeeting, saveMeeting, remoteEnabled };
+  return { meetings: meetings.filter(meeting => meeting.householdId === householdId), isLoading, error, createMeeting, saveMeeting, remoteEnabled };
 };

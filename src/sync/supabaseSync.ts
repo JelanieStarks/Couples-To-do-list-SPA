@@ -13,8 +13,18 @@ const TABLE = 'tasks';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface TaskRow {
+  id?: string;
+  client_id?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
   task_data: Task;
 }
+
+const taskTime = (task: Task) => {
+  const value = Date.parse(task.updatedAt || task.createdAt);
+  return Number.isFinite(value) ? value : 0;
+};
 
 const urgencyForPriority = (priority: Task['priority']): NonNullable<Task['urgency']> => (
   priority.startsWith('A') ? 'urgent' : priority.startsWith('B') ? 'high' : priority.startsWith('C') ? 'medium' : 'low'
@@ -34,7 +44,7 @@ const toRow = (task: Task, householdId: string, currentUserId: string) => ({
   household_id: householdId,
   client_id: task.id,
   task_data: task,
-  title: task.title,
+  title: Array.from(task.title).slice(0, 240).join(''),
   description: task.description ?? null,
   priority: task.priority,
   assignment: task.assignment,
@@ -43,8 +53,8 @@ const toRow = (task: Task, householdId: string, currentUserId: string) => ({
   completed: task.completed,
   created_by: validUuidOrNull(task.createdBy) ?? currentUserId,
   assigned_to: validUuidOrNull(task.assignedTo),
-  scheduled_date: task.scheduledDate ?? null,
-  scheduled_time: task.scheduledTime ?? null,
+  scheduled_date: task.scheduledDate || null,
+  scheduled_time: task.scheduledTime || null,
   repeat_rule: task.repeat ?? null,
   completed_at: task.completedAt ?? null,
   deleted_at: task.deletedAt ?? null,
@@ -61,42 +71,80 @@ export class SupabaseSync {
     private currentUserId: string,
   ) {}
 
-  async fetchTasks(): Promise<Task[]> {
+  private uploadQueue: Promise<void> = Promise.resolve();
+
+  private async fetchRows(): Promise<TaskRow[]> {
     const supabase = getSupabaseClient();
     if (!supabase || !this.householdId) return [];
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('task_data')
+    const { data, error } = await supabase.from(TABLE)
+      .select('id, client_id, created_by, created_at, updated_at, task_data')
       .eq('household_id', this.householdId)
       .order('created_at', { ascending: true });
     if (error) throw new Error(error.message);
-    return ((data ?? []) as TaskRow[])
-      .map(row => row.task_data ? normalizeTask(row.task_data) : null)
-      .filter((task): task is Task => Boolean(task?.id));
+    return (data ?? []) as TaskRow[];
+  }
+
+  private fromRow(row: TaskRow): Task {
+    return normalizeTask({ ...row.task_data, createdBy: row.created_by || row.task_data.createdBy });
+  }
+
+  async fetchTasks(): Promise<Task[]> {
+    return (await this.fetchRows()).filter(row => row.task_data?.id).map(row => this.fromRow(row));
   }
 
   async upsertTasks(tasks: Task[]): Promise<void> {
+    // Keep writes ordered within this client. Every pass reads the latest rows,
+    // so delayed requests cannot blindly upload an older whole-list snapshot.
+    const pending = this.uploadQueue.then(() => this.persistChanges(tasks));
+    this.uploadQueue = pending.catch(() => {});
+    return pending;
+  }
+
+  private async persistChanges(tasks: Task[], retries = 1): Promise<void> {
     const supabase = getSupabaseClient();
     if (!supabase || !this.householdId || !this.currentUserId || !tasks.length) return;
-    const rows = tasks.map(task => toRow(normalizeTask(task), this.householdId, this.currentUserId));
-    const { error } = await supabase
-      .from(TABLE)
-      .upsert(rows, { onConflict: 'household_id,client_id' });
-    if (error) throw new Error(error.message);
+    const existing = new Map((await this.fetchRows()).map(row => [row.client_id || row.task_data?.id, row]));
+    const failures: string[] = [];
+    for (const value of tasks) {
+      const task = normalizeTask(value);
+      try {
+      const remote = existing.get(task.id);
+      if (remote?.task_data && taskTime(task) <= taskTime(remote.task_data)) continue;
+      if (!remote) {
+        // INSERT checks creator ownership even on an UPSERT conflict. New rows
+        // belong to this signed-in account; existing rows use UPDATE below.
+        const owned = { ...task, createdBy: this.currentUserId };
+        const { error } = await supabase.from(TABLE).insert(toRow(owned, this.householdId, this.currentUserId));
+        if (error?.code === '23505' && retries > 0) return this.persistChanges(tasks, retries - 1);
+        if (error) throw new Error(error.message);
+      } else {
+        const canonical = { ...task, createdBy: remote.created_by || task.createdBy };
+        const row = toRow(canonical, this.householdId, this.currentUserId);
+        // Preserve the original creator and creation date when either spouse edits.
+        const { created_by: _creator, created_at: _created, ...updates } = row;
+        let query = supabase.from(TABLE).update(updates)
+          .eq('household_id', this.householdId).eq('client_id', task.id);
+        if (remote.updated_at) query = query.eq('updated_at', remote.updated_at);
+        const { data, error } = await query.select('client_id');
+        if (error) throw new Error(error.message);
+        if (!data?.length) {
+          if (retries > 0) return this.persistChanges(tasks, retries - 1);
+          throw new Error('A task changed while syncing. Your local changes are kept; sync again to retry.');
+        }
+      }
+      } catch (error) { failures.push(`${task.title.slice(0, 50)}: ${(error as Error).message}`); }
+    }
+    if (failures.length) throw new Error(`${failures.length} task(s) still need saving. ${failures.join('; ')}`);
   }
 
   async mergeAndUpload(localTasks: Task[]): Promise<Task[]> {
-    const remoteTasks = await this.fetchTasks();
-    const mergedById = new Map<string, Task>();
-    [...localTasks, ...remoteTasks].map(normalizeTask).forEach(task => {
-      const current = mergedById.get(task.id);
-      const taskTime = new Date(task.updatedAt || task.createdAt || 0).getTime();
-      const currentTime = current ? new Date(current.updatedAt || current.createdAt || 0).getTime() : -1;
-      if (!current || taskTime > currentTime) mergedById.set(task.id, task);
-    });
-    const merged = [...mergedById.values()];
-    await this.upsertTasks(merged);
-    return merged;
+    await this.upsertTasks(localTasks);
+    // Download independently of uploads, including the other spouse's tasks.
+    const remote = await this.fetchTasks();
+    const received = new Map(remote.map(task => [task.id, task]));
+    const missing = localTasks.filter(task => !received.has(task.id));
+    if (missing.length) throw new Error(`${missing.length} task(s) were not confirmed in the database. Your local copy is kept; try Save & Sync again.`);
+    return remote;
   }
 
   async deleteTask(clientId: string): Promise<void> {
@@ -133,6 +181,7 @@ export class SupabaseSync {
       filter: `household_id=eq.${this.householdId}`,
     }, refresh);
     this.channel.subscribe(status => {
+      if (status === 'SUBSCRIBED') refresh();
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         onError?.(new Error(`Task realtime connection ${status.toLowerCase().replace('_', ' ')}`));
       }
