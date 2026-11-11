@@ -27,7 +27,7 @@ interface LifeMeetingRow {
 const fromRow = (row: LifeMeetingRow): LifeMeeting => ({
   id: row.id,
   householdId: row.household_id,
-  title: row.title || `Life Meeting � ${row.meeting_date}`,
+  title: row.title || `Life Meeting · ${row.meeting_date}`,
   meetingDate: row.meeting_date,
   status: row.status,
   checkIn: row.check_in ?? {},
@@ -46,7 +46,7 @@ const fromRow = (row: LifeMeetingRow): LifeMeeting => ({
 const toRow = (meeting: LifeMeeting) => ({
   id: meeting.id,
   household_id: meeting.householdId,
-  title: meeting.title?.trim() || `Life Meeting � ${meeting.meetingDate}`,
+  title: meeting.title?.trim() || `Life Meeting · ${meeting.meetingDate}`,
   meeting_date: meeting.meetingDate,
   status: meeting.status,
   check_in: meeting.checkIn,

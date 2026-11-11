@@ -63,7 +63,7 @@ export const useLifeMeetings = () => {
     return {
       id: generateUuid(),
       householdId,
-      title: `Life Meeting � ${toLocalDateString(new Date())}`,
+      title: `Life Meeting · ${toLocalDateString(new Date())}`,
       meetingDate: toLocalDateString(new Date()),
       status: 'draft',
       checkIn: {},

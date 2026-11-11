@@ -81,7 +81,7 @@ describe('Life Meeting bullet editing and tasks', () => {
     expect(mocks.saveMeeting.mock.calls.at(-1)![0].gratitude[0].text).toBe('More text before leaving the field');
   });
 
-  it('shows the spouse's request and saves goals with completed baby steps', async () => {
+  it('shows the spouse’s request and saves goals with completed baby steps', async () => {
     mocks.createMeeting.mockReturnValue({
       ...meeting(), checkIn: { husband: { supportNeed: 'Take a walk together', energy: 'medium' } },
     });

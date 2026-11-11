@@ -9,7 +9,7 @@ const row = {
   title: 'Weekly Reset',
   meeting_date: '2026-09-18',
   status: 'draft',
-  check_in: { 'user-1': { mood: '??', energy: 'high', supportNeed: 'Pray with me' } },
+  check_in: { 'user-1': { mood: '🙂', energy: 'high', supportNeed: 'Pray with me' } },
   gratitude: [{ id: 'g1', text: 'Grace', authorId: 'user-1' }],
   agenda: [],
   decisions: [],

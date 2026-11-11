@@ -23,10 +23,10 @@ import { MeetingGoals } from './MeetingGoals';
 import { registerDraftFlusher } from '../../utils/draftPersistence';
 import { storage } from '../../utils';
 
-const moods: MeetingMood[] = ['??', '??', '??'];
+const moods: MeetingMood[] = ['🙂', '😐', '😣'];
 const energies: MeetingEnergy[] = ['low', 'medium', 'high'];
 
-const getMeetingTitle = (meeting: LifeMeeting) => meeting.title?.trim() || `Life Meeting � ${meeting.meetingDate}`;
+const getMeetingTitle = (meeting: LifeMeeting) => meeting.title?.trim() || `Life Meeting · ${meeting.meetingDate}`;
 
 const escapeHtml = (value: string) => value
   .replace(/&/g, '&amp;')
@@ -41,7 +41,7 @@ const formatEntries = (entries: MeetingEntry[]) => entries.length
 
 const formatGoals = (goals: MeetingGoal[]) => goals.length
   ? `<ul>${goals.map(goal => `<li><strong>${escapeHtml(goal.title)}</strong>${goal.steps.length
-    ? `<ul>${goal.steps.map(step => `<li>${step.done ? '� ' : ''}${escapeHtml(step.text)}</li>`).join('')}</ul>`
+    ? `<ul>${goal.steps.map(step => `<li>${step.done ? '✓ ' : ''}${escapeHtml(step.text)}</li>`).join('')}</ul>`
     : ''}</li>`).join('')}</ul>`
   : '<p class="muted">None recorded.</p>';
 
@@ -119,7 +119,7 @@ export const LifeMeetingPanel: React.FC = () => {
   }, [dirty, draft, meetings]);
 
   const myCheckIn = useMemo<MeetingCheckIn>(() => {
-    const fallback: MeetingCheckIn = { mood: '??', energy: 'medium', supportNeed: '' };
+    const fallback: MeetingCheckIn = { mood: '😐', energy: 'medium', supportNeed: '' };
     if (!user) return fallback;
     return draft?.checkIn[user.id] ?? fallback;
   }, [draft, user]);
@@ -187,14 +187,14 @@ export const LifeMeetingPanel: React.FC = () => {
     setPrintError(null);
     setPrinting(true);
     const actionItems = draft.actionItems.length
-      ? `<ul>${draft.actionItems.map(item => `<li><strong>${escapeHtml(item.title || 'Untitled task')}</strong> � ${escapeHtml(item.assignment)} � ${escapeHtml(item.priority)}${item.convertedAt ? ' � Added to planner' : ''}</li>`).join('')}</ul>`
+      ? `<ul>${draft.actionItems.map(item => `<li><strong>${escapeHtml(item.title || 'Untitled task')}</strong> · ${escapeHtml(item.assignment)} · ${escapeHtml(item.priority)}${item.convertedAt ? ' · Added to planner' : ''}</li>`).join('')}</ul>`
       : '<p class="muted">No associated tasks.</p>';
     const checkIns = Object.entries(draft.checkIn).map(([authorId, checkIn]) => (
-      `<li><strong>${escapeHtml(authorId === user.id ? user.name : partner?.name || 'Partner')}</strong>: ${escapeHtml(checkIn.mood)} � ${escapeHtml(checkIn.energy)}${checkIn.supportNeed ? ` � ${escapeHtml(checkIn.supportNeed)}` : ''}</li>`
+      `<li><strong>${escapeHtml(authorId === user.id ? user.name : partner?.name || 'Partner')}</strong>: ${escapeHtml(checkIn.mood)} · ${escapeHtml(checkIn.energy)}${checkIn.supportNeed ? ` · ${escapeHtml(checkIn.supportNeed)}` : ''}</li>`
     )).join('');
     const html = `<!doctype html><html><head><title>${escapeHtml(getMeetingTitle(draft))}</title><style>
       :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#182235;font:15px/1.6 Georgia,serif}main{max-width:820px;margin:0 auto;background:#fff;padding:48px 56px;min-height:100vh}h1{margin:0 0 4px;font:700 32px/1.15 Georgia,serif;color:#172554}h2{margin:28px 0 8px;padding-bottom:4px;border-bottom:1px solid #dbe3ef;font:700 18px/1.3 Georgia,serif;color:#334155}.meta{color:#64748b;font:14px/1.5 Arial,sans-serif}.muted{color:#64748b;font-style:italic}ul{padding-left:24px}li{margin:4px 0}.intro{margin:24px 0;padding:14px 18px;border-left:4px solid #ec4899;background:#fdf2f8}@media print{body{background:#fff}main{max-width:none;padding:0;min-height:auto}h2{break-after:avoid}.section{break-inside:avoid}}@media(max-width:600px){main{padding:28px 22px}h1{font-size:26px}}
-    </style></head><body><main><h1>${escapeHtml(getMeetingTitle(draft))}</h1><div class="meta">${escapeHtml(draft.meetingDate)} � ${escapeHtml(draft.status)}</div><div class="intro">Life Meeting notes and next steps</div><section class="section"><h2>Check-ins</h2>${checkIns ? `<ul>${checkIns}</ul>` : '<p class="muted">None recorded.</p>'}</section><section class="section"><h2>Gratitude</h2>${formatEntries(draft.gratitude)}</section><section class="section"><h2>Agenda</h2>${formatEntries(draft.agenda)}</section><section class="section"><h2>Decisions</h2>${formatEntries(draft.decisions)}</section><section class="section"><h2>Associated Tasks</h2>${actionItems}</section><section class="section"><h2>Shared Notes</h2><p>${escapeHtml(draft.notes || 'None recorded.').replace(/\n/g, '<br>')}</p></section></main></body></html>`;
+    </style></head><body><main><h1>${escapeHtml(getMeetingTitle(draft))}</h1><div class="meta">${escapeHtml(draft.meetingDate)} · ${escapeHtml(draft.status)}</div><div class="intro">Life Meeting notes and next steps</div><section class="section"><h2>Check-ins</h2>${checkIns ? `<ul>${checkIns}</ul>` : '<p class="muted">None recorded.</p>'}</section><section class="section"><h2>Gratitude</h2>${formatEntries(draft.gratitude)}</section><section class="section"><h2>Agenda</h2>${formatEntries(draft.agenda)}</section><section class="section"><h2>Decisions</h2>${formatEntries(draft.decisions)}</section><section class="section"><h2>Associated Tasks</h2>${actionItems}</section><section class="section"><h2>Shared Notes</h2><p>${escapeHtml(draft.notes || 'None recorded.').replace(/\n/g, '<br>')}</p></section></main></body></html>`;
     try {
       const goals = draft.goals ?? [];
       const goalSections = `<section class="section"><h2>Short-term Goals</h2>${formatGoals(goals.filter(goal => goal.term === 'short'))}</section><section class="section"><h2>Long-term Goals</h2>${formatGoals(goals.filter(goal => goal.term === 'long'))}</section>`;
@@ -350,7 +350,7 @@ export const LifeMeetingPanel: React.FC = () => {
         <div className="mt-5 space-y-5" data-testid="life-meeting-editor">
           {error && <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-3 text-xs text-rose-200">{error}</div>}
           {printError && <div role="alert" className="text-sm text-rose-200">{printError}</div>}
-          {isLoading && <div className="text-sm text-slate-400">Loading your meetings.</div>}
+          {isLoading && <div className="text-sm text-slate-400">Loading your meetings…</div>}
 
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
             <label className="text-xs text-slate-300">
@@ -375,7 +375,7 @@ export const LifeMeetingPanel: React.FC = () => {
                     >
                       <option value="">Select meeting</option>
                       {meetings.filter(meeting => meeting.id !== draft?.id).map(meeting => (
-                        <option key={meeting.id} value={meeting.id}>{getMeetingTitle(meeting)} � {meeting.meetingDate}</option>
+                        <option key={meeting.id} value={meeting.id}>{getMeetingTitle(meeting)} · {meeting.meetingDate}</option>
                       ))}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" aria-hidden="true" />
@@ -439,7 +439,7 @@ export const LifeMeetingPanel: React.FC = () => {
                 </label>
                 {partner && (
                   <aside className="rounded-xl border border-pink-400/25 bg-gradient-to-br from-pink-500/15 via-violet-500/10 to-slate-950/50 p-4 sm:p-5"
-                    aria-label="Your spouse's check-in request">
+                    aria-label="Your spouse’s check-in request">
                     <div className="flex items-center gap-2 text-sm font-semibold text-pink-200">
                       <HeartHandshake className="h-5 w-5" aria-hidden="true" />
                       How you can show up for {partner.name || 'your spouse'} this week
@@ -504,14 +504,14 @@ export const LifeMeetingPanel: React.FC = () => {
                 <textarea className="neon-textarea mt-1" rows={5} value={draft.notes} onChange={event => updateDraft({ notes: event.target.value })} />
               </label>
 
-              <p className="text-[11px] text-slate-400">{saving ? 'Saving meeting.' : dirty ? 'Changes are saved automatically after you finish typing.' : 'Autosave on'}</p>
+              <p className="text-[11px] text-slate-400">{saving ? 'Saving meeting…' : dirty ? 'Changes are saved automatically after you finish typing.' : 'Autosave on'}</p>
               <div className="flex items-center justify-end gap-3 flex-wrap">
                 {savedFlash && <span className="text-xs text-emerald-300">{remoteEnabled ? "Meeting saved to database." : "Meeting saved on this device."}</span>}
                 <button type="button" className="neon-action-button" data-size="sm" disabled={printing} onClick={() => void printMeeting()} data-testid="print-life-meeting">
                   <Printer className="h-4 w-4" /> Print / Export
                 </button>
                 <button type="button" className="neon-action-button" disabled={saving || !dirty} onClick={() => { void save().catch(() => {}); }}>
-                  <Save className="h-4 w-4" /> {saving ? 'Saving.' : 'Save meeting'}
+                  <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save meeting'}
                 </button>
               </div>
             </>
