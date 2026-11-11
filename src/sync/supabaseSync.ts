@@ -44,7 +44,7 @@ const toRow = (task: Task, householdId: string, currentUserId: string) => ({
   household_id: householdId,
   client_id: task.id,
   task_data: task,
-  title: task.title,
+  title: Array.from(task.title).slice(0, 240).join(''),
   description: task.description ?? null,
   priority: task.priority,
   assignment: task.assignment,
@@ -104,8 +104,10 @@ export class SupabaseSync {
     const supabase = getSupabaseClient();
     if (!supabase || !this.householdId || !this.currentUserId || !tasks.length) return;
     const existing = new Map((await this.fetchRows()).map(row => [row.client_id || row.task_data?.id, row]));
+    const failures: string[] = [];
     for (const value of tasks) {
       const task = normalizeTask(value);
+      try {
       const remote = existing.get(task.id);
       if (remote?.task_data && taskTime(task) <= taskTime(remote.task_data)) continue;
       if (!remote) {
@@ -130,19 +132,19 @@ export class SupabaseSync {
           throw new Error('A task changed while syncing. Your local changes are kept; sync again to retry.');
         }
       }
+      } catch (error) { failures.push(`${task.title.slice(0, 50)}: ${(error as Error).message}`); }
     }
+    if (failures.length) throw new Error(`${failures.length} task(s) still need saving. ${failures.join('; ')}`);
   }
 
   async mergeAndUpload(localTasks: Task[]): Promise<Task[]> {
     await this.upsertTasks(localTasks);
     // Download independently of uploads, including the other spouse's tasks.
     const remote = await this.fetchTasks();
-    const merged = new Map(localTasks.map(task => [task.id, normalizeTask(task)]));
-    for (const task of remote) {
-      const local = merged.get(task.id);
-      if (!local || taskTime(task) >= taskTime(local)) merged.set(task.id, task);
-    }
-    return [...merged.values()];
+    const received = new Map(remote.map(task => [task.id, task]));
+    const missing = localTasks.filter(task => !received.has(task.id));
+    if (missing.length) throw new Error(`${missing.length} task(s) were not confirmed in the database. Your local copy is kept; try Save & Sync again.`);
+    return remote;
   }
 
   async deleteTask(clientId: string): Promise<void> {

@@ -74,4 +74,18 @@ describe('creator-safe two-way cloud persistence', () => {
     expect(rows[0].task_data.deletedAt).toBeTruthy();
     expect(rows[0].task_data.createdBy).toBe(wife);
   });
+  it('continues saving other tasks when one pending task fails', async () => {
+    fail = true;
+    const sync = new SupabaseSync(home, wife);
+    await expect(sync.mergeAndUpload([makeTask('first', wife), makeTask('second', wife)])).rejects.toThrow('1 task(s) still need saving');
+    expect(rows.map(row => row.client_id)).toEqual(['second']);
+    await expect(sync.mergeAndUpload([makeTask('first', wife), makeTask('second', wife)])).resolves.toHaveLength(2);
+  });
+  it('keeps complete long task text while respecting the database title constraint', async () => {
+    const task = makeTask('long', wife, 'A'.repeat(400));
+    await new SupabaseSync(home, wife).upsertTasks([task]);
+    expect(rows[0].title).toHaveLength(240);
+    expect(rows[0].task_data.title).toHaveLength(400);
+  });
+
 });

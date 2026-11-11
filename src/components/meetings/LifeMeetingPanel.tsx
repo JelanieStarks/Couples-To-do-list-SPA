@@ -17,6 +17,8 @@ import type {
 import { generateUuid } from '../../utils';
 import { printDocument } from '../../utils/printDocument';
 import { MeetingEntryList } from './MeetingEntryList';
+import { registerDraftFlusher } from '../../utils/draftPersistence';
+import { storage } from '../../utils';
 
 const moods: MeetingMood[] = ['🙂', '😐', '😣'];
 const energies: MeetingEnergy[] = ['low', 'medium', 'high'];
@@ -47,6 +49,40 @@ export const LifeMeetingPanel: React.FC = () => {
   const [printError, setPrintError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const draftRef = useRef(draft);
+  const dirtyRef = useRef(dirty);
+  const revision = useRef(0);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
+  const saveRef = useRef<() => Promise<void>>(async () => {});
+  draftRef.current = draft;
+  dirtyRef.current = dirty;
+  const backupKey = `couples-meeting-draft:${user?.householdId || 'local'}:${user?.id || 'guest'}`;
+
+  useEffect(() => {
+    const pending = storage.get<LifeMeeting>(backupKey);
+    if (pending && user && !draftRef.current) {
+      revision.current++;
+      draftRef.current = pending;
+      setDraft(pending);
+      setDirty(true);
+    }
+  }, [backupKey, user?.id]);
+
+  useEffect(() => {
+    if (!draft || !dirty) return;
+    const timer = window.setTimeout(() => { void saveRef.current().catch(() => {}); }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [draft, dirty]);
+
+  useEffect(() => registerDraftFlusher(() => dirtyRef.current ? saveRef.current() : undefined), []);
+  useEffect(() => {
+    const retry = () => { if (dirtyRef.current) void saveRef.current().catch(() => {}); };
+    const retryTimer = window.setInterval(retry, 15000);
+    window.addEventListener('online', retry);
+    window.addEventListener('focus', retry);
+    return () => { window.clearInterval(retryTimer); window.removeEventListener('online', retry); window.removeEventListener('focus', retry); };
+  }, []);
+
 
   useEffect(() => {
     if (!draft && meetings[0]) setDraft(meetings[0]);
@@ -65,7 +101,13 @@ export const LifeMeetingPanel: React.FC = () => {
   }, [draft, user]);
 
   const updateDraft = (updates: Partial<LifeMeeting>) => {
-    setDraft(current => current ? { ...current, ...updates } : current);
+    const current = draftRef.current;
+    if (!current) return;
+    const next = { ...current, ...updates };
+    draftRef.current = next;
+    revision.current++;
+    storage.set(backupKey, next);
+    setDraft(next);
     setDirty(true);
     setSavedFlash(false);
   };
@@ -81,8 +123,12 @@ export const LifeMeetingPanel: React.FC = () => {
   };
 
   const startMeeting = () => {
+    if (dirtyRef.current) void saveRef.current().catch(() => {});
     const meeting = createMeeting();
     if (!meeting) return;
+    revision.current++;
+    draftRef.current = meeting;
+    storage.set(backupKey, meeting);
     setDraft(meeting);
     setDirty(true);
     setIsOpen(true);
@@ -91,6 +137,9 @@ export const LifeMeetingPanel: React.FC = () => {
   const selectMeeting = (id: string) => {
     const selected = meetings.find(meeting => meeting.id === id);
     if (!selected) return;
+    if (dirtyRef.current) void saveRef.current().catch(() => {});
+    revision.current++;
+    draftRef.current = selected;
     setDraft(selected);
     setDirty(false);
     setSavedFlash(false);
@@ -118,24 +167,32 @@ export const LifeMeetingPanel: React.FC = () => {
     }
   };
 
-  const save = async (nextDraft = draft) => {
-    if (!nextDraft) return;
-    setSaving(true);
-    try {
-      const saved = await saveMeeting({
-        ...nextDraft,
-        gratitude: nextDraft.gratitude.filter(entry => entry.text.trim()),
-        agenda: nextDraft.agenda.filter(entry => entry.text.trim()),
-        decisions: nextDraft.decisions.filter(entry => entry.text.trim()),
-      });
-      setDraft(saved);
-      setDirty(false);
-      setSavedFlash(true);
-      window.setTimeout(() => setSavedFlash(false), 1600);
-    } finally {
-      setSaving(false);
-    }
+  const save = (nextDraft = draftRef.current): Promise<void> => {
+    if (!nextDraft) return Promise.resolve();
+    const savedRevision = revision.current;
+    const operation = saveQueue.current.then(async () => {
+      setSaving(true);
+      setActionError(null);
+      try {
+        const saved = await saveMeeting(nextDraft);
+        // Saving an older snapshot must not replace text entered during the request.
+        if (draftRef.current?.id === nextDraft.id && revision.current === savedRevision) {
+          draftRef.current = saved;
+          setDraft(saved);
+          setDirty(false);
+          storage.remove(backupKey);
+        }
+        setSavedFlash(true);
+        window.setTimeout(() => setSavedFlash(false), 1600);
+      } catch (error) {
+        setActionError(`Meeting changes are pending: ${(error as Error).message}`);
+        throw error;
+      } finally { setSaving(false); }
+    });
+    saveQueue.current = operation.catch(() => {});
+    return operation;
   };
+  saveRef.current = () => save(draftRef.current);
 
   const addActionItem = () => {
     if (!draft) return;
@@ -179,6 +236,9 @@ export const LifeMeetingPanel: React.FC = () => {
           ? { ...action, convertedAt: new Date().toISOString() }
           : action),
       };
+      revision.current++;
+      draftRef.current = updated;
+      storage.set(backupKey, updated);
       setDraft(updated);
       setDirty(true);
       await save(updated);
@@ -196,6 +256,9 @@ export const LifeMeetingPanel: React.FC = () => {
     const existing = draft.actionItems.find(item => item.id === id);
     const item = existing ?? { id, title: entry.text.trim(), assignment: 'both' as const, priority: 'B2' as const };
     const updated = existing ? draft : { ...draft, actionItems: [...draft.actionItems, item] };
+    revision.current++;
+    draftRef.current = updated;
+    storage.set(backupKey, updated);
     setDraft(updated);
     setDirty(true);
     setSavedFlash(false);
@@ -205,7 +268,8 @@ export const LifeMeetingPanel: React.FC = () => {
   if (!user) return null;
 
   return (
-    <section className="neon-hype-panel rainbow-crunch-border" data-testid="life-meeting-panel">
+    <section className="neon-hype-panel rainbow-crunch-border" data-testid="life-meeting-panel"
+      onBlurCapture={() => { if (dirtyRef.current) void saveRef.current().catch(() => {}); }}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <button
           type="button"
@@ -331,7 +395,6 @@ export const LifeMeetingPanel: React.FC = () => {
                   <MeetingEntryList key={`${draft.id}-${key}`}
                     label={label} entries={draft[key]} authorId={user.id}
                     onChange={entries => updateDraft({ [key]: entries })}
-                    disabled={saving}
                     onAction={key === 'gratitude' ? undefined : (entry, makeTask) => void sendEntryToAction(key, entry, makeTask)}
                     actionState={key === 'gratitude' ? undefined : entry => {
                       const action = draft.actionItems.find(item => item.id === entryActionId(key, entry));
@@ -374,8 +437,9 @@ export const LifeMeetingPanel: React.FC = () => {
                 <textarea className="neon-textarea mt-1" rows={5} value={draft.notes} onChange={event => updateDraft({ notes: event.target.value })} />
               </label>
 
+              <p className="text-[11px] text-slate-400">{saving ? 'Saving meeting…' : dirty ? 'Changes are saved automatically after you finish typing.' : 'Autosave on'}</p>
               <div className="flex items-center justify-end gap-3 flex-wrap">
-                {savedFlash && <span className="text-xs text-emerald-300">Saved and synced.</span>}
+                {savedFlash && <span className="text-xs text-emerald-300">{remoteEnabled ? "Meeting saved to database." : "Meeting saved on this device."}</span>}
                 <button type="button" className="neon-action-button" data-size="sm" disabled={printing} onClick={() => void printMeeting()} data-testid="print-life-meeting">
                   <Printer className="h-4 w-4" /> Print / Export
                 </button>

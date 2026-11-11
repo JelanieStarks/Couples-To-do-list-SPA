@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { screen, fireEvent, render } from '@testing-library/react';
+import { screen, fireEvent, render, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TaskItem } from '../../tasks/TaskItem';
 import { useTask } from '../../../contexts/TaskContext';
@@ -140,4 +140,15 @@ describe('TaskItem', () => {
     // We at least assert the button is no longer present (scheduledDate moved to tomorrow)
     expect(screen.queryByTestId('snooze-btn')).toBeNull();
   });
+  it('autosaves an edited title after typing pauses', async () => {
+    renderLiveTask();
+    await screen.findByText(/original title/i);
+    fireEvent.click(screen.getByTitle(/edit task/i));
+    fireEvent.change(screen.getByPlaceholderText(/task title/i), { target: { value: 'Autosaved title' } });
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('couples-todo-tasks') || '[]')[0]?.title).toBe('Autosaved title'), { timeout: 2500 });
+    fireEvent.click(screen.getByText(/cancel/i));
+    await screen.findByText('Original Title');
+  });
+
 });
+

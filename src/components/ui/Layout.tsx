@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LogOut, Users, Menu } from 'lucide-react';
 import { SideDrawer } from './SideDrawer';
 import { useTask } from '../../contexts/TaskContext';
+import appLogo from '../../assets/HeartICON.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,7 +12,7 @@ interface LayoutProps {
 // 🏠 Main Layout - Your digital home base with style
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout, magicLinkNotice } = useAuth();
-  const { syncNow, peerSync } = useTask();
+  const { saveAndSync, peerSync, supabaseStatus } = useTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const mainRef = useRef<HTMLDivElement | null>(null);
@@ -37,12 +38,25 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const toggleDrawer = () => setDrawerOpen(o => !o);
-  const [syncFlash, setSyncFlash] = useState<'idle' | 'ok'>('idle');
-  const handleSync = () => {
-    syncNow();
-    setSyncFlash('ok');
-    setTimeout(() => setSyncFlash('idle'), 1000);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [syncOk, setSyncOk] = useState(false);
+  const handleSync = async () => {
+    if (syncBusy) return;
+    setSyncBusy(true);
+    setSyncMessage('Saving and receiving partner changes…');
+    try {
+      const result = await saveAndSync();
+      setSyncOk(Boolean(result.ok));
+      setSyncMessage(result.message + (result.cloud && result.ok ? ` ${result.count} tasks confirmed.` : ''));
+    } catch (error) {
+      setSyncOk(false);
+      setSyncMessage((error as Error).message);
+    } finally { setSyncBusy(false); }
   };
+  const cloudMessage = supabaseStatus.phase === 'saving' ? 'Saving to database…'
+    : supabaseStatus.lastError ? `Changes pending: ${supabaseStatus.lastError}`
+    : supabaseStatus.lastSavedAt ? `Saved to database · ${supabaseStatus.taskCount ?? 0} tasks · ${new Date(supabaseStatus.lastSavedAt).toLocaleTimeString()}` : '';
 
   const hasPartnerLink = Boolean(partner);
   const isPeerConnected = peerSync.status.state === 'connected';
@@ -86,6 +100,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="flex justify-between items-start gap-3 sm:items-center h-auto sm:h-16 pt-2">
             {/* Left: App identity (hamburger moved to absolute rail) */}
             <div className="flex items-center space-x-3" data-tag="header-left">
+              <img src={appLogo} alt="" className="hidden sm:block h-12 w-12 rounded-xl" />
               <div className="hidden sm:block">
                 <h1 className="text-xl font-bold text-slate-100 tracking-wide">
                   Couples To-Do
@@ -120,13 +135,21 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     >Copy</button>
                     <button
                       type="button"
-                      onClick={handleSync}
-                      className={`px-2 py-[2px] rounded border transition ${syncFlash === 'ok' ? 'border-emerald-500 text-emerald-300' : 'border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white'}`}
+                      onClick={() => void handleSync()}
+                      disabled={syncBusy}
+                      className={`px-2 py-[2px] rounded border transition ${syncOk ? 'border-emerald-500 text-emerald-300' : 'border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white'}`}
                       title="Sync now"
                       data-testid="sync-now"
-                    >Sync</button>
+                    >{syncBusy ? 'Syncing…' : 'Sync'}</button>
+                    <button type="button" onClick={() => void handleSync()} disabled={syncBusy}
+                      className="px-2 py-[2px] rounded border border-emerald-700 text-emerald-200 hover:border-emerald-400 transition disabled:opacity-50"
+                      title="Save a device backup, post changes to the database, and receive your partner's changes"
+                      data-testid="save-and-sync">Save &amp; Sync</button>
                     {copied && <span className="text-emerald-400">Copied!</span>}
                   </p>
+                  <div role="status" aria-live="polite" className={`mt-1 max-w-md text-[11px] ${supabaseStatus.lastError || (!syncOk && syncMessage && !syncBusy) ? 'text-amber-300' : 'text-slate-400'}`}>
+                    {syncBusy || (!syncOk && syncMessage) ? syncMessage : cloudMessage || syncMessage}
+                  </div>
                 </div>
                 <button
                   onClick={logout}
@@ -193,3 +216,4 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     </div>
   );
 };
+

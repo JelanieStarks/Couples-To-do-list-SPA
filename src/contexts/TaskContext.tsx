@@ -5,6 +5,7 @@ import { getSyncBaseUrl, deriveRoomId, getLanSignalUrl } from '../config';
 import { ServerSync } from '../sync/ServerSync';
 import { syncTasksWithGoogle } from '../sync/googleSync';
 import { SupabaseSync } from '../sync/supabaseSync';
+import { flushDrafts } from '../utils/draftPersistence';
 import {
   TaskDoc,
   TASK_DOC_REMOTE_ORIGIN,
@@ -50,7 +51,12 @@ interface PeerSyncApi {
   resetError: () => void;
 }
 
+export interface SyncResult { ok: boolean; cloud: boolean; message: string; count: number; }
+
 interface SupabaseStatus {
+  phase?: 'idle' | 'saving' | 'saved' | 'error';
+  lastSavedAt?: string;
+  taskCount?: number;
   enabled: boolean;
   hasClient: boolean;
   householdId: string | null;
@@ -92,7 +98,8 @@ interface TaskContextType {
   moveTaskToDate: (taskId: string, date: string) => void;
   copyTaskToDate: (taskId: string, date: string) => string | null;
   reorderTasksWithinPriority: (priorityPrefix: string, orderedIds: string[]) => void;
-  syncNow: () => void;
+  syncNow: () => Promise<SyncResult>;
+  saveAndSync: () => Promise<SyncResult>;
   peerSync: PeerSyncApi;
   supabaseStatus: SupabaseStatus;
 }
@@ -140,7 +147,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
   const supabase = React.useMemo(() => getSupabaseClient(), []);
   const supabaseSyncEnabled = React.useMemo(() => isSupabaseSyncEnabled(), []);
   const supabaseDbSyncRef = React.useRef<SupabaseSync | null>(null);
-  const requestCloudSyncRef = React.useRef<(() => Promise<void>) | null>(null);
+  const requestCloudSyncRef = React.useRef<(() => Promise<SyncResult>) | null>(null);
   const lastSupabaseDbFingerprintRef = React.useRef<string>('');
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseStatus>(() => ({
     enabled: supabaseSyncEnabled,
@@ -276,32 +283,38 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     supabaseDbSyncRef.current = sync;
     let cancelled = false;
     let requested = false;
-    let inFlight: Promise<void> | null = null;
+    let inFlight: Promise<SyncResult> | null = null;
 
-    const synchronize = (): Promise<void> => {
+    const synchronize = (): Promise<SyncResult> => {
       requested = true;
       if (inFlight) return inFlight;
-      inFlight = (async () => {
+      inFlight = (async (): Promise<SyncResult> => {
+        let result: SyncResult = { ok: false, cloud: true, message: 'Cloud sync interrupted.', count: 0 };
+        setSupabaseStatus(prev => ({ ...prev, phase: 'saving', lastError: undefined }));
         do {
           requested = false;
           try {
             // Receive partner changes even if a pending upload later fails.
             const remote = await sync.fetchTasks();
-            if (cancelled) return;
+            if (cancelled) return result;
             taskDoc.mergeExternal(remote);
             const snapshot = taskDoc.getTasks();
             const merged = await sync.mergeAndUpload(snapshot);
-            if (cancelled) return;
+            if (cancelled) return result;
             // A newer edit during the request must remain pending.
             lastSupabaseDbFingerprintRef.current = fingerprintTasks(merged);
             taskDoc.mergeExternal(merged);
             lastSnapshotsRef.current.supabase = fingerprintTasks(merged);
-            setSupabaseStatus(prev => ({ ...prev, lastDbUpsertAt: new Date().toISOString(), lastError: undefined }));
+            const now = new Date().toISOString();
+            result = { ok: true, cloud: true, message: 'Saved to database and partner changes received.', count: merged.length };
+            setSupabaseStatus(prev => ({ ...prev, phase: 'saved', lastSavedAt: now, taskCount: merged.length, lastDbUpsertAt: now, lastError: undefined }));
           } catch (error) {
-            if (!cancelled) setSupabaseStatus(prev => ({ ...prev, lastError: (error as Error).message }));
-            return;
+            const message = (error as Error).message;
+            if (!cancelled) setSupabaseStatus(prev => ({ ...prev, phase: 'error', lastError: message }));
+            return { ok: false, cloud: true, message, count: taskDoc.getTasks().length };
           }
         } while (requested && !cancelled);
+        return result;
       })().finally(() => { inFlight = null; });
       return inFlight;
     };
@@ -701,40 +714,46 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     setLanState(prev => ({ ...prev, lastError: undefined }));
   }, []);
 
-  const syncNow = async () => {
+  const saveLocalBackup = () => {
+    const snapshot = taskDocRef.current?.getTasks() ?? [];
+    const key = `${STORAGE_KEYS.TASKS}-backup:${householdId || 'local'}:${user?.id || 'guest'}`;
+    const data = JSON.stringify({ savedAt: new Date().toISOString(), tasks: snapshot });
+    const previous = localStorage.getItem(key);
+    if (previous) localStorage.setItem(`${key}:previous`, previous);
+    localStorage.setItem(key, data);
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(snapshot));
+  };
+
+  const syncNow = async (): Promise<SyncResult> => {
     const taskDoc = taskDocRef.current;
-    if (!taskDoc) return;
-
+    if (!taskDoc) return { ok: false, cloud: false, message: 'The task list is still loading.', count: 0 };
     await requestMagicLinkForSync();
-
-    if (supabaseSyncEnabled && requestCloudSyncRef.current) {
-      await requestCloudSyncRef.current();
-    } else if (serverSyncRef.current) {
-      const remote = await serverSyncRef.current.fetchTasks();
-      const incoming = fingerprintTasks(remote);
-      if (incoming !== lastSnapshotsRef.current.server) {
-        taskDoc.mergeExternal(remote);
-        lastSnapshotsRef.current.server = fingerprintTasks(taskDoc.getTasks());
-      }
-    } else if (typeof window !== 'undefined') {
-      const savedTasks = storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? [];
-      const incoming = fingerprintTasks(savedTasks);
-      if (incoming !== lastSnapshotsRef.current.storage) {
-        taskDoc.mergeExternal(savedTasks);
-        lastSnapshotsRef.current.storage = fingerprintTasks(taskDoc.getTasks());
-      }
+    if (supabaseSyncEnabled) {
+      if (requestCloudSyncRef.current) return requestCloudSyncRef.current();
+      return { ok: false, cloud: true, message: 'Cloud sync is not connected. Check your sign-in and household in Settings.', count: taskDoc.getTasks().length };
     }
-
-    const settings = (typeof window !== 'undefined' ? storage.get<any>(STORAGE_KEYS.SETTINGS) : null) || {};
-    const googleSettings = settings.googleCalendar || {};
-    if (googleSettings.syncEnabled && googleSettings.connectStatus === 'ready') {
-      await syncTasksWithGoogle(taskDoc.getTasks(), {
-        syncEnabled: googleSettings.syncEnabled,
-        connectStatus: googleSettings.connectStatus,
-        accountEmail: googleSettings.accountEmail,
-        userId: user?.id,
-      });
+    if (serverSyncRef.current) {
+      try {
+        taskDoc.mergeExternal(await serverSyncRef.current.fetchTasks());
+        return { ok: true, cloud: false, message: 'Saved locally and refreshed the connected sync server.', count: taskDoc.getTasks().length };
+      } catch (error) { return { ok: false, cloud: false, message: (error as Error).message, count: taskDoc.getTasks().length }; }
     }
+    taskDoc.mergeExternal(storage.get<Task[]>(STORAGE_KEYS.TASKS) ?? []);
+    return { ok: true, cloud: false, message: 'Saved on this device. Cloud sync is not configured.', count: taskDoc.getTasks().length };
+  };
+
+  const saveAndSync = async (): Promise<SyncResult> => {
+    let warning = '';
+    try { await flushDrafts(); } catch (error) { warning = `A draft is still pending: ${(error as Error).message}`; }
+    try { saveLocalBackup(); } catch { warning += ' The device backup could not be written.'; }
+    const result = await syncNow();
+    if (warning) return { ...result, ok: false, message: `${warning} ${result.message}` };
+    const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
+    if (settings.googleCalendar?.syncEnabled && settings.googleCalendar?.connectStatus === 'ready') {
+      try { await syncTasksWithGoogle(taskDocRef.current?.getTasks() ?? [], { ...settings.googleCalendar, userId: user?.id }); }
+      catch (error) { return { ...result, ok: false, message: `${result.message} Calendar sync: ${(error as Error).message}` }; }
+    }
+    return result;
   };
 
   const createTask = (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'completedAt' | 'deletedAt'>, id?: string): void => {
@@ -1061,6 +1080,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     copyTaskToDate,
     reorderTasksWithinPriority,
     syncNow,
+    saveAndSync,
     peerSync: peerSyncApi,
     supabaseStatus,
   };

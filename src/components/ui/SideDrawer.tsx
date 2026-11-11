@@ -15,8 +15,7 @@ import { SyncPanel } from '../sync/SyncPanel';
 import { AIImport } from '../tasks/AIImport';
 import { STORAGE_KEYS, storage } from '../../utils';
 import { emitSettingsEvent } from '../../utils/settings';
-import { checkForUpdates } from '../../utils/updates';
-import pkg from '../../../package.json';
+import { AppUpdatesPanel } from './AppUpdatesPanel';
 
 const readSettings = () => {
   try {
@@ -36,8 +35,8 @@ interface SideDrawerProps {
 
 // 🛠 Side Drawer - Archive & Deleted Tasks Management
 export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant = 'drawer', onGoToSection }) => {
-  const { getCompletedTasks, getDeletedTasks, restoreTask, hardDeleteTask, toggleTaskComplete } = useTask() as any;
-  const { authMode, authError, authNotice, changePassword, clearAuthFeedback } = useAuth();
+  const { getCompletedTasks, getDeletedTasks, restoreTask, hardDeleteTask, toggleTaskComplete, saveAndSync, supabaseStatus } = useTask() as any;
+  const { user, partner, authMode, authError, authNotice, changePassword, clearAuthFeedback } = useAuth();
   const completed = getCompletedTasks()
     .slice()
     .sort((a:any,b:any) => {
@@ -54,6 +53,14 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
       if (b.deletedAt) return 1;
       return 0;
     });
+  const [saveReceipt, setSaveReceipt] = useState('');
+  const [savingCloud, setSavingCloud] = useState(false);
+  const saveCloud = async () => {
+    setSavingCloud(true);
+    try { const result = await saveAndSync(); setSaveReceipt(result.message); }
+    catch (error) { setSaveReceipt((error as Error).message); }
+    finally { setSavingCloud(false); }
+  };
   const [showCompleted, setShowCompleted] = useState(true);
   const [showDeleted, setShowDeleted] = useState(true);
 
@@ -125,109 +132,6 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
       setIsChangingPassword(false);
     }
   }, [changePassword, clearAuthFeedback, isChangingPassword, newPassword, passwordConfirmation]);
-
-  const [updateStatus, setUpdateStatus] = useState<{
-    loading: boolean;
-    error?: string;
-    latestTag?: string;
-    releaseUrl?: string;
-    windowsExeUrl?: string;
-    androidApkUrl?: string;
-    isNewer?: boolean;
-  }>({ loading: false });
-
-  const [windowsUpdateState, setWindowsUpdateState] = useState<{ state: 'idle' | 'checking' | 'downloading' | 'downloaded' | 'error'; percent?: number; message?: string }>({ state: 'idle' });
-  const [apkUpdateState, setApkUpdateState] = useState<{ state: 'idle' | 'downloading' | 'downloaded' | 'error'; percent?: number; message?: string }>({ state: 'idle' });
-
-  const appUpdates = typeof window !== 'undefined' ? window.appUpdates : undefined;
-  const isElectron = Boolean(appUpdates);
-
-  useEffect(() => {
-    if (!appUpdates) return;
-    appUpdates.onStatus((payload) => {
-      if (payload.state === 'available') {
-        setWindowsUpdateState(prev => ({ ...prev, state: 'idle' }));
-      }
-      if (payload.state === 'downloaded') {
-        setWindowsUpdateState(prev => ({ ...prev, state: 'downloaded' }));
-      }
-      if (payload.state === 'error') {
-        setWindowsUpdateState({ state: 'error', message: payload.message });
-      }
-    });
-    appUpdates.onProgress((payload) => {
-      setWindowsUpdateState(prev => ({ ...prev, state: 'downloading', percent: payload.percent }));
-    });
-    return () => {
-      appUpdates.clearListeners();
-    };
-  }, [appUpdates]);
-
-  const doCheckUpdates = useCallback(async () => {
-    try {
-      setUpdateStatus({ loading: true });
-      if (appUpdates) {
-        setWindowsUpdateState({ state: 'checking' });
-        await appUpdates.check();
-      }
-      const info = await checkForUpdates(pkg.version);
-      setUpdateStatus({ loading: false, ...info });
-    } catch (e: any) {
-      setUpdateStatus({ loading: false, error: e?.message || 'Failed to check updates' });
-    }
-  }, [appUpdates]);
-
-  const downloadWindowsUpdate = useCallback(async () => {
-    if (!appUpdates) return;
-    setWindowsUpdateState({ state: 'downloading', percent: 0 });
-    const result = await appUpdates.download();
-    if (!result?.ok) {
-      setWindowsUpdateState({ state: 'error', message: result?.message || 'Failed to download update' });
-    }
-  }, [appUpdates]);
-
-  const installWindowsUpdate = useCallback(async () => {
-    if (!appUpdates) return;
-    await appUpdates.install();
-  }, [appUpdates]);
-
-  const downloadApkWithProgress = useCallback(async (url: string) => {
-    try {
-      setApkUpdateState({ state: 'downloading', percent: 0 });
-      const response = await fetch(url);
-      if (!response.ok || !response.body) {
-        window.location.href = url;
-        setApkUpdateState({ state: 'downloaded' });
-        return;
-      }
-      const reader = response.body.getReader();
-      const contentLength = Number(response.headers.get('content-length') || 0);
-      let received = 0;
-      const chunks: Uint8Array[] = [];
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          chunks.push(value);
-          received += value.length;
-          if (contentLength) {
-            setApkUpdateState({ state: 'downloading', percent: Math.round((received / contentLength) * 100) });
-          }
-        }
-      }
-      const blobParts = chunks.map(chunk => chunk.slice().buffer as ArrayBuffer);
-      const blob = new Blob(blobParts, { type: 'application/vnd.android.package-archive' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'couples-todo-latest.apk';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setApkUpdateState({ state: 'downloaded' });
-    } catch (error: any) {
-      setApkUpdateState({ state: 'error', message: error?.message || 'Failed to download APK' });
-    }
-  }, []);
 
   type NavItem = {
     icon: LucideIcon;
@@ -481,91 +385,7 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
                   </div>
                 </div>
 
-                <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">Updates</div>
-                      <div className="text-[10px] text-slate-500">Current version: {pkg.version}</div>
-                    </div>
-                    <div className="btn-row">
-                      <button
-                        className="neon-action-button"
-                        data-size="sm"
-                        onClick={doCheckUpdates}
-                        disabled={updateStatus.loading}
-                        data-testid="drawer-check-updates"
-                      >
-                        {updateStatus.loading ? 'Checking…' : 'Check for Updates'}
-                      </button>
-                    </div>
-                  </div>
-                  {updateStatus.error && (
-                    <div className="text-[11px] text-rose-300">{updateStatus.error}</div>
-                  )}
-                  {!updateStatus.error && updateStatus.latestTag && (
-                    <div className="text-[11px] text-slate-300 space-y-2">
-                      <div>
-                        Latest: <span className="font-semibold">{updateStatus.latestTag}</span>
-                        {typeof updateStatus.isNewer !== 'undefined' && (
-                          <span className={`ml-1 ${updateStatus.isNewer ? 'text-emerald-300 font-medium' : 'text-slate-400'}`}>
-                            {updateStatus.isNewer ? '(Newer available)' : '(Up to date)'}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {updateStatus.windowsExeUrl && (
-                          isElectron ? (
-                            <button
-                              className="neon-action-button"
-                              data-size="sm"
-                              onClick={windowsUpdateState.state === 'downloaded' ? installWindowsUpdate : downloadWindowsUpdate}
-                              disabled={windowsUpdateState.state === 'checking' || windowsUpdateState.state === 'downloading'}
-                              data-testid="drawer-windows-update"
-                            >
-                              {windowsUpdateState.state === 'downloaded' ? 'Install Update' : 'Download & Install'}
-                            </button>
-                          ) : (
-                            <a className="neon-action-button" data-size="sm" href={updateStatus.windowsExeUrl} target="_blank" rel="noreferrer">
-                              Download Windows (.exe)
-                            </a>
-                          )
-                        )}
-                        {updateStatus.androidApkUrl && (
-                          <button
-                            className="neon-action-button"
-                            data-variant="outline"
-                            data-size="sm"
-                            onClick={() => downloadApkWithProgress(updateStatus.androidApkUrl!)}
-                            disabled={apkUpdateState.state === 'downloading'}
-                            data-testid="drawer-android-update"
-                          >
-                            {apkUpdateState.state === 'downloaded' ? 'APK Ready' : 'Download APK'}
-                          </button>
-                        )}
-                        {updateStatus.releaseUrl && !updateStatus.windowsExeUrl && !updateStatus.androidApkUrl && (
-                          <a className="neon-action-button" data-variant="soft" data-size="sm" href={updateStatus.releaseUrl} target="_blank" rel="noreferrer">
-                            View Release
-                          </a>
-                        )}
-                      </div>
-                      {(windowsUpdateState.state === 'downloading' || apkUpdateState.state === 'downloading') && (
-                        <div className="text-[10px] text-slate-400">
-                          {windowsUpdateState.state === 'downloading' && (
-                            <span>Windows update: {Math.round(windowsUpdateState.percent || 0)}%</span>
-                          )}
-                          {apkUpdateState.state === 'downloading' && (
-                            <span className="ml-2">APK download: {Math.round(apkUpdateState.percent || 0)}%</span>
-                          )}
-                        </div>
-                      )}
-                      {(windowsUpdateState.state === 'error' || apkUpdateState.state === 'error') && (
-                        <div className="text-[10px] text-rose-300">
-                          {windowsUpdateState.message || apkUpdateState.message}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <AppUpdatesPanel />
 
                 <div className="neon-hype-panel rainbow-crunch-border p-4 space-y-3">
                   <div>
@@ -745,3 +565,4 @@ export const SideDrawer: React.FC<SideDrawerProps> = ({ open, onClose, variant =
   if (!portalTarget) return content;
   return createPortal(content, portalTarget);
 };
+

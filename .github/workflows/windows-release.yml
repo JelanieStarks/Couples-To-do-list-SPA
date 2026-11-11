@@ -70,4 +70,4 @@ jobs:
           gh release create "$tag" release/*.exe release/*.exe.blockmap release/latest.yml \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "Couples 2Do Windows Beta ${version}" --prerelease --latest=false \
-            --notes "Download the Setup EXE below and open it. One-click setup installs for your account, creates shortcuts, and opens Couples 2Do. Includes editable Life Meeting bullets, task shortcuts, and two-way sync fixes. The packaged app passed its automated startup check; couple sync and printing still need hands-on beta testing."
+            --notes "Download the Setup EXE below and open it. One-click setup installs for your account, creates shortcuts, and opens Couples 2Do. Includes autosave, verified Save & Sync with local backups, and native in-app update controls. The packaged app passed its automated startup check; couple sync and printing still need hands-on beta testing."

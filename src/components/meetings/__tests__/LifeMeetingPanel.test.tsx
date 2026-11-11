@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import type { LifeMeeting } from '../../../types';
 import { LifeMeetingPanel } from '../LifeMeetingPanel';
+import { flushDrafts } from '../../../utils/draftPersistence';
 
 const mocks = vi.hoisted(() => ({ createTask: vi.fn(), saveMeeting: vi.fn(), createMeeting: vi.fn(), tasks: [] as any[] }));
 vi.mock('../../../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'wife', name: 'Partner', color: '#123' }, partner: { id: 'husband', color: '#456' } }) }));
@@ -15,7 +16,7 @@ const openMeeting = async () => { render(<LifeMeetingPanel />); await userEvent.
 
 describe('Life Meeting bullet editing and tasks', () => {
   beforeEach(() => {
-    vi.clearAllMocks(); mocks.tasks = [];
+    vi.clearAllMocks(); localStorage.clear(); mocks.tasks = [];
     mocks.createMeeting.mockImplementation(meeting);
     mocks.saveMeeting.mockImplementation(async value => ({ ...value, updatedAt: '2026-11-10T13:00:00Z' }));
   });
@@ -33,7 +34,7 @@ describe('Life Meeting bullet editing and tasks', () => {
     }
     await userEvent.click(screen.getByRole('button', { name: /Save meeting/ }));
     await waitFor(() => expect(mocks.saveMeeting).toHaveBeenCalled());
-    for (const section of ['gratitude', 'agenda', 'decisions']) expect(mocks.saveMeeting.mock.calls[0][0][section].map((entry: any) => entry.text)).toEqual(['A full sentence, with spaces.', 'Another point']);
+    for (const section of ['gratitude', 'agenda', 'decisions']) expect(mocks.saveMeeting.mock.calls.at(-1)![0][section].map((entry: any) => entry.text)).toEqual(['A full sentence, with spaces.', 'Another point']);
   });
 
   it('sends a discussion bullet to action items and creates exactly one planner task', async () => {
@@ -51,7 +52,11 @@ describe('Life Meeting bullet editing and tasks', () => {
   });
 
   it('turns a decision directly into a task and reports a meeting save failure without duplicating it', async () => {
-    mocks.saveMeeting.mockRejectedValueOnce(new Error('Connection interrupted'));
+    let failConversion = true;
+    mocks.saveMeeting.mockImplementation(async value => {
+      if (value.actionItems.some((item: any) => item.convertedAt) && failConversion) { failConversion = false; throw new Error('Connection interrupted'); }
+      return { ...value, updatedAt: '2026-11-10T13:00:00Z' };
+    });
     await openMeeting();
     await userEvent.type(screen.getByRole('textbox', { name: 'What we decided item 1' }), 'Plan our budget');
     const region = screen.getByRole('region', { name: 'What we decided' });
@@ -59,7 +64,17 @@ describe('Life Meeting bullet editing and tasks', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Connection interrupted');
     expect(mocks.createTask).toHaveBeenCalledTimes(1);
     await userEvent.click(screen.getByRole('button', { name: 'Save meeting' }));
-    await waitFor(() => expect(mocks.saveMeeting).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mocks.saveMeeting.mock.calls.at(-1)![0].actionItems[0].convertedAt).toBeTruthy());
     expect(mocks.createTask).toHaveBeenCalledTimes(1);
   });
+  it('autosaves after typing pauses and flushes an unfinished field through the global save action', async () => {
+    await openMeeting();
+    const field = screen.getByRole('textbox', { name: 'What I am thankful for item 1' });
+    fireEvent.change(field, { target: { value: 'A complete thought with spaces' } });
+    await waitFor(() => expect(mocks.saveMeeting).toHaveBeenCalledWith(expect.objectContaining({ gratitude: [expect.objectContaining({ text: 'A complete thought with spaces' })] })), { timeout: 2500 });
+    fireEvent.change(field, { target: { value: 'More text before leaving the field' } });
+    await flushDrafts();
+    expect(mocks.saveMeeting.mock.calls.at(-1)![0].gratitude[0].text).toBe('More text before leaving the field');
+  });
+
 });

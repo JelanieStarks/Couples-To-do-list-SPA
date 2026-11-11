@@ -3,13 +3,14 @@
  * Renders a single task card with completion controls, edit form, and optional modal editor.
  * Operates in compact and full modes so calendar and lists share the same component.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTask } from '../../contexts/TaskContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Check, Edit, Trash2, Calendar, User, Users, Clock, AlarmClockCheck, Copy, MoveRight } from 'lucide-react';
 import type { Task, Priority, Assignment, TaskUrgency } from '../../types';
 import { formatDate, toLocalDateString } from '../../utils';
+import { registerDraftFlusher } from '../../utils/draftPersistence';
 
 interface TaskItemProps {
   task: Task;
@@ -40,8 +41,8 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   const priorityOptions = useMemo<Priority[]>(() => ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D'], []);
 
   useEffect(() => {
-    setEditData(baseEditState);
-  }, [baseEditState]);
+    if (!isEditing) setEditData(baseEditState);
+  }, [baseEditState, isEditing]);
 
   useEffect(() => {
     if (!editInModal || !isEditing) return;
@@ -88,25 +89,54 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
     return 'D';
   };
 
+  const editRef = useRef(editData);
+  const editingRef = useRef(isEditing);
+  const updateRef = useRef(updateTask);
+  const originalEdit = useRef(baseEditState);
+  const lastEdit = useRef(JSON.stringify(baseEditState));
+  const autoSaved = useRef(false);
+  const flushEdit = useRef<() => void>(() => {});
+  editRef.current = editData;
+  editingRef.current = isEditing;
+  updateRef.current = updateTask;
+
+  const editUpdates = (value: typeof editData) => ({
+    title: value.title.trim(), description: value.description.trim() || undefined,
+    priority: value.priority,
+    urgency: value.priority.startsWith('A') ? 'urgent' as TaskUrgency : value.priority.startsWith('B') ? 'high' as TaskUrgency : value.priority.startsWith('C') ? 'medium' as TaskUrgency : 'low' as TaskUrgency,
+    color: value.color, customColor: value.color,
+    scheduledDate: value.scheduledDate || undefined, scheduledTime: value.scheduledTime || undefined,
+  });
+  flushEdit.current = () => {
+    const value = editRef.current;
+    if (!editingRef.current || !value.title.trim() || lastEdit.current === JSON.stringify(value)) return;
+    lastEdit.current = JSON.stringify(value);
+    autoSaved.current = true;
+    updateRef.current(task.id, editUpdates(value));
+  };
+  useEffect(() => {
+    if (isEditing) { originalEdit.current = baseEditState; lastEdit.current = JSON.stringify(baseEditState); autoSaved.current = false; }
+  }, [isEditing]);
+  useEffect(() => {
+    if (!isEditing) return;
+    const timer = window.setTimeout(() => flushEdit.current(), 800);
+    return () => window.clearTimeout(timer);
+  }, [editData, isEditing]);
+  useEffect(() => {
+    const unregister = registerDraftFlusher(() => flushEdit.current());
+    const onHide = () => flushEdit.current();
+    window.addEventListener('pagehide', onHide);
+    return () => { unregister(); window.removeEventListener('pagehide', onHide); };
+  }, []);
+
   const handleSaveEdit = () => {
     if (!editData.title.trim()) return;
-
-    updateTask(task.id, {
-      title: editData.title.trim(),
-      description: editData.description.trim() || undefined,
-      priority: editData.priority,
-      urgency: editData.priority.startsWith('A') ? 'urgent' as TaskUrgency : editData.priority.startsWith('B') ? 'high' as TaskUrgency : editData.priority.startsWith('C') ? 'medium' as TaskUrgency : 'low' as TaskUrgency,
-      color: editData.color,
-      customColor: editData.color,
-      scheduledDate: editData.scheduledDate || undefined,
-      scheduledTime: editData.scheduledTime || undefined,
-    });
-
+    flushEdit.current();
     setIsEditing(false);
   };
-
   const handleCancelEdit = () => {
-    setEditData(baseEditState);
+    if (autoSaved.current) updateRef.current(task.id, editUpdates(originalEdit.current));
+    setEditData(originalEdit.current);
     setIsEditing(false);
   };
 
@@ -156,7 +186,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
   const canSave = editData.title.trim().length > 0;
 
   const renderEditFields = () => (
-    <div className="space-y-5">
+    <div onBlurCapture={() => flushEdit.current()} className="space-y-5">
       <div className="glow-field-stack">
         <label htmlFor={`edit-title-${task.id}`}>Task title</label>
         <div className="glow-ambient-orb" />
@@ -452,3 +482,4 @@ export const TaskItem: React.FC<TaskItemProps> = ({ task, showDate = false, isDr
     </>
   );
 };
+
