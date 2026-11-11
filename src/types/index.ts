@@ -1,4 +1,4 @@
-// 🎯 Task and User Types - Because type safety is like having a helpful robot assistant
+// ?? Task and User Types - Because type safety is like having a helpful robot assistant
 export interface User {
   id: string;
   name: string;
@@ -86,7 +86,7 @@ export interface Routine {
 }
 
 export type MeetingStatus = 'draft' | 'active' | 'completed';
-export type MeetingMood = '🙂' | '😐' | '😣';
+export type MeetingMood = '??' | '??' | '??';
 export type MeetingEnergy = 'low' | 'medium' | 'high';
 
 export interface MeetingCheckIn {
@@ -120,8 +120,18 @@ export interface LifeMeeting {
   agenda: MeetingEntry[];
   decisions: MeetingEntry[];
   actionItems: MeetingActionItem[];
+  goals?: MeetingGoal[];
+  syncRevision?: number;
   notes: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface MeetingGoal {
+  id: string;
+  term: 'short' | 'long';
+  title: string;
+  steps: { id: string; text: string; done: boolean }[];
+}
+

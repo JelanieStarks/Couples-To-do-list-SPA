@@ -3,12 +3,14 @@ import { CheckCircle2, ChevronDown, HeartHandshake, Plus, Printer, Save } from '
 import { useAuth } from '../../contexts/AuthContext';
 import { useTask } from '../../contexts/TaskContext';
 import { useLifeMeetings } from '../../hooks/useLifeMeetings';
+import { mergeLifeMeeting } from '../../data/mergeLifeMeeting';
 import type {
   Assignment,
   LifeMeeting,
   MeetingActionItem,
   MeetingEnergy,
   MeetingEntry,
+  MeetingGoal,
   MeetingCheckIn,
   MeetingMood,
   MeetingStatus,
@@ -17,13 +19,14 @@ import type {
 import { generateUuid } from '../../utils';
 import { printDocument } from '../../utils/printDocument';
 import { MeetingEntryList } from './MeetingEntryList';
+import { MeetingGoals } from './MeetingGoals';
 import { registerDraftFlusher } from '../../utils/draftPersistence';
 import { storage } from '../../utils';
 
-const moods: MeetingMood[] = ['🙂', '😐', '😣'];
+const moods: MeetingMood[] = ['??', '??', '??'];
 const energies: MeetingEnergy[] = ['low', 'medium', 'high'];
 
-const getMeetingTitle = (meeting: LifeMeeting) => meeting.title?.trim() || `Life Meeting · ${meeting.meetingDate}`;
+const getMeetingTitle = (meeting: LifeMeeting) => meeting.title?.trim() || `Life Meeting � ${meeting.meetingDate}`;
 
 const escapeHtml = (value: string) => value
   .replace(/&/g, '&amp;')
@@ -35,6 +38,17 @@ const escapeHtml = (value: string) => value
 const formatEntries = (entries: MeetingEntry[]) => entries.length
   ? `<ul>${entries.map(entry => `<li>${escapeHtml(entry.text)}</li>`).join('')}</ul>`
   : '<p class="muted">None recorded.</p>';
+
+const formatGoals = (goals: MeetingGoal[]) => goals.length
+  ? `<ul>${goals.map(goal => `<li><strong>${escapeHtml(goal.title)}</strong>${goal.steps.length
+    ? `<ul>${goal.steps.map(step => `<li>${step.done ? '� ' : ''}${escapeHtml(step.text)}</li>`).join('')}</ul>`
+    : ''}</li>`).join('')}</ul>`
+  : '<p class="muted">None recorded.</p>';
+
+interface DraftBackup {
+  draft: LifeMeeting;
+  base: LifeMeeting | null;
+}
 
 export const LifeMeetingPanel: React.FC = () => {
   const { user, partner } = useAuth();
@@ -50,6 +64,7 @@ export const LifeMeetingPanel: React.FC = () => {
   const [printing, setPrinting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const draftRef = useRef(draft);
+  const baseRef = useRef<LifeMeeting | null>(null);
   const dirtyRef = useRef(dirty);
   const revision = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
@@ -59,11 +74,14 @@ export const LifeMeetingPanel: React.FC = () => {
   const backupKey = `couples-meeting-draft:${user?.householdId || 'local'}:${user?.id || 'guest'}`;
 
   useEffect(() => {
-    const pending = storage.get<LifeMeeting>(backupKey);
+    const pending = storage.get<LifeMeeting | DraftBackup>(backupKey);
     if (pending && user && !draftRef.current) {
+      const recovered = 'draft' in pending ? pending : { draft: pending, base: null };
       revision.current++;
-      draftRef.current = pending;
-      setDraft(pending);
+      baseRef.current = recovered.base;
+      draftRef.current = recovered.draft;
+      dirtyRef.current = true;
+      setDraft(recovered.draft);
       setDirty(true);
     }
   }, [backupKey, user?.id]);
@@ -85,17 +103,23 @@ export const LifeMeetingPanel: React.FC = () => {
 
 
   useEffect(() => {
-    if (!draft && meetings[0]) setDraft(meetings[0]);
+    if (!draft && meetings[0]) {
+      baseRef.current = meetings[0];
+      setDraft(meetings[0]);
+    }
   }, [draft, meetings]);
 
   useEffect(() => {
     if (!draft || dirty) return;
     const refreshed = meetings.find(meeting => meeting.id === draft.id);
-    if (refreshed && refreshed.updatedAt !== draft.updatedAt) setDraft(refreshed);
+    if (refreshed && (refreshed.updatedAt !== draft.updatedAt || refreshed.syncRevision !== draft.syncRevision)) {
+      baseRef.current = refreshed;
+      setDraft(refreshed);
+    }
   }, [dirty, draft, meetings]);
 
   const myCheckIn = useMemo<MeetingCheckIn>(() => {
-    const fallback: MeetingCheckIn = { mood: '😐', energy: 'medium', supportNeed: '' };
+    const fallback: MeetingCheckIn = { mood: '??', energy: 'medium', supportNeed: '' };
     if (!user) return fallback;
     return draft?.checkIn[user.id] ?? fallback;
   }, [draft, user]);
@@ -105,8 +129,9 @@ export const LifeMeetingPanel: React.FC = () => {
     if (!current) return;
     const next = { ...current, ...updates };
     draftRef.current = next;
+    dirtyRef.current = true;
     revision.current++;
-    storage.set(backupKey, next);
+    storage.set(backupKey, { draft: next, base: baseRef.current });
     setDraft(next);
     setDirty(true);
     setSavedFlash(false);
@@ -122,23 +147,35 @@ export const LifeMeetingPanel: React.FC = () => {
     });
   };
 
-  const startMeeting = () => {
-    if (dirtyRef.current) void saveRef.current().catch(() => {});
+  const finishPendingMeeting = async () => {
+    if (!dirtyRef.current) return true;
+    try {
+      await saveRef.current();
+      return !dirtyRef.current;
+    } catch {
+      return false;
+    }
+  };
+
+  const startMeeting = async () => {
+    if (!await finishPendingMeeting()) return;
     const meeting = createMeeting();
     if (!meeting) return;
     revision.current++;
+    baseRef.current = null;
     draftRef.current = meeting;
-    storage.set(backupKey, meeting);
+    dirtyRef.current = true;
+    storage.set(backupKey, { draft: meeting, base: null });
     setDraft(meeting);
     setDirty(true);
     setIsOpen(true);
   };
 
-  const selectMeeting = (id: string) => {
+  const selectMeeting = async (id: string) => {
     const selected = meetings.find(meeting => meeting.id === id);
-    if (!selected) return;
-    if (dirtyRef.current) void saveRef.current().catch(() => {});
+    if (!selected || !await finishPendingMeeting()) return;
     revision.current++;
+    baseRef.current = selected;
     draftRef.current = selected;
     setDraft(selected);
     setDirty(false);
@@ -150,16 +187,18 @@ export const LifeMeetingPanel: React.FC = () => {
     setPrintError(null);
     setPrinting(true);
     const actionItems = draft.actionItems.length
-      ? `<ul>${draft.actionItems.map(item => `<li><strong>${escapeHtml(item.title || 'Untitled task')}</strong> · ${escapeHtml(item.assignment)} · ${escapeHtml(item.priority)}${item.convertedAt ? ' · Added to planner' : ''}</li>`).join('')}</ul>`
+      ? `<ul>${draft.actionItems.map(item => `<li><strong>${escapeHtml(item.title || 'Untitled task')}</strong> � ${escapeHtml(item.assignment)} � ${escapeHtml(item.priority)}${item.convertedAt ? ' � Added to planner' : ''}</li>`).join('')}</ul>`
       : '<p class="muted">No associated tasks.</p>';
     const checkIns = Object.entries(draft.checkIn).map(([authorId, checkIn]) => (
-      `<li><strong>${escapeHtml(authorId === user.id ? user.name : partner?.name || 'Partner')}</strong>: ${escapeHtml(checkIn.mood)} · ${escapeHtml(checkIn.energy)}${checkIn.supportNeed ? ` · ${escapeHtml(checkIn.supportNeed)}` : ''}</li>`
+      `<li><strong>${escapeHtml(authorId === user.id ? user.name : partner?.name || 'Partner')}</strong>: ${escapeHtml(checkIn.mood)} � ${escapeHtml(checkIn.energy)}${checkIn.supportNeed ? ` � ${escapeHtml(checkIn.supportNeed)}` : ''}</li>`
     )).join('');
     const html = `<!doctype html><html><head><title>${escapeHtml(getMeetingTitle(draft))}</title><style>
       :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#182235;font:15px/1.6 Georgia,serif}main{max-width:820px;margin:0 auto;background:#fff;padding:48px 56px;min-height:100vh}h1{margin:0 0 4px;font:700 32px/1.15 Georgia,serif;color:#172554}h2{margin:28px 0 8px;padding-bottom:4px;border-bottom:1px solid #dbe3ef;font:700 18px/1.3 Georgia,serif;color:#334155}.meta{color:#64748b;font:14px/1.5 Arial,sans-serif}.muted{color:#64748b;font-style:italic}ul{padding-left:24px}li{margin:4px 0}.intro{margin:24px 0;padding:14px 18px;border-left:4px solid #ec4899;background:#fdf2f8}@media print{body{background:#fff}main{max-width:none;padding:0;min-height:auto}h2{break-after:avoid}.section{break-inside:avoid}}@media(max-width:600px){main{padding:28px 22px}h1{font-size:26px}}
-    </style></head><body><main><h1>${escapeHtml(getMeetingTitle(draft))}</h1><div class="meta">${escapeHtml(draft.meetingDate)} · ${escapeHtml(draft.status)}</div><div class="intro">Life Meeting notes and next steps</div><section class="section"><h2>Check-ins</h2>${checkIns ? `<ul>${checkIns}</ul>` : '<p class="muted">None recorded.</p>'}</section><section class="section"><h2>Gratitude</h2>${formatEntries(draft.gratitude)}</section><section class="section"><h2>Agenda</h2>${formatEntries(draft.agenda)}</section><section class="section"><h2>Decisions</h2>${formatEntries(draft.decisions)}</section><section class="section"><h2>Associated Tasks</h2>${actionItems}</section><section class="section"><h2>Shared Notes</h2><p>${escapeHtml(draft.notes || 'None recorded.').replace(/\n/g, '<br>')}</p></section></main></body></html>`;
+    </style></head><body><main><h1>${escapeHtml(getMeetingTitle(draft))}</h1><div class="meta">${escapeHtml(draft.meetingDate)} � ${escapeHtml(draft.status)}</div><div class="intro">Life Meeting notes and next steps</div><section class="section"><h2>Check-ins</h2>${checkIns ? `<ul>${checkIns}</ul>` : '<p class="muted">None recorded.</p>'}</section><section class="section"><h2>Gratitude</h2>${formatEntries(draft.gratitude)}</section><section class="section"><h2>Agenda</h2>${formatEntries(draft.agenda)}</section><section class="section"><h2>Decisions</h2>${formatEntries(draft.decisions)}</section><section class="section"><h2>Associated Tasks</h2>${actionItems}</section><section class="section"><h2>Shared Notes</h2><p>${escapeHtml(draft.notes || 'None recorded.').replace(/\n/g, '<br>')}</p></section></main></body></html>`;
     try {
-      await printDocument(html);
+      const goals = draft.goals ?? [];
+      const goalSections = `<section class="section"><h2>Short-term Goals</h2>${formatGoals(goals.filter(goal => goal.term === 'short'))}</section><section class="section"><h2>Long-term Goals</h2>${formatGoals(goals.filter(goal => goal.term === 'long'))}</section>`;
+      await printDocument(html.replace('<section class="section"><h2>Shared Notes</h2>', goalSections + '<section class="section"><h2>Shared Notes</h2>'));
     } catch (error) {
       setPrintError((error as Error).message);
     } finally {
@@ -167,20 +206,30 @@ export const LifeMeetingPanel: React.FC = () => {
     }
   };
 
-  const save = (nextDraft = draftRef.current): Promise<void> => {
-    if (!nextDraft) return Promise.resolve();
-    const savedRevision = revision.current;
+  const save = (): Promise<void> => {
     const operation = saveQueue.current.then(async () => {
+      const nextDraft = draftRef.current;
+      if (!nextDraft || !dirtyRef.current) return;
+      const savedRevision = revision.current;
       setSaving(true);
       setActionError(null);
       try {
-        const saved = await saveMeeting(nextDraft);
-        // Saving an older snapshot must not replace text entered during the request.
-        if (draftRef.current?.id === nextDraft.id && revision.current === savedRevision) {
-          draftRef.current = saved;
-          setDraft(saved);
-          setDirty(false);
-          storage.remove(backupKey);
+        const saved = await saveMeeting(nextDraft, baseRef.current);
+        const latest = draftRef.current;
+        if (latest?.id === nextDraft.id) {
+          baseRef.current = saved;
+          if (revision.current === savedRevision) {
+            draftRef.current = saved;
+            dirtyRef.current = false;
+            setDraft(saved);
+            setDirty(false);
+            storage.remove(backupKey);
+          } else {
+            const rebased = mergeLifeMeeting(nextDraft, latest, saved);
+            draftRef.current = rebased;
+            storage.set(backupKey, { draft: rebased, base: saved });
+            setDraft(rebased);
+          }
         }
         setSavedFlash(true);
         window.setTimeout(() => setSavedFlash(false), 1600);
@@ -192,7 +241,7 @@ export const LifeMeetingPanel: React.FC = () => {
     saveQueue.current = operation.catch(() => {});
     return operation;
   };
-  saveRef.current = () => save(draftRef.current);
+  saveRef.current = save;
 
   const addActionItem = () => {
     if (!draft) return;
@@ -209,6 +258,15 @@ export const LifeMeetingPanel: React.FC = () => {
     if (!draft) return;
     updateDraft({
       actionItems: draft.actionItems.map(item => item.id === id ? { ...item, ...updates } : item),
+    });
+  };
+
+  const updateGoal = (goal: MeetingGoal) => {
+    const goals = draftRef.current?.goals ?? [];
+    updateDraft({
+      goals: goals.some(item => item.id === goal.id)
+        ? goals.map(item => item.id === goal.id ? goal : item)
+        : [...goals, goal],
     });
   };
 
@@ -230,18 +288,14 @@ export const LifeMeetingPanel: React.FC = () => {
         completed: false,
         scheduledDate: meeting.meetingDate,
       }, taskId);
-      const updated = {
-        ...meeting,
-        actionItems: meeting.actionItems.map(action => action.id === item.id
+      const current = draftRef.current;
+      if (current?.id !== meeting.id) return;
+      updateDraft({
+        actionItems: current.actionItems.map(action => action.id === item.id
           ? { ...action, convertedAt: new Date().toISOString() }
           : action),
-      };
-      revision.current++;
-      draftRef.current = updated;
-      storage.set(backupKey, updated);
-      setDraft(updated);
-      setDirty(true);
-      await save(updated);
+      });
+      await save();
     } catch (error) {
       setActionError((error as Error).message);
     } finally {
@@ -251,21 +305,20 @@ export const LifeMeetingPanel: React.FC = () => {
 
   const entryActionId = (section: 'agenda' | 'decisions', entry: MeetingEntry) => `${section}-${entry.id}`;
   const sendEntryToAction = async (section: 'agenda' | 'decisions', entry: MeetingEntry, makeTask: boolean) => {
-    if (!draft || !entry.text.trim()) return;
+    const current = draftRef.current;
+    if (!current || !entry.text.trim()) return;
     const id = entryActionId(section, entry);
-    const existing = draft.actionItems.find(item => item.id === id);
+    const existing = current.actionItems.find(item => item.id === id);
     const item = existing ?? { id, title: entry.text.trim(), assignment: 'both' as const, priority: 'B2' as const };
-    const updated = existing ? draft : { ...draft, actionItems: [...draft.actionItems, item] };
-    revision.current++;
-    draftRef.current = updated;
-    storage.set(backupKey, updated);
-    setDraft(updated);
-    setDirty(true);
-    setSavedFlash(false);
-    if (makeTask) await convertActionItem(item, updated);
+    if (!existing) updateDraft({ actionItems: [...current.actionItems, item] });
+    if (makeTask) await convertActionItem(item, current);
   };
 
   if (!user) return null;
+
+  const partnerCheckIn = partner && draft
+    ? (meetings.find(meeting => meeting.id === draft.id)?.checkIn[partner.id] ?? draft.checkIn[partner.id])
+    : undefined;
 
   return (
     <section className="neon-hype-panel rainbow-crunch-border" data-testid="life-meeting-panel"
@@ -287,7 +340,7 @@ export const LifeMeetingPanel: React.FC = () => {
           <span className={`text-[10px] ${remoteEnabled ? 'text-emerald-300' : 'text-amber-300'}`}>
             {remoteEnabled ? 'Household sync on' : 'Saved on this device'}
           </span>
-          <button type="button" className="neon-action-button" data-size="sm" onClick={startMeeting}>
+          <button type="button" className="neon-action-button" data-size="sm" onClick={() => void startMeeting()}>
             <Plus className="h-4 w-4" /> New
           </button>
         </div>
@@ -297,7 +350,7 @@ export const LifeMeetingPanel: React.FC = () => {
         <div className="mt-5 space-y-5" data-testid="life-meeting-editor">
           {error && <div className="rounded-lg border border-rose-500/40 bg-rose-950/40 p-3 text-xs text-rose-200">{error}</div>}
           {printError && <div role="alert" className="text-sm text-rose-200">{printError}</div>}
-          {isLoading && <div className="text-sm text-slate-400">Loading your meetings…</div>}
+          {isLoading && <div className="text-sm text-slate-400">Loading your meetings.</div>}
 
           <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
             <label className="text-xs text-slate-300">
@@ -317,12 +370,12 @@ export const LifeMeetingPanel: React.FC = () => {
                       aria-label="Select another Life Meeting"
                       className="life-meeting-selector select-neon absolute right-1 top-1/2 h-9 w-10 -translate-y-1/2 cursor-pointer appearance-none border-0 bg-transparent !p-0 text-transparent shadow-none"
                       value=""
-                      onChange={event => selectMeeting(event.target.value)}
+                      onChange={event => void selectMeeting(event.target.value)}
                       data-testid="life-meeting-selector"
                     >
                       <option value="">Select meeting</option>
                       {meetings.filter(meeting => meeting.id !== draft?.id).map(meeting => (
-                        <option key={meeting.id} value={meeting.id}>{getMeetingTitle(meeting)} · {meeting.meetingDate}</option>
+                        <option key={meeting.id} value={meeting.id}>{getMeetingTitle(meeting)} � {meeting.meetingDate}</option>
                       ))}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" aria-hidden="true" />
@@ -356,7 +409,7 @@ export const LifeMeetingPanel: React.FC = () => {
           </div>
 
           {!draft ? (
-            <button type="button" className="neon-action-button" onClick={startMeeting}>Start our first meeting</button>
+            <button type="button" className="neon-action-button" onClick={() => void startMeeting()}>Start our first meeting</button>
           ) : (
             <>
               <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-4 space-y-4">
@@ -384,6 +437,18 @@ export const LifeMeetingPanel: React.FC = () => {
                   How can my spouse serve me this week?
                   <textarea className="neon-textarea mt-1" rows={2} value={myCheckIn.supportNeed} onChange={event => updateMyCheckIn({ supportNeed: event.target.value })} />
                 </label>
+                {partner && (
+                  <aside className="rounded-xl border border-pink-400/25 bg-gradient-to-br from-pink-500/15 via-violet-500/10 to-slate-950/50 p-4 sm:p-5"
+                    aria-label="Your spouse's check-in request">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-pink-200">
+                      <HeartHandshake className="h-5 w-5" aria-hidden="true" />
+                      How you can show up for {partner.name || 'your spouse'} this week
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap break-words text-base leading-relaxed text-slate-100" aria-live="polite">
+                      {partnerCheckIn?.supportNeed?.trim() || 'Their request will appear here when they add it.'}
+                    </p>
+                  </aside>
+                )}
               </div>
 
               <div className="grid gap-4 lg:grid-cols-3">
@@ -432,19 +497,21 @@ export const LifeMeetingPanel: React.FC = () => {
                 {!draft.actionItems.length && <p className="text-xs text-slate-500">No action items yet.</p>}
               </div>
 
+              <MeetingGoals key={draft.id} goals={draft.goals ?? []} onChange={updateGoal} />
+
               <label className="text-xs text-slate-300 block">
                 Shared notes
                 <textarea className="neon-textarea mt-1" rows={5} value={draft.notes} onChange={event => updateDraft({ notes: event.target.value })} />
               </label>
 
-              <p className="text-[11px] text-slate-400">{saving ? 'Saving meeting…' : dirty ? 'Changes are saved automatically after you finish typing.' : 'Autosave on'}</p>
+              <p className="text-[11px] text-slate-400">{saving ? 'Saving meeting.' : dirty ? 'Changes are saved automatically after you finish typing.' : 'Autosave on'}</p>
               <div className="flex items-center justify-end gap-3 flex-wrap">
                 {savedFlash && <span className="text-xs text-emerald-300">{remoteEnabled ? "Meeting saved to database." : "Meeting saved on this device."}</span>}
                 <button type="button" className="neon-action-button" data-size="sm" disabled={printing} onClick={() => void printMeeting()} data-testid="print-life-meeting">
                   <Printer className="h-4 w-4" /> Print / Export
                 </button>
                 <button type="button" className="neon-action-button" disabled={saving || !dirty} onClick={() => { void save().catch(() => {}); }}>
-                  <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save meeting'}
+                  <Save className="h-4 w-4" /> {saving ? 'Saving.' : 'Save meeting'}
                 </button>
               </div>
             </>
