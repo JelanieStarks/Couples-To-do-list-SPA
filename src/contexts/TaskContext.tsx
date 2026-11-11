@@ -18,7 +18,7 @@ import { LanSignalingClient } from '../p2p/signaling';
 import { useAuth } from './AuthContext';
 import { getSupabaseClient, isSupabaseSyncEnabled } from '../utils/supabaseClient';
 
-// 📝 Task Context - Your digital task manager with a sense of humor
+// ?? Task Context - Your digital task manager with a sense of humor
 interface PeerSignal {
   kind: SignalKind;
   payload: string;
@@ -724,7 +724,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(snapshot));
   };
 
-  const syncNow = async (): Promise<SyncResult> => {
+  const syncTaskStore = async (): Promise<SyncResult> => {
     const taskDoc = taskDocRef.current;
     if (!taskDoc) return { ok: false, cloud: false, message: 'The task list is still loading.', count: 0 };
     await requestMagicLinkForSync();
@@ -742,17 +742,22 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
     return { ok: true, cloud: false, message: 'Saved on this device. Cloud sync is not configured.', count: taskDoc.getTasks().length };
   };
 
+  const syncNow = async (): Promise<SyncResult> => {
+    const result = await syncTaskStore();
+    const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
+    if (settings.googleCalendar?.syncEnabled && settings.googleCalendar?.connectStatus === 'ready') {
+      try { await syncTasksWithGoogle(taskDocRef.current?.getTasks() ?? [], { ...settings.googleCalendar, userId: user?.id }); }
+      catch (error) { return { ...result, ok: false, message: `${result.message} Calendar sync: ${(error as Error).message}` }; }
+    }
+    return result;
+  };
+
   const saveAndSync = async (): Promise<SyncResult> => {
     let warning = '';
     try { await flushDrafts(); } catch (error) { warning = `A draft is still pending: ${(error as Error).message}`; }
     try { saveLocalBackup(); } catch { warning += ' The device backup could not be written.'; }
     const result = await syncNow();
     if (warning) return { ...result, ok: false, message: `${warning} ${result.message}` };
-    const settings = storage.get<any>(STORAGE_KEYS.SETTINGS) || {};
-    if (settings.googleCalendar?.syncEnabled && settings.googleCalendar?.connectStatus === 'ready') {
-      try { await syncTasksWithGoogle(taskDocRef.current?.getTasks() ?? [], { ...settings.googleCalendar, userId: user?.id }); }
-      catch (error) { return { ...result, ok: false, message: `${result.message} Calendar sync: ${(error as Error).message}` }; }
-    }
     return result;
   };
 
@@ -1003,7 +1008,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode; initialTasks?: 
         }
 
         // Clean up bullet points and numbering
-        title = title.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '').trim();
+        title = title.replace(/^[-*]\s*/, '').replace(/^\d+\.\s*/, '').trim();
 
         if (title) {
           const now = new Date().toISOString();
@@ -1187,3 +1192,4 @@ const getDefaultColorForAssignment = (assignment: Assignment, user: any): string
 const urgencyForPriority = (priority: Priority): NonNullable<Task['urgency']> => (
   priority.startsWith('A') ? 'urgent' : priority.startsWith('B') ? 'high' : priority.startsWith('C') ? 'medium' : 'low'
 );
+

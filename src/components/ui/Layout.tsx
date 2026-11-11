@@ -9,10 +9,10 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-// 🏠 Main Layout - Your digital home base with style
+// ?? Main Layout - Your digital home base with style
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { user, partner, logout, magicLinkNotice } = useAuth();
-  const { saveAndSync, peerSync, supabaseStatus } = useTask();
+  const { saveAndSync, peerSync, supabaseStatus = { enabled: false, hasClient: false, householdId: null } } = useTask();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const mainRef = useRef<HTMLDivElement | null>(null);
@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleSync = async () => {
     if (syncBusy) return;
     setSyncBusy(true);
-    setSyncMessage('Saving and receiving partner changes…');
+    setSyncMessage('Saving and receiving partner changes.');
     try {
       const result = await saveAndSync();
       setSyncOk(Boolean(result.ok));
@@ -54,9 +54,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       setSyncMessage((error as Error).message);
     } finally { setSyncBusy(false); }
   };
-  const cloudMessage = supabaseStatus.phase === 'saving' ? 'Saving to database…'
+  const cloudMessage = supabaseStatus.phase === 'saving' ? 'Saving to database.'
     : supabaseStatus.lastError ? `Changes pending: ${supabaseStatus.lastError}`
-    : supabaseStatus.lastSavedAt ? `Saved to database · ${supabaseStatus.taskCount ?? 0} tasks · ${new Date(supabaseStatus.lastSavedAt).toLocaleTimeString()}` : '';
+    : supabaseStatus.lastSavedAt ? `Saved to database � ${supabaseStatus.taskCount ?? 0} tasks � ${new Date(supabaseStatus.lastSavedAt).toLocaleTimeString()}` : '';
 
   const hasPartnerLink = Boolean(partner);
   const isPeerConnected = peerSync.status.state === 'connected';
@@ -106,7 +106,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   Couples To-Do
                 </h1>
                 <p className="text-[10px] text-slate-400 tracking-wide">
-                  🤖 Jarvis-level organization
+                  ?? Jarvis-level organization
                 </p>
               </div>
             </div>
@@ -140,7 +140,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       className={`px-2 py-[2px] rounded border transition ${syncOk ? 'border-emerald-500 text-emerald-300' : 'border-slate-600 text-slate-300 hover:border-indigo-400 hover:text-white'}`}
                       title="Sync now"
                       data-testid="sync-now"
-                    >{syncBusy ? 'Syncing…' : 'Sync'}</button>
+                    >{syncBusy ? 'Syncing.' : 'Sync'}</button>
                     <button type="button" onClick={() => void handleSync()} disabled={syncBusy}
                       className="px-2 py-[2px] rounded border border-emerald-700 text-emerald-200 hover:border-emerald-400 transition disabled:opacity-50"
                       title="Save a device backup, post changes to the database, and receive your partner's changes"
@@ -176,7 +176,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="mt-auto w-full flex justify-center pb-8 px-4 sm:px-6">
         <div className="w-full max-w-[80vw] text-center text-slate-400 text-xs leading-relaxed">
           <div>
-            © {new Date().getFullYear()} StarkServices&Systems
+            c {new Date().getFullYear()} StarkServices&Systems
           </div>
           <div className="mt-1 text-slate-500">
             Made lovingly by Jelani Starks for his beautiful wife Tachyana, a free way to help couples stay organized with ADHD
@@ -188,18 +188,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="fixed bottom-6 right-6 z-40" data-tag="help-bubble">
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-shadow cursor-pointer group">
           <div className="h-6 w-6 flex items-center justify-center">
-            🤖
+            ??
           </div>
           
           {/* Tooltip */}
           <div className="absolute bottom-full right-0 mb-2 w-64 bg-gray-900 text-white text-sm rounded-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
             <div className="absolute bottom-0 right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-900 transform translate-y-full"></div>
-            <p className="font-medium mb-1">🧠 ADHD-Friendly Tips:</p>
+            <p className="font-medium mb-1">?? ADHD-Friendly Tips:</p>
             <ul className="text-xs space-y-1">
-              <li>• Priority A = "Do this NOW or face chaos" 🔥</li>
-              <li>• Drag tasks between days like a productivity wizard 🧙‍♀️</li>
-              <li>• Share tasks with your partner for ultimate teamwork 💪</li>
-              <li>• Color-code everything because pretty = productive ✨</li>
+              <li> Priority A = "Do this NOW or face chaos" ??</li>
+              <li> Drag tasks between days like a productivity wizard ????</li>
+              <li> Share tasks with your partner for ultimate teamwork ??</li>
+              <li> Color-code everything because pretty = productive ?</li>
             </ul>
           </div>
         </div>
@@ -216,4 +216,5 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     </div>
   );
 };
+
 

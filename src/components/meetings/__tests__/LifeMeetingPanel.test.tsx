@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { LifeMeeting } from '../../../types';
 import { LifeMeetingPanel } from '../LifeMeetingPanel';
@@ -73,8 +73,9 @@ describe('Life Meeting bullet editing and tasks', () => {
     fireEvent.change(field, { target: { value: 'A complete thought with spaces' } });
     await waitFor(() => expect(mocks.saveMeeting).toHaveBeenCalledWith(expect.objectContaining({ gratitude: [expect.objectContaining({ text: 'A complete thought with spaces' })] })), { timeout: 2500 });
     fireEvent.change(field, { target: { value: 'More text before leaving the field' } });
-    await flushDrafts();
+    await act(async () => { await flushDrafts(); });
     expect(mocks.saveMeeting.mock.calls.at(-1)![0].gratitude[0].text).toBe('More text before leaving the field');
   });
 
 });
+
